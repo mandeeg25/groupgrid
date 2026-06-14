@@ -92,8 +92,8 @@ const MOBILE_CSS = `
     .gg-modal-sheet { border-radius: 20px 20px 0 0 !important; max-height: 90vh; }
     .gg-detail-grid { grid-template-columns: 1fr !important; }
     .gg-landing-hero h1 { font-size: 28px !important; }
-    .gg-landing-stats { grid-template-columns: 1fr 1fr !important; }
-    .gg-landing-usecases { grid-template-columns: 1fr 1fr !important; }
+    .gg-landing-stats { grid-template-columns: 1fr !important; }
+    .gg-landing-usecases { grid-template-columns: 1fr !important; }
     .gg-cta-btns { flex-direction: column; align-items: stretch !important; }
     .gg-pricing-grid { grid-template-columns: 1fr !important; }
     .gg-contacts-grid { grid-template-columns: 1fr !important; }
@@ -2276,7 +2276,7 @@ function AboutPage({ onBack }) {
           The tool I wish I had<br/><span style={{ color:P.accent }}>for every event I've ever run.</span>
         </h1>
         <p style={{ fontSize:"18px", color:"rgba(255,255,255,0.6)", fontFamily:font, margin:"0 auto", lineHeight:1.7, maxWidth:"560px" }}>
-          GroupGrid was born out of one recurring problem: the list of people who registered never quite matched the list of people who were actually booked to travel.
+          Created to solve a problem I lived with for over 15 years: making sure everyone who registers for an event actually has the travel they were promised.
         </p>
       </div>
 
@@ -2285,15 +2285,15 @@ function AboutPage({ onBack }) {
         {/* Founder story */}
         <div style={{ background:P.white, borderRadius:"20px", border:`1.5px solid ${P.grey100}`, padding:"36px 40px", marginBottom:"32px", position:"relative", overflow:"hidden" }}>
           <div style={{ position:"absolute", top:0, left:0, width:"4px", height:"100%", background:`linear-gradient(180deg, ${P.accent}, ${P.periwinkleD})` }} />
-          <div style={{ fontSize:"13px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"16px" }}>The Story Behind GroupGrid</div>
+          <div style={{ fontSize:"13px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"16px" }}>Why GroupGrid Exists</div>
           <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.85, margin:"0 0 20px" }}>
-            Managing event travel, the same thing kept going wrong: <strong style={{ color:P.navy }}>the list of people who registered never quite matched the list of people who were actually booked.</strong> 300 registered. 287 had flights. 294 had hotels. Somewhere in those gaps, people fall through.
+            GroupGrid was created to solve a challenge I lived with for more than 15 years as an event professional: <strong style={{ color:P.navy }}>reconciling who registered for an event against what was actually booked for their travel.</strong> Registration lists, flight manifests, and hotel rosters never quite agree, and finding the gaps before they become day-of problems is slow, manual, and error-prone.
           </p>
           <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.85, margin:"0 0 20px" }}>
-            Registration says John Smith is coming. The flight manifest doesn't have him. The hotel roster has a room for someone who never registered at all. Checking it by hand means scrolling hundreds of rows across separate spreadsheets, doing VLOOKUPs at midnight the day before, hoping you didn't miss anyone.
+            For years, the only way to manage it reliably was to spend thousands of dollars outsourcing the cross-checking — paying others to do the painstaking work of comparing spreadsheets row by row. It was expensive, it was repetitive, and it was a problem the market had never properly solved.
           </p>
           <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.85, margin:0 }}>
-            GroupGrid exists to eliminate that scramble. Upload your registration list and your travel files, run the check, and know exactly who registered but isn't booked, who's booked but never registered, and whose dates don't match — with enough time to actually fix them.
+            GroupGrid brings that work in-house and makes it fast. Upload your registration list and your travel files, run the check, and see exactly who registered but isn't booked, who's booked but never registered, and whose dates don't match — with enough time to fix it.
           </p>
         </div>
 
@@ -2302,7 +2302,7 @@ function AboutPage({ onBack }) {
           <div style={{ fontSize:"13px", fontWeight:800, color:"rgba(255,255,255,0.5)", fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"20px" }}>What GroupGrid Does For You</div>
           <div className="gg-landing-stats" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"16px" }}>
             {[
-              { stat:"<1 min", label:"To check a full event, start to finish" },
+              { stat:"Fast", label:"Check a full event without manual spreadsheet work" },
               { stat:"Every", label:"Registered person matched to their travel" },
               { stat:"0", label:"Guest files uploaded to any server" },
               { stat:"4+", label:"Gap types caught automatically" },
@@ -2361,7 +2361,7 @@ function AboutPage({ onBack }) {
             <div style={{ fontSize:"15px", fontWeight:800, color:P.teal, fontFamily:font }}>Zero data ever leaves your browser</div>
           </div>
           <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, lineHeight:1.7 }}>
-            Your guest files — names, emails, flight details, hotel records — are processed entirely in your browser and never uploaded to any server. Your account and saved projects are stored securely with encryption via Supabase, our authentication and database provider. GroupGrid is built to keep sensitive guest data on your device.
+            Your guest files — names, emails, flight details, hotel records — are processed entirely in your browser and never uploaded to any server. Saved projects are stored on your device. We use Supabase, a trusted third-party provider, only for secure account sign-in. GroupGrid is built to keep sensitive guest data on your device.
           </div>
         </div>
 
@@ -2369,7 +2369,7 @@ function AboutPage({ onBack }) {
         <div style={{ background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"14px", padding:"24px 28px", textAlign:"center" }}>
           <div style={{ fontSize:"15px", fontWeight:800, color:P.navy, fontFamily:font, marginBottom:"8px" }}>Part of the events community</div>
           <div style={{ fontSize:"15px", color:P.grey400, fontFamily:font, lineHeight:1.7, marginBottom:"16px" }}>
-            GroupGrid is built in partnership with the event industry's leading professional communities. We're actively involved with CEMA and PCMA — reach out to connect.
+            GroupGrid is built by an active member of the event marketing community, including CEMA and PCMA. Have a question or want to connect? Reach out anytime.
           </div>
           <a href="mailto:hello@groupgrid.io" style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:P.navy, borderRadius:"10px", padding:"10px 22px", fontSize:"14px", fontWeight:700, color:P.white, fontFamily:font, textDecoration:"none" }}>
             Get in touch →
@@ -2420,7 +2420,7 @@ function FAQPage({ onBack }) {
     { q:"What files do I need?", a:"Flight and hotel files are required to run a check. Your registration list is recommended but optional — when you add it, GroupGrid uses it as the source of truth and checks everything against it. You can also add car transfer and dietary files. Everything is standard Excel format (.xlsx or .xls)." },
     { q:"What if my spreadsheet columns are named differently?", a:"GroupGrid auto-detects common column names. Your \"Arrival Date\" and someone else's \"Arr. Date\" or \"Flight In\" all get recognized automatically. There's no manual mapping or setup required." },
     { q:"What if I don't have email addresses?", a:"GroupGrid matches people by email first for the most accurate results, then falls back to matching by name. Including an email column is best, but it's not required." },
-    { q:"Is my data secure?", a:"Your guest files are processed entirely in your browser and are never uploaded to any server. Your account and saved projects are stored securely with encryption via Supabase, our authentication and database provider. GroupGrid is built to keep sensitive guest data on your device." },
+    { q:"Is my data secure?", a:"Your guest files are processed entirely in your browser and are never uploaded to any server. Saved projects are stored on your device. We use Supabase, a trusted third-party provider, only for secure account sign-in. GroupGrid is built to keep sensitive guest data on your device." },
     { q:"Who is GroupGrid for?", a:"Any event or meeting planner who manages attendee travel — from a 20-person board retreat to a 10,000-person conference. If people are registering and you're booking their flights and hotels, GroupGrid makes sure the two lists match." },
     { q:"How much does it cost?", a:"$249/month for full access — unlimited events, unlimited guests, every feature. You can try it free with your own files before subscribing — no credit card required." },
     { q:"Do I need to install anything?", a:"No. GroupGrid runs in your web browser. There's nothing to download or install." },
@@ -2787,7 +2787,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
             <ShieldCheck size={36} strokeWidth={1.5} color={P.accent} style={{flexShrink:0}}/>
             <div style={{ flex:1, minWidth:"260px" }}>
               <div style={{ fontSize:"16px", fontWeight:800, color:P.white, fontFamily:font, marginBottom:"6px" }}>Your guest files never leave your browser</div>
-              <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.5)", fontFamily:font, lineHeight:1.65 }}>Your spreadsheets are processed locally on your device and are never uploaded. Your account and saved projects are stored securely with encryption via Supabase. Built to keep sensitive guest data on your device.</div>
+              <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.5)", fontFamily:font, lineHeight:1.65 }}>Your spreadsheets are processed locally on your device and are never uploaded. Saved projects stay on your device. We use Supabase only for secure account sign-in. Built to keep sensitive guest data on your device.</div>
             </div>
           </div>
         </div>
@@ -3547,7 +3547,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
     try { storage.set(storageKey, JSON.stringify(next)); } catch(e) {}
     isDirty.current = false;
     setAutoSaveStatus("idle");
-    setSaveMsg(user ? `Saved to ${user.name}'s account` : "Saved locally");
+    setSaveMsg(user ? "Saved to this device" : "Saved to this device");
     setTimeout(() => setSaveMsg(""), 3000);
   }
 
