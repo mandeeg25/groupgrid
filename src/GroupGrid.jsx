@@ -79,6 +79,13 @@ const MOBILE_CSS = `
     .gg-main { margin-left: 0 !important; }
     .gg-upload-grid { grid-template-columns: 1fr 1fr !important; }
     .gg-col-guide { grid-template-columns: 1fr 1fr !important; }
+    .gg-timeline-grid { grid-template-columns: 1fr !important; gap: 28px !important; }
+    .gg-timeline-arrow { top: auto !important; bottom: -22px !important; right: 50% !important; transform: translateX(50%) rotate(90deg) !important; }
+    .gg-card-grid-3 { grid-template-columns: 1fr !important; }
+    .gg-hero-card { width: 100% !important; }
+    .gg-demo-body { flex-direction: column !important; }
+    .gg-demo-sidebar { width: 100% !important; flex-direction: row !important; flex-wrap: wrap !important; gap: 8px !important; }
+    .gg-demo-table-scroll { overflow-x: auto !important; }
     .gg-header-extras { display: none !important; }
     .gg-table-wrap { -webkit-overflow-scrolling: touch; }
     .gg-modal { max-width: 100% !important; max-height: 100vh !important; border-radius: 0 !important; height: 100%; }
@@ -455,7 +462,7 @@ function ContactsModal({ contacts, onSave, onClose }) {
             <div style={{ fontSize:"14px", fontWeight:800, color:P.navy, marginBottom:"12px", fontFamily:font, display:"flex", alignItems:"center", gap:"8px" }}>
               <div style={{ width:3, height:16, background:P.grey400, borderRadius:"2px" }} />✍ Your Name (used in email signatures)
             </div>
-            <input value={local.plannerName||""} onChange={e => setLocal(prev => ({...prev, plannerName:e.target.value}))} placeholder="e.g. Amanda G., Events Team"
+            <input value={local.plannerName||""} onChange={e => setLocal(prev => ({...prev, plannerName:e.target.value}))} placeholder="e.g. Your name, Events Team"
               style={{ width:"100%", background:P.offWhite, border:`1.5px solid ${local.plannerName?P.grey400+"44":P.grey100}`, borderRadius:"10px", padding:"9px 12px", fontSize:"15px", fontFamily:font, fontWeight:600, color:P.navy, outline:"none", boxSizing:"border-box" }} />
           </div>
           <div style={{ display:"flex", gap:"10px", paddingTop:"8px", borderTop:`1px solid ${P.grey100}` }}>
@@ -2097,7 +2104,7 @@ function LoginPanel({ onLogin, onClose }) {
           <form onSubmit={handleSignUp} style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
             <div>
               <label style={{ display:"block", fontSize:"12px", fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"7px" }}>Your Name</label>
-              <input type="text" value={name} onChange={e => { setName(e.target.value); setError(""); }} onFocus={() => setFocused("name")} onBlur={() => setFocused("")} placeholder="Amanda Grandal" style={inputStyle("name")} />
+              <input type="text" value={name} onChange={e => { setName(e.target.value); setError(""); }} onFocus={() => setFocused("name")} onBlur={() => setFocused("")} placeholder="First Name Last Name" style={inputStyle("name")} />
             </div>
             <div>
               <label style={{ display:"block", fontSize:"12px", fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"7px" }}>Email</label>
@@ -2286,7 +2293,7 @@ function AboutPage({ onBack }) {
             Registration says John Smith is coming. The flight manifest doesn't have him. The hotel roster has a room for someone who never registered at all. Checking it by hand means scrolling hundreds of rows across separate spreadsheets, doing VLOOKUPs at midnight the day before, hoping you didn't miss anyone.
           </p>
           <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.85, margin:0 }}>
-            GroupGrid exists to eliminate that scramble. Upload your registration list and your travel files, run the check, and know in seconds exactly who registered but isn't booked, who's booked but never registered, and whose dates don't match — with enough time to actually fix them.
+            GroupGrid exists to eliminate that scramble. Upload your registration list and your travel files, run the check, and know exactly who registered but isn't booked, who's booked but never registered, and whose dates don't match — with enough time to actually fix them.
           </p>
         </div>
 
@@ -2330,7 +2337,7 @@ function AboutPage({ onBack }) {
           <div style={{ display:"flex", flexDirection:"column", gap:"18px" }}>
             {[
               { n:"1", title:"Upload your spreadsheets", body:"Drag in your flight manifest, hotel roster, car transfers, and dietary files — Excel format (.xlsx / .xls), any column names. GroupGrid auto-detects them." },
-              { n:"2", title:"Run the cross-check", body:"GroupGrid matches every guest across all files by name and email, identifying mismatches, missing records, date gaps, and duplicates in seconds." },
+              { n:"2", title:"Run the cross-check", body:"GroupGrid matches every guest across all files by name and email, identifying mismatches, missing records, date gaps, and duplicates." },
               { n:"3", title:"See exactly what needs fixing", body:"Every flag is surfaced with context — who's affected, what the mismatch is, and how many days off. Resolve issues, add notes, and export a clean report." },
               { n:"4", title:"Share with your team or hotel", body:"Download an Excel file, generate a shareable HTML report, or draft emails directly to your hotel and travel agency contacts — all from the same screen." },
             ].map(({ n, title, body }) => (
@@ -2381,7 +2388,7 @@ function ContactPage({ onBack }) {
         <h1 style={{ fontSize:"32px", fontWeight:900, color:P.navy, fontFamily:font, margin:"0 0 12px", letterSpacing:"-0.03em" }}>Get in touch.</h1>
         <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, margin:0 }}>Have a question, found a bug, or want to share feedback? We'd love to hear from you.</p>
       </div>
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"16px", marginBottom:"36px" }}>
+      <div className="gg-card-grid-3" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"16px", marginBottom:"36px" }}>
         {[
           { icon:"✉", label:"General Inquiries", value:"hello@groupgrid.io", href:"mailto:hello@groupgrid.io", color:P.periwinkleD, bg:P.grey50 },
           { icon:"🐛", label:"Bug Reports", value:"bugs@groupgrid.io", href:"mailto:bugs@groupgrid.io", color:P.red, bg:"#FFF5F5" },
@@ -2401,7 +2408,7 @@ function ContactPage({ onBack }) {
         We aim to respond to all inquiries within 1–2 business days. For urgent event-day issues, include "URGENT" in your subject line and we'll prioritize your message.
       </Section>
       <Section title="About GroupGrid">
-        GroupGrid is built for event and meeting planners who need to make sure everyone who registered for their event actually has the travel they need. It's a simple, fast tool: upload your registration list and travel files, and see every gap in under a minute.
+        GroupGrid is built for event and meeting planners who need to make sure everyone who registered for their event actually has the travel they need. It's a simple, fast tool: upload your registration list and travel files, and see every gap in minutes.
       </Section>
     </PageShell>
   );
@@ -2621,7 +2628,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               You have one list of people who registered for your event. You have separate spreadsheets from your travel and hotel vendors. Somewhere between them, people fall through — the late registrant with no flight, the hotel booking for someone who never signed up, the check-in date that doesn't match.
             </p>
             <p style={{ fontSize:"18px", color:"rgba(255,255,255,0.85)", fontFamily:font, lineHeight:1.75, margin:"0 0 36px", maxWidth:"520px", fontWeight:600 }}>
-              GroupGrid checks your registration list against every travel file and shows you exactly who's missing what — <span style={{ color:P.accent }}>in under a minute.</span>
+              GroupGrid checks your registration list against every travel file and shows you exactly who's missing what — <span style={{ color:P.accent }}>in minutes, not days.</span>
             </p>
             <div style={{ display:"flex", gap:"12px", flexWrap:"wrap", alignItems:"center" }}>
               <button onClick={onEnter} style={{ background:`linear-gradient(135deg, ${P.accent}, ${P.accentD})`, border:"none", borderRadius:"12px", padding:"14px 32px", fontSize:"16px", fontWeight:800, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 4px 20px rgba(0,201,177,0.4)", letterSpacing:"-0.02em" }}>
@@ -2631,11 +2638,11 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                 See pricing
               </button>
             </div>
-            <p style={{ fontSize:"13px", color:"rgba(255,255,255,0.3)", fontFamily:font, marginTop:"14px" }}>No setup · Upload your spreadsheets and get answers in under a minute · Your guest files never leave your browser</p>
+            <p style={{ fontSize:"13px", color:"rgba(255,255,255,0.3)", fontFamily:font, marginTop:"14px" }}>No setup · Upload your spreadsheets and get answers in minutes · Your guest files never leave your browser</p>
           </div>
 
           {/* Right — live mismatch demo card */}
-          <div style={{ flexShrink:0, width:"340px", background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:"20px", overflow:"hidden", backdropFilter:"blur(10px)" }}>
+          <div className="gg-hero-card" style={{ flexShrink:0, width:"340px", background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:"20px", overflow:"hidden", backdropFilter:"blur(10px)" }}>
             <div style={{ background:"rgba(0,0,0,0.2)", padding:"12px 16px", display:"flex", alignItems:"center", gap:"8px", borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
               <div style={{ display:"flex", gap:"5px" }}>
                 {["#FF5F57","#FFBD2E","#28C840"].map(c => <div key={c} style={{ width:10, height:10, borderRadius:"50%", background:c }} />)}
@@ -2679,14 +2686,14 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               Your registration list and your travel files live in different spreadsheets, in different formats. Making them agree by hand takes hours — and it's easy to miss someone.
             </p>
           </div>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"16px", marginBottom:"40px" }}>
+          <div className="gg-timeline-grid" style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"16px", marginBottom:"40px" }}>
             {problems.map(({ time, label, sub, color, bg }, i) => (
-              <div key={time} style={{ background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"16px", padding:"24px", position:"relative", overflow:"hidden" }}>
-                <div style={{ position:"absolute", top:0, left:0, right:0, height:"3px", background:color }} />
+              <div key={time} className="gg-timeline-card" style={{ background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"16px", padding:"24px", position:"relative", overflow:"visible" }}>
+                <div style={{ position:"absolute", top:0, left:0, right:0, height:"3px", background:color, borderRadius:"16px 16px 0 0" }} />
                 <div style={{ fontSize:"11px", fontWeight:800, color, fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"10px" }}>{time}</div>
                 <div style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"6px", lineHeight:1.4 }}>{label}</div>
                 <div style={{ fontSize:"13px", color:P.grey400, fontFamily:font, lineHeight:1.6 }}>{sub}</div>
-                {i < 3 && <div style={{ position:"absolute", top:"50%", right:"-12px", transform:"translateY(-50%)", fontSize:"16px", color:P.grey200, zIndex:2 }}>→</div>}
+                {i < 3 && <div className="gg-timeline-arrow" style={{ position:"absolute", top:"50%", right:"-12px", transform:"translateY(-50%)", fontSize:"16px", color:P.grey200, zIndex:2 }}>→</div>}
               </div>
             ))}
           </div>
@@ -2712,7 +2719,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               Upload your registration list and your travel files, run the check, see every gap instantly — then communicate fixes directly to your hotel and travel agency without switching tabs.
             </p>
           </div>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"20px" }}>
+          <div className="gg-card-grid-3" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"20px" }}>
             {steps.map(({ n, icon, title, body }) => (
               <div key={n} style={{ background:"#FAFBFD", border:`1.5px solid ${P.grey100}`, borderRadius:"16px", padding:"28px 28px" }}>
                 <div style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"14px" }}>
@@ -2741,7 +2748,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               Add your registration list and GroupGrid checks it against every travel file, person by person.
             </p>
           </div>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"16px" }}>
+          <div className="gg-card-grid-3" style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"16px" }}>
             {[
               { icon:"✈️", title:"Registered, but no flight", body:"See everyone who signed up for your event but doesn't have a flight booked yet." },
               { icon:"🏨", title:"Registered, but no hotel", body:"Spot registered attendees who have travel but no hotel room reserved." },
@@ -2793,9 +2800,9 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
           <h2 style={{ fontSize:"30px", fontWeight:900, color:P.navy, fontFamily:font, margin:"0 0 32px", letterSpacing:"-0.03em", lineHeight:1.2 }}>
             The check that used to take days,<br/>done before your coffee gets cold.
           </h2>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"20px" }}>
+          <div className="gg-card-grid-3" style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"20px" }}>
             {[
-              { icon:"⏱️", title:"Minutes, not days", body:"Upload your files and see every gap in under a minute — no more row-by-row scanning the week before an event." },
+              { icon:"⏱️", title:"Minutes, not days", body:"Upload your files and see every gap in minutes — no more row-by-row scanning the week before an event." },
               { icon:"🎯", title:"Catch what hides", body:"The late registrant with no flight, the room booked for a no-show, the date that's one day off — surfaced automatically." },
               { icon:"🔒", title:"Your data stays yours", body:"Guest files are processed in your browser and never uploaded. Nothing to worry about with sensitive attendee information." },
             ].map(({ icon, title, body }) => (
@@ -2873,7 +2880,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               <div style={{ textAlign:"center", marginBottom:"48px" }}>
                 <div style={{ fontSize:"12px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>SEE IT IN ACTION</div>
                 <h2 style={{ fontSize:"38px", fontWeight:900, color:P.navy, fontFamily:font, margin:"0 0 14px", letterSpacing:"-0.03em", lineHeight:1.1 }}>
-                  From files to flags<br/><span style={{ color:P.accent }}>in under 60 seconds.</span>
+                  From files to flags<br/><span style={{ color:P.accent }}>in minutes, not days.</span>
                 </h2>
                 <p style={{ fontSize:"16px", color:P.grey400, fontFamily:font, lineHeight:1.7, maxWidth:"460px", margin:"0 auto" }}>
                   Watch GroupGrid check a 247-person registration list against the travel files and surface every gap instantly.
@@ -2893,10 +2900,10 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                   </div>
                 </div>
 
-                <div style={{ display:"flex", minHeight:"480px" }}>
+                <div className="gg-demo-body" style={{ display:"flex", minHeight:"480px" }}>
 
                   {/* Mini sidebar */}
-                  <div style={{ width:"160px", flexShrink:0, background:P.navy, padding:"16px 12px", display:"flex", flexDirection:"column", gap:"4px" }}>
+                  <div className="gg-demo-sidebar" style={{ width:"160px", flexShrink:0, background:P.navy, padding:"16px 12px", display:"flex", flexDirection:"column", gap:"4px" }}>
                     {[
                       { icon:"◉", label:"Registered",    count:demoPhase==="results"||demoPhase==="checking"?"247":"—",   active:true },
                       { icon:"⚑", label:"Action Needed", count:demoPhase==="results"?"4":"—",   color:P.red },
@@ -2920,7 +2927,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                   </div>
 
                   {/* Main panel */}
-                  <div style={{ flex:1, minWidth:0, padding:"20px 24px", overflowX:"hidden" }}>
+                  <div className="gg-demo-panel" style={{ flex:1, minWidth:0, padding:"20px 24px", overflowX:"hidden" }}>
 
                     {/* Idle state */}
                     {demoPhase === "idle" && (
@@ -2968,7 +2975,8 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
 
                         {/* Results table */}
                         {rowsVisible > 0 && (
-                          <div style={{ border:`1px solid ${P.grey100}`, borderRadius:"12px", overflow:"hidden", animation:"ggIn 0.3s ease" }}>
+                          <div className="gg-demo-table-scroll" style={{ overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
+                          <div style={{ border:`1px solid ${P.grey100}`, borderRadius:"12px", overflow:"hidden", animation:"ggIn 0.3s ease", minWidth:"560px" }}>
                             {/* Table header */}
                             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 120px 70px 70px 70px 70px", background:"#ECEEF6", padding:"8px 14px", gap:"8px" }}>
                               {["First","Last","Email","Status","Arr.","Dep.","Δ Arr"].map(h => (
@@ -3045,6 +3053,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                                 </React.Fragment>
                               );
                             })}
+                          </div>
                           </div>
                         )}
 
@@ -3855,7 +3864,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
 
   return (
-    <div style={{ minHeight:"100vh", background:"#F0F2F7", fontFamily:font, fontSize:"15px", WebkitFontSmoothing:"antialiased" }}>
+    <div style={{ minHeight:"100vh", width:"100%", maxWidth:"100vw", overflowX:"hidden", background:"#F0F2F7", fontFamily:font, fontSize:"15px", WebkitFontSmoothing:"antialiased", boxSizing:"border-box" }}>
       <GlobalStyles />
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
@@ -4282,7 +4291,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                       Upload your spreadsheets. See every mismatch instantly.
                     </h2>
                     <p style={{ fontSize:"14px", color:"rgba(255,255,255,0.5)", fontFamily:font, lineHeight:1.6, margin:0 }}>
-                      Add your registration list and GroupGrid checks who's booked against who signed up. Flights, hotels, car transfers — cross-referenced in seconds.
+                      Add your registration list and GroupGrid checks who's booked against who signed up. Flights, hotels, car transfers — cross-referenced automatically.
                     </p>
                 </div>
               </div>
