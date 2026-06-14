@@ -44,7 +44,7 @@
 
 import React, { useState, useCallback, useEffect, useRef, Fragment } from "react";
 import * as XLSX from "xlsx";
-import { Plane, Hotel, Car, Salad, LayoutGrid, BarChart2, Mail, Lock, BookUser, Calendar, Star, Search, Upload, Send, AlertTriangle, AlertCircle, Circle, Copy, Check, X, ChevronDown, ChevronUp, Plus, ShieldCheck, Ban, FileSpreadsheet, Users, Download, ExternalLink } from "lucide-react";
+import { Plane, Hotel, Car, Salad, LayoutGrid, BarChart2, Mail, Lock, Calendar, Star, Search, Upload, Send, AlertTriangle, AlertCircle, Circle, Copy, Check, X, ChevronDown, ChevronUp, Plus, ShieldCheck, Ban, FileSpreadsheet, Users, Download, ExternalLink } from "lucide-react";
 
 const P = {
   navy:"#0F1F3D", navyLight:"#1A2E52", periwinkle:"#6B7FD4", periwinkleL:"#9BAAE8",
@@ -2145,7 +2145,7 @@ function LoginPanel({ onLogin, onClose }) {
             {[
               { icon:<FileSpreadsheet size={14} strokeWidth={1.5}/>, label:"Save & restore projects across sessions" },
               { icon:<Mail size={14} strokeWidth={1.5}/>, label:"Custom email templates saved to your account" },
-              { icon:<BookUser size={14} strokeWidth={1.5}/>, label:"Contacts & planner preferences synced" },
+              { icon:<Users size={14} strokeWidth={1.5}/>, label:"Contacts & planner preferences synced" },
               { icon:<BarChart2 size={14} strokeWidth={1.5}/>, label:"Event history and past cross-checks" },
             ].map(({ icon, label }) => (
               <div key={label} style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"12px" }}>
@@ -3572,7 +3572,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
   }
 
   function exportReport() {
-    const rows = filtered.map(r => ({ "First Name":r.firstName||r.displayName.split(" ")[0]||"—", "Last Name":r.lastName||r.displayName.split(" ").slice(1).join(" ")||"—", "Full Name":r.displayName, "Email":r.email||"—", "Status":{ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status], "Active Issues":r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None", "Resolved":r.resolved?.join("; ")||"—", "Note":r.note||"—", "Dietary":r.diet?.dietary||"—", "Accessibility":r.diet?.accessibility||"—", "Flight Arrival":fmt(r.flight?.flightArrival), "Hotel Check-In":fmt(r.hotel?.checkIn), "Arrival Δ":r.details?.arrDiff??"N/A", "Flight Departure":fmt(r.flight?.flightDeparture), "Hotel Check-Out":fmt(r.hotel?.checkOut), "Departure Δ":r.details?.depDiff??"N/A", "Car Pickup":fmt(r.car?.pickupDate), "Car Dropoff":fmt(r.car?.dropoffDate), "Hotel":r.hotel?.hotel||"—", "Room":r.hotel?.room||"—", "Matched By":r.matchedBy }));
+    const rows = filtered.map(r => ({ "First Name":r.firstName||r.displayName.split(" ")[0]||"—", "Last Name":r.lastName||r.displayName.split(" ").slice(1).join(" ")||"—", "Full Name":r.displayName, "Email":r.email||"—", "Registered":r.reg?"Yes":(r.registered?"Yes":"No"), "Status":{ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status], "Active Issues":r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None", "Resolved":r.resolved?.join("; ")||"—", "Note":r.note||"—", "Company":r.reg?.company||"—", "Job Title":r.reg?.jobTitle||"—", "Requested Check-In":fmt(r.reg?.regCheckIn), "Requested Check-Out":fmt(r.reg?.regCheckOut), "Dietary":r.diet?.dietary||r.reg?.dietaryRequest||"—", "Accessibility":r.diet?.accessibility||"—", "Flight Arrival":fmt(r.flight?.flightArrival), "Hotel Check-In":fmt(r.hotel?.checkIn), "Arrival Δ":r.details?.arrDiff??"N/A", "Flight Departure":fmt(r.flight?.flightDeparture), "Hotel Check-Out":fmt(r.hotel?.checkOut), "Departure Δ":r.details?.depDiff??"N/A", "Car Pickup":fmt(r.car?.pickupDate), "Car Dropoff":fmt(r.car?.dropoffDate), "Hotel":r.hotel?.hotel||"—", "Room":r.hotel?.room||"—", "Matched By":r.matchedBy }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "GroupGrid");
     XLSX.writeFile(wb, `groupgrid-${(eventName||"report").replace(/\s+/g,"-")}-${new Date().toISOString().slice(0,10)}.xlsx`);
@@ -3617,7 +3617,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
   function exportSelected() {
     const toExport = selectedRows.size > 0 ? filtered.filter(r => selectedRows.has(r.key)) : filtered;
-    const rows = toExport.map(r => ({ "First Name":r.firstName||r.displayName.split(" ")[0]||"—", "Last Name":r.lastName||r.displayName.split(" ").slice(1).join(" ")||"—", "Full Name":r.displayName, "Email":r.email||"—", "Status":{ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status], "Active Issues":r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None", "Note":r.note||"—", "Flight Arrival":fmt(r.flight?.flightArrival), "Flight In":r.flight?.flightIn||"—", "Hotel Check-In":fmt(r.hotel?.checkIn), "Arrival Δ":r.details?.arrDiff??"N/A", "Flight Departure":fmt(r.flight?.flightDeparture), "Flight Out":r.flight?.flightOut||"—", "Hotel Check-Out":fmt(r.hotel?.checkOut), "Departure Δ":r.details?.depDiff??"N/A", "Airport":r.flight?.airport||"—", "Hotel":r.hotel?.hotel||"—", "Room":r.hotel?.room||"—", "Car Pickup":fmt(r.car?.pickupDate), "Car Dropoff":fmt(r.car?.dropoffDate), "Dietary":r.diet?.dietary||"—", "Accessibility":r.diet?.accessibility||"—" }));
+    const rows = toExport.map(r => ({ "First Name":r.firstName||r.displayName.split(" ")[0]||"—", "Last Name":r.lastName||r.displayName.split(" ").slice(1).join(" ")||"—", "Full Name":r.displayName, "Email":r.email||"—", "Registered":r.reg?"Yes":(r.registered?"Yes":"No"), "Status":{ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status], "Active Issues":r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None", "Note":r.note||"—", "Company":r.reg?.company||"—", "Job Title":r.reg?.jobTitle||"—", "Requested Check-In":fmt(r.reg?.regCheckIn), "Requested Check-Out":fmt(r.reg?.regCheckOut), "Flight Arrival":fmt(r.flight?.flightArrival), "Flight In":r.flight?.flightIn||"—", "Hotel Check-In":fmt(r.hotel?.checkIn), "Arrival Δ":r.details?.arrDiff??"N/A", "Flight Departure":fmt(r.flight?.flightDeparture), "Flight Out":r.flight?.flightOut||"—", "Hotel Check-Out":fmt(r.hotel?.checkOut), "Departure Δ":r.details?.depDiff??"N/A", "Airport":r.flight?.airport||"—", "Hotel":r.hotel?.hotel||"—", "Room":r.hotel?.room||"—", "Car Pickup":fmt(r.car?.pickupDate), "Car Dropoff":fmt(r.car?.dropoffDate), "Dietary":r.diet?.dietary||r.reg?.dietaryRequest||"—", "Accessibility":r.diet?.accessibility||"—" }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "GroupGrid");
     const label = selectedRows.size > 0 ? `${selectedRows.size}-selected` : "all";
@@ -4072,7 +4072,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 style={{ width:"100%", display:"flex", alignItems:"center", gap:"10px", background:(contacts.hotel.email||contacts.travel.email)?"rgba(0,201,177,0.12)":"rgba(255,255,255,0.07)", border:`1px solid ${(contacts.hotel.email||contacts.travel.email)?P.accent+"44":"rgba(255,255,255,0.12)"}`, borderRadius:"8px", padding:"10px 12px", cursor:"pointer", fontFamily:font, transition:"all 0.2s" }}
                 onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.12)"}
                 onMouseLeave={e => e.currentTarget.style.background=(contacts.hotel.email||contacts.travel.email)?"rgba(0,201,177,0.12)":"rgba(255,255,255,0.07)"}>
-                <BookUser size={16} strokeWidth={1.5} color={P.accent}/>
+                <Users size={16} strokeWidth={1.5} color={P.accent}/>
                 <div style={{ textAlign:"left" }}>
                   <div style={{ fontSize:"14px", fontWeight:600, color:(contacts.hotel.email||contacts.travel.email)?P.accent:"rgba(255,255,255,0.55)", fontFamily:font }}>
                     {(contacts.hotel.email||contacts.travel.email) ? "Contacts added" : "Add hotel & travel contacts"}
@@ -4229,7 +4229,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
             )}
             {!contacts.hotel.email && !contacts.travel.email && (
               <button onClick={() => setContactsOpen(true)} style={{ width:"100%", display:"flex", alignItems:"center", gap:"8px", background:"transparent", border:`1.5px dashed rgba(255,255,255,0.15)`, borderRadius:"9px", padding:"7px 10px", cursor:"pointer", fontFamily:font }}>
-                <BookUser size={14} strokeWidth={1.5} color="rgba(255,255,255,0.35)"/>
+                <Users size={14} strokeWidth={1.5} color="rgba(255,255,255,0.35)"/>
                 <span style={{ fontSize:"15px", fontWeight:700, color:"rgba(255,255,255,0.4)" }}>Add contacts</span>
               </button>
             )}
@@ -4517,15 +4517,15 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 </span>
               </label>
               <div style={{ width:1, height:20, background:P.grey100, flexShrink:0 }} />
-              {/* Export button */}
+              {/* Excel export — PRIMARY */}
               <button onClick={exportSelected}
-                style={{ display:"flex", alignItems:"center", gap:"5px", background:someSelected?P.accent:P.offWhite, border:`1.5px solid ${someSelected?P.accent:P.grey200}`, borderRadius:"7px", padding:"5px 12px", fontSize:"13px", fontWeight:700, fontFamily:font, color:someSelected?P.white:P.grey600, cursor:"pointer", transition:"all 0.15s", whiteSpace:"nowrap", flexShrink:0 }}>
-                ⬇ {someSelected ? `Export ${selCount}` : "Export all"}
+                style={{ display:"flex", alignItems:"center", gap:"5px", background:P.accent, border:"none", borderRadius:"7px", padding:"5px 13px", fontSize:"13px", fontWeight:700, fontFamily:font, color:P.white, cursor:"pointer", transition:"all 0.15s", whiteSpace:"nowrap", flexShrink:0, boxShadow:"0 1px 6px rgba(0,201,177,0.3)" }}>
+                <FileSpreadsheet size={13} strokeWidth={1.8}/> {someSelected ? `Export ${selCount} to Excel` : "Export to Excel"}
               </button>
-              {/* Share Report button */}
+              {/* Share HTML Report — SECONDARY */}
               <button onClick={generateShareableReport}
-                style={{ display:"flex", alignItems:"center", gap:"5px", background:P.navy, border:"none", borderRadius:"7px", padding:"5px 12px", fontSize:"13px", fontWeight:600, fontFamily:font, color:P.white, cursor:"pointer", flexShrink:0, whiteSpace:"nowrap", boxShadow:"0 1px 4px rgba(15,29,53,0.18)" }}>
-                <Send size={12} strokeWidth={1.5}/> Share Report
+                style={{ display:"flex", alignItems:"center", gap:"5px", background:P.offWhite, border:`1.5px solid ${P.grey200}`, borderRadius:"7px", padding:"5px 12px", fontSize:"13px", fontWeight:600, fontFamily:font, color:P.grey600, cursor:"pointer", flexShrink:0, whiteSpace:"nowrap" }}>
+                <Send size={12} strokeWidth={1.5}/> Share HTML Report
               </button>
               {someSelected && (
                 <button onClick={() => setSelectedRows(new Set())}
