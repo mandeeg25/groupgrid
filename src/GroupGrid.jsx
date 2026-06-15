@@ -227,12 +227,15 @@ function parseRegistrationSheet(wb) {
     departState:["departing state","state","province","region"],
     departCountry:["departing country","country","nation"],
     regNotes:["registration notes","reg notes","notes","comments","special requests"],
+    reason:["reason","justification","exception reason","no travel reason","opt out reason","explanation"],
   });
 }
 
 function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registration) {
   registration = registration || [];
   const hasReg = registration.length > 0;
+  const hasFlights = flights.length > 0;
+  const hasHotels = hotels.length > 0;
   const { arrivalStart, arrivalEnd, departureStart, departureEnd } = aw || {};
   const mkMaps = (arr) => { const byE = new Map(), byN = new Map(); arr.forEach(x => { if (x.email) byE.set(x.email, x); const k = normName(x.name); if (k) byN.set(k, x); }); return [byE, byN]; };
   const [fByE, fByN] = mkMaps(flights), [hByE, hByN] = mkMaps(hotels), [cByE, cByN] = mkMaps(cars), [dByE, dByN] = mkMaps(dietary), [rByE, rByN] = mkMaps(registration);
@@ -244,18 +247,29 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
   const dupNames = new Set();
   [flights,hotels,cars].forEach(list => { const seen = new Map(); list.forEach(x => { const k = normName(x.name); seen.set(k,(seen.get(k)||0)+1); }); seen.forEach((v,k) => { if (v>1) dupNames.add(k); }); });
 
-  // Helper: does a registration row request a flight / hotel? Treat blank as "yes, expected" only if column absent; explicit no = skip.
+  // Helper: does this registration row have a noted reason (in notes OR a dedicated reason column)?
+  const hasReason = (reg) => {
+    if (!reg) return false;
+    const note = (reg.regNotes || "").trim();
+    const reason = (reg.reason || "").trim();
+    return note.length > 0 || reason.length > 0;
+  };
+  // Does a row request a flight/hotel? Blank → expected (flag if missing). Explicit "No" → only
+  // suppress the missing flag if a reason is noted; "No" with no reason is an incomplete record → still flag.
+  const NEGATIVE = ["no","n","none","not needed","not required","false","0"];
   const wantsFlight = (reg) => {
     if (!reg) return false;
     const v = (reg.flightRequest || "").toLowerCase().trim();
-    if (v === "") return true; // no explicit column → assume travel is expected
-    return !["no","n","none","not needed","not required","false","0"].includes(v);
+    if (v === "") return true;
+    if (NEGATIVE.includes(v)) return !hasReason(reg); // No + reason → don't expect; No + no reason → still flag
+    return true;
   };
   const wantsHotel = (reg) => {
     if (!reg) return false;
     const v = (reg.hotelRequest || "").toLowerCase().trim();
     if (v === "") return true;
-    return !["no","n","none","not needed","not required","false","0"].includes(v);
+    if (NEGATIVE.includes(v)) return !hasReason(reg);
+    return true;
   };
 
   function build(flight, hotel, car, diet, key, matchedBy, reg) {
@@ -272,8 +286,14 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
         issues.push({ type:"unregistered", text:"Booked travel but not on registration list" });
       } else {
         // Person IS registered — check what they requested vs. what got booked
-        if (wantsFlight(reg) && !flight) issues.push({ type:"missing", text:"Registered but no flight booked" });
-        if (wantsHotel(reg) && !hotel) issues.push({ type:"missing", text:"Registered but no hotel booked" });
+        if (wantsFlight(reg) && !flight) {
+          const saidNo = NEGATIVE.includes((reg.flightRequest || "").toLowerCase().trim());
+          issues.push({ type:"missing", text: saidNo ? "Marked 'no flight' but no reason given" : "Registered but no flight booked" });
+        }
+        if (wantsHotel(reg) && !hotel) {
+          const saidNo = NEGATIVE.includes((reg.hotelRequest || "").toLowerCase().trim());
+          issues.push({ type:"missing", text: saidNo ? "Marked 'no hotel' but no reason given" : "Registered but no hotel booked" });
+        }
         // Registration's requested hotel dates vs. actual hotel roster dates
         if (hotel && reg.regCheckIn && hotel.checkIn) {
           const ci = diffDays(reg.regCheckIn, hotel.checkIn);
@@ -286,11 +306,12 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
       }
     }
 
-    // ── Existing travel-vs-travel checks ──
+    // ── Existing travel-vs-travel checks (only flag files that were actually uploaded) ──
     if (!hasReg) {
-      // Original behavior when no registration list: flag missing across travel files
-      if (!flight) issues.push({ type:"missing", text:"Missing from flight manifest" });
-      if (!hotel)  issues.push({ type:"missing", text:"Missing from hotel roster" });
+      // Original behavior when no registration list: flag missing across travel files,
+      // but only for file types the planner actually provided.
+      if (hasFlights && !flight) issues.push({ type:"missing", text:"Missing from flight manifest" });
+      if (hasHotels && !hotel)  issues.push({ type:"missing", text:"Missing from hotel roster" });
     }
     if (cars.length > 0 && !car && (reg || flight || hotel)) issues.push({ type:"missing", text:"Missing from car transfers" });
 
@@ -470,7 +491,7 @@ function ContactsModal({ contacts, onSave, onClose }) {
               style={{ width:"100%", background:P.offWhite, border:`1.5px solid ${local.plannerName?P.grey400+"44":P.grey100}`, borderRadius:"10px", padding:"9px 12px", fontSize:"15px", fontFamily:font, fontWeight:600, color:P.navy, outline:"none", boxSizing:"border-box" }} />
           </div>
           <div style={{ display:"flex", gap:"10px", paddingTop:"8px", borderTop:`1px solid ${P.grey100}` }}>
-            <Btn onClick={() => { onSave(local); onClose(); }} color={P.green}>Save Contacts</Btn>
+            <Btn onClick={() => { onSave(local); onClose(); }} color={P.accent}>Save Contacts</Btn>
             <Btn onClick={onClose} outline>Cancel</Btn>
           </div>
         </div>
@@ -1313,7 +1334,7 @@ function NewTemplateModal({ onSave, onClose }) {
 
           {/* Actions */}
           <div style={{ display:"flex", gap:"10px", paddingTop:"4px" }}>
-            <Btn onClick={handleSave} color={P.periwinkleD}>✨ Save Template</Btn>
+            <Btn onClick={handleSave} color={P.accent}>✨ Save Template</Btn>
             <Btn onClick={onClose} outline>Cancel</Btn>
           </div>
         </div>
@@ -1339,6 +1360,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
   const [bulkRecipient, setBulkRecipient] = useState("guest"); // guest | hotel | travel | all
   const [editedIds, setEditedIds] = useState(new Set()); // tracks which queue items have been manually edited
   const [localEdits, setLocalEdits] = useState({}); // {id: {to, subject, body}} — staged edits before save
+  const [showTemplateConfig, setShowTemplateConfig] = useState(false); // collapse template/config UI by default
 
   const plannerName = contacts?.plannerName || "The Planning Team";
   const extra = { eventName, plannerName, arrivalStart, arrivalEnd, departureStart, departureEnd };
@@ -1586,7 +1608,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                   style={{ width:"100%", height:"300px", background:P.offWhite, border:`1.5px solid ${P.grey200}`, borderRadius:"10px", padding:"14px", fontSize:"14px", fontFamily:font, color:P.navy, resize:"vertical", outline:"none", boxSizing:"border-box", lineHeight:1.7 }} />
               </div>
               <div style={{ display:"flex", gap:"10px" }}>
-                <Btn onClick={saveEdit} color={P.green}>Save Template</Btn>
+                <Btn onClick={saveEdit} color={P.accent}>Save Template</Btn>
                 <Btn onClick={() => { setTemplates(prev => ({...prev, [editingTemplate]: DEFAULT_TEMPLATES[editingTemplate]})); setEditSubject(DEFAULT_TEMPLATES[editingTemplate].subject); setEditBody(DEFAULT_TEMPLATES[editingTemplate].body); }} outline color={P.grey400}>↺ Reset to Default</Btn>
                 <Btn onClick={() => setEditingTemplate(null)} outline>Cancel</Btn>
               </div>
@@ -1595,28 +1617,49 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
         </div>
       )}
 
-      {/* Sub-nav */}
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"20px" }}>
-        <div style={{ display:"flex", gap:"6px" }}>
-          {[{k:"templates",l:"Templates"},{k:"queue",l:`Send Queue${queue?` (${pendingCount} pending)`:""}`}].map(({k,l}) => (
-            <button key={k} onClick={() => setActiveView(k)} style={{ background:activeView===k?P.navy:P.white, color:activeView===k?P.white:P.grey600, border:`1px solid ${activeView===k?P.navy:P.grey100}`, borderRadius:"7px", padding:"6px 14px", fontSize:"14px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>{l}</button>
-          ))}
-        </div>
-        {activeView === "templates" && (
-          <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
-            <Btn onClick={() => setNewTemplateOpen(true)} outline color={P.periwinkleD} small>✨ New Template</Btn>
-            {flaggedWithEmail.length > 0
-              ? <Btn onClick={buildQueue} color={P.periwinkleD}>Build Send Queue ({flaggedWithEmail.length} guests) →</Btn>
-              : <span style={{ fontSize:"14px", color:P.navyLight }}>Run a cross-check first to build the send queue</span>}
+      {/* ── Streamlined start: one clear next step ── */}
+      {activeView === "templates" && (
+        <>
+          <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"16px", padding:"24px 26px", marginBottom:"14px" }}>
+            <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"4px" }}>
+              {flaggedWithEmail.length > 0 ? `${flaggedWithEmail.length} guest${flaggedWithEmail.length!==1?"s":""} need a message` : "No messages needed right now"}
+            </div>
+            <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font, lineHeight:1.6, marginBottom:"16px" }}>
+              {flaggedWithEmail.length > 0
+                ? "GroupGrid drafted a personalized email for each flagged guest, explaining exactly what's missing or mismatched. Review them, then send."
+                : "When a cross-check turns up flagged guests with an email on file, you'll be able to review and send personalized messages here."}
+            </div>
+            <div style={{ display:"flex", gap:"10px", marginBottom:"18px", flexWrap:"wrap" }}>
+              {[
+                { n: flaggedWithEmail.length, l:"flagged, with email", c:P.amber },
+                { n: (results||[]).filter(r=>!r.email&&r.issues.length>0).length, l:"flagged, no email", c:P.grey400 },
+                { n: (results||[]).length, l:"total guests", c:P.periwinkleD },
+              ].map(({n,l,c}) => (
+                <div key={l} style={{ display:"flex", alignItems:"center", gap:"8px", background:P.grey50, border:`1px solid ${P.grey100}`, borderRadius:"10px", padding:"8px 13px" }}>
+                  <span style={{ fontSize:"17px", fontWeight:600, color:c, fontFamily:font }}>{n}</span>
+                  <span style={{ fontSize:"12px", color:P.grey600, fontFamily:font }}>{l}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ display:"flex", alignItems:"center", gap:"16px", flexWrap:"wrap" }}>
+              {flaggedWithEmail.length > 0
+                ? <button onClick={buildQueue} style={{ background:P.accent, color:P.white, border:"none", borderRadius:"11px", padding:"12px 24px", fontSize:"14px", fontWeight:600, fontFamily:font, cursor:"pointer" }}>✉ Review &amp; send {flaggedWithEmail.length} message{flaggedWithEmail.length!==1?"s":""} →</button>
+                : <span style={{ fontSize:"13px", color:P.grey400, fontFamily:font }}>Run a cross-check to generate messages.</span>}
+              <button onClick={() => setShowTemplateConfig(v=>!v)} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>{showTemplateConfig ? "Hide template settings" : "Customize email templates"}</button>
+            </div>
           </div>
-        )}
-        {activeView === "queue" && queue && (
-          <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
-            {sendMsg && <span style={{ fontSize:"14px", color:P.green, fontWeight:700 }}>{sendMsg}</span>}
-            <div style={{ fontSize:"14px", color:P.navyLight }}>{sentCount} sent · {skippedCount} skipped · {pendingCount} pending</div>
-            {pendingCount > 0 && <>
-            <Btn onClick={sendAll} color={P.green}>📤 Open All ({pendingCount}) in Mail App</Btn>
-            <Btn onClick={() => {
+          {queue && <button onClick={() => setActiveView("queue")} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer", marginBottom:"14px" }}>← Back to your send queue ({pendingCount} pending)</button>}
+        </>
+      )}
+
+      {/* Queue-view actions bar */}
+      {activeView === "queue" && queue && (
+        <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"16px", flexWrap:"wrap" }}>
+          <button onClick={() => setActiveView("templates")} style={{ background:P.white, color:P.grey600, border:`1px solid ${P.grey100}`, borderRadius:"8px", padding:"7px 14px", fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>← Back</button>
+          <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font }}>{sentCount} sent · {skippedCount} skipped · {pendingCount} pending</div>
+          {sendMsg && <span style={{ fontSize:"13px", color:P.green, fontWeight:600, fontFamily:font }}>{sendMsg}</span>}
+          {pendingCount > 0 && <div style={{ marginLeft:"auto", display:"flex", gap:"8px" }}>
+            <button onClick={() => {
               const text = (queue||[]).filter(x=>x.status==="pending").map(item =>
                 `TO: ${item.to}\nSUBJECT: ${item.subject}\n\n${item.body}\n\n${"─".repeat(60)}`
               ).join("\n\n");
@@ -1624,20 +1667,20 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
               const blob = new Blob([text], {type:"text/plain"});
               const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
               a.download = `groupgrid-email-queue-${new Date().toISOString().slice(0,10)}.txt`; a.click();
-            }} outline color={P.periwinkleD}>⬇ Download All as .txt</Btn>
-          </>}
-          </div>
-        )}
-      </div>
+            }} style={{ background:P.white, color:P.periwinkleD, border:`1px solid ${P.grey200}`, borderRadius:"8px", padding:"7px 14px", fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>⬇ Download .txt</button>
+            <button onClick={sendAll} style={{ background:P.accent, color:P.white, border:"none", borderRadius:"8px", padding:"7px 16px", fontSize:"13px", fontWeight:600, fontFamily:font, cursor:"pointer" }}>📤 Open all {pendingCount} in mail app</button>
+          </div>}
+        </div>
+      )}
 
       {/* TEMPLATES VIEW */}
-      {activeView === "templates" && (
+      {activeView === "templates" && showTemplateConfig && (
         <>
           {/* Send mode selector */}
           <div style={{ background:P.white, borderRadius:"10px", padding:"16px 20px", border:`1px solid ${P.grey100}`, marginBottom:"20px", display:"flex", alignItems:"center", gap:"20px" }}>
             <div>
               <div style={{ fontSize:"15px", fontWeight:600, color:P.navy }}>Send Mode</div>
-              <div style={{ fontSize:"15px", color:P.navyLight, marginTop:"2px" }}>Controls how emails are handled when the queue is built</div>
+              <div style={{ fontSize:"13px", color:P.navyLight, marginTop:"2px" }}>Controls how emails are handled when the queue is built</div>
             </div>
             <div style={{ display:"flex", gap:"8px", marginLeft:"auto" }}>
               {[
@@ -1661,15 +1704,18 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
               { label:"No Email on File", val: (results||[]).filter(r=>!r.email&&r.issues.length>0).length, sub:"flagged guests — manual follow-up needed", color:P.navyLight },
             ].map(({label,val,sub,color}) => (
               <div key={label} style={{ background:P.white, borderRadius:"8px", padding:"12px 16px", border:`1px solid ${P.grey100}` }}>
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"center", fontWeight:600, color, fontFamily:font }}>{val}</div>
-                <div style={{ fontSize:"14px", fontWeight:700, color:P.navy, marginTop:"3px" }}>{label}</div>
-                <div style={{ fontSize:"15px", color:P.navyLight, marginTop:"2px" }}>{sub}</div>
+                <div style={{ fontSize:"22px", fontWeight:600, color, fontFamily:font }}>{val}</div>
+                <div style={{ fontSize:"13px", fontWeight:600, color:P.navy, marginTop:"3px" }}>{label}</div>
+                <div style={{ fontSize:"12px", color:P.navyLight, marginTop:"2px" }}>{sub}</div>
               </div>
             ))}
           </div>
 
           {/* Templates grid */}
-          <div style={{ fontSize:"14px", fontWeight:800, color:P.navy, marginBottom:"12px" }}>Email Templates</div>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"12px" }}>
+            <div style={{ fontSize:"14px", fontWeight:700, color:P.navy }}>Email Templates</div>
+            <Btn onClick={() => setNewTemplateOpen(true)} outline color={P.periwinkleD} small>✨ New Template</Btn>
+          </div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px" }}>
             {Object.values(templates).map(tmpl => {
               const applicable = (results||[]).filter(r => r.email && (getApplicableTemplates(r).includes(tmpl.id) || getCustomApplicable(r, tmpl)));
@@ -3454,7 +3500,8 @@ function SetupScreen({
           <input value={eventName} onChange={e => setEventName(e.target.value)} placeholder="e.g. Sales Summit 2026"
             style={{ width:"100%", background:P.grey50, border:`1.5px solid ${hasName?P.accent+"88":P.grey100}`, borderRadius:"10px", padding:"11px 13px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
         </div>
-        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", margin:"4px 0 12px" }}>Travel window <span style={{ textTransform:"none", letterSpacing:0, fontWeight:400 }}>· optional — flags guests arriving or leaving outside your dates</span></div>
+        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", margin:"4px 0 4px" }}>Approved travel dates <span style={{ textTransform:"none", letterSpacing:0, fontWeight:400 }}>· optional</span></div>
+        <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"12px", lineHeight:1.5 }}>Set the dates your event covers. GroupGrid flags anyone whose flight or hotel falls outside this range — e.g. arriving early or leaving late beyond what's approved.</div>
         <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px", marginBottom:"6px" }}>
           {[
             { label:"Earliest arrival", val:arrivalStart, set:setArrivalStart },
@@ -3483,14 +3530,14 @@ function SetupScreen({
 
       <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", opacity: hasName ? 1 : 0.55, pointerEvents: hasName ? "auto" : "none", transition:"opacity 0.2s" }}>
         <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 2 · Upload files {!hasName && <span style={{ fontSize:"12px", fontWeight:400, color:P.grey400 }}>· name your event first</span>}</div>
-        <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"14px" }}>Excel or CSV (.xlsx, .xls, .csv). GroupGrid auto-detects the columns — hover a tile to see what it expects.</div>
-        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>Required to run</div>
+        <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"14px" }}>Upload whatever you have — registration, flights, hotels, cars, dietary. GroupGrid cross-checks any 2 or more. Excel or CSV. Hover a tile for expected columns.</div>
+        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>Upload any 2 or more</div>
         <div className="gg-setup-tiles3" style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"10px", marginBottom:"14px" }}>
-          <SetupTile label="Registration List" sub="Recommended" icon={<Users size={20} strokeWidth={1.5} color="#00A896"/>} accent={P.accentD} file={registrationFile} setter={setRegistrationFile} recommended columns={["First/Last Name (or Name)","Email","Company / Job Title (opt)","Requested Check-In / Out (opt)","Flight / Hotel Request (opt)"]} />
-          <SetupTile label="Flight Manifest" sub=".xlsx, .xls, .csv" icon={<Plane size={20} strokeWidth={1.5} color="#4F8EF7"/>} accent={P.periwinkleD} file={flightFile} setter={setFlightFile} required columns={["First/Last Name (or Name)","Email (opt)","Arrival Date","Departure Date","Flight # (opt)"]} />
-          <SetupTile label="Hotel Roster" sub=".xlsx, .xls, .csv" icon={<Hotel size={20} strokeWidth={1.5} color="#F5A623"/>} accent={P.navy} file={hotelFile} setter={setHotelFile} required columns={["First/Last Name (or Name)","Email (opt)","Check-In Date","Check-Out Date","Hotel / Room (opt)"]} />
+          <SetupTile label="Registration List" sub="Best anchor" icon={<Users size={20} strokeWidth={1.5} color="#00A896"/>} accent={P.accentD} file={registrationFile} setter={setRegistrationFile} recommended columns={["First/Last Name (or Name)","Email","Company / Job Title (opt)","Requested Check-In / Out (opt)","Flight / Hotel Request (opt)"]} />
+          <SetupTile label="Flight Manifest" sub=".xlsx, .xls, .csv" icon={<Plane size={20} strokeWidth={1.5} color="#4F8EF7"/>} accent={P.periwinkleD} file={flightFile} setter={setFlightFile} columns={["First/Last Name (or Name)","Email (opt)","Arrival Date","Departure Date","Flight # (opt)"]} />
+          <SetupTile label="Hotel Roster" sub=".xlsx, .xls, .csv" icon={<Hotel size={20} strokeWidth={1.5} color="#F5A623"/>} accent={P.navy} file={hotelFile} setter={setHotelFile} columns={["First/Last Name (or Name)","Email (opt)","Check-In Date","Check-Out Date","Hotel / Room (opt)"]} />
         </div>
-        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>Optional</div>
+        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>More files</div>
         <div className="gg-setup-tiles2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px" }}>
           <SetupTile label="Car Transfers" sub=".xlsx, .xls, .csv" icon={<Car size={20} strokeWidth={1.5} color="#9B59B6"/>} accent={P.grey600} file={carFile} setter={setCarFile} columns={["First/Last Name (or Name)","Email (opt)","Pickup Date","Dropoff Date","Pickup Location (opt)"]} />
           <SetupTile label="Dietary & Access" sub=".xlsx, .xls, .csv" icon={<Salad size={20} strokeWidth={1.5} color="#27AE60"/>} accent={P.teal} file={dietaryFile} setter={setDietaryFile} columns={["First/Last Name (or Name)","Email (opt)","Dietary Restrictions","Accessibility Needs","Special Notes (opt)"]} />
@@ -3503,7 +3550,7 @@ function SetupScreen({
 
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:"14px", background:P.navy, borderRadius:"12px", padding:"13px 18px", flexWrap:"wrap" }}>
         <div style={{ fontSize:"13px", color:"rgba(255,255,255,0.6)", fontFamily:font }}>
-          {!hasName ? "Name your event to begin." : !ready ? "Add a flight manifest and hotel roster to run." : "Ready to run."}
+          {!hasName ? "Name your event to begin." : !ready ? "Upload at least 2 files to cross-check." : "Ready to run."}
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
           {error && <span style={{ fontSize:"13px", color:"#FFB3AB", fontFamily:font }}>{error}</span>}
@@ -3650,14 +3697,14 @@ function GroupGrid({ user, onLogin, onLogout }) {
   }
 
   async function runCheck() {
-    if (!flightFile || !hotelFile) return;
+    if (uploadedCount < 2) return;
     setLoading(true); setError(null); setExpanded(null);
     try {
-      const [fWb, hWb] = await Promise.all([readXlsx(flightFile), readXlsx(hotelFile)]);
-      const flights = parseFlightSheet(fWb), hotels = parseHotelSheet(hWb);
-      let cars = [], dietary = [], registration = [];
-      if (carFile) { const w = await readXlsx(carFile); cars = parseCarSheet(w); }
-      if (dietaryFile) { const w = await readXlsx(dietaryFile); dietary = parseDietarySheet(w); }
+      let flights = [], hotels = [], cars = [], dietary = [], registration = [];
+      if (flightFile)       { const w = await readXlsx(flightFile);       flights = parseFlightSheet(w); }
+      if (hotelFile)        { const w = await readXlsx(hotelFile);        hotels = parseHotelSheet(w); }
+      if (carFile)          { const w = await readXlsx(carFile);          cars = parseCarSheet(w); }
+      if (dietaryFile)      { const w = await readXlsx(dietaryFile);      dietary = parseDietarySheet(w); }
       if (registrationFile) { const w = await readXlsx(registrationFile); registration = parseRegistrationSheet(w); }
       const aw = { arrivalStart:arrivalStart?new Date(arrivalStart):null, arrivalEnd:arrivalEnd?new Date(arrivalEnd):null, departureStart:departureStart?new Date(departureStart):null, departureEnd:departureEnd?new Date(departureEnd):null };
       const allResults = crossMatch(flights, hotels, cars, dietary, aw, meta, registration);
@@ -4005,7 +4052,8 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
   const hasCars = results?.some(r => r.car);
   const hasDiet = results?.some(r => r.diet);
-  const ready = !!(flightFile && hotelFile);
+  const uploadedCount = [registrationFile, flightFile, hotelFile, carFile, dietaryFile].filter(Boolean).length;
+  const ready = uploadedCount >= 2;
 
 
   return (
@@ -4188,7 +4236,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
             <div style={{ marginBottom:"14px" }}>
               <div style={{ fontSize:"15px", fontWeight:600, color:"rgba(255,255,255,0.7)", fontFamily:font, letterSpacing:"0.02em", textTransform:"uppercase", marginBottom:"7px", paddingLeft:"2px", display:"flex", alignItems:"center" }}>
                 <span style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", width:18, height:18, borderRadius:"50%", background:"rgba(255,255,255,0.15)", color:"rgba(255,255,255,0.6)", fontSize:"15px", fontWeight:700, flexShrink:0, marginRight:"7px" }}>2</span>
-                Travel Window <span style={{ fontWeight:400, textTransform:"none", letterSpacing:0, color:"rgba(255,255,255,0.3)", marginLeft:"5px", fontSize:"15px" }}>· optional</span>
+                Approved travel dates <span style={{ fontWeight:400, textTransform:"none", letterSpacing:0, color:"rgba(255,255,255,0.3)", marginLeft:"5px", fontSize:"15px" }}>· optional</span>
               </div>
               <div style={{ fontSize:"14px", color:P.white, fontFamily:font, marginBottom:"8px", paddingLeft:"2px", lineHeight:1.5 }}>Flag guests arriving or departing outside your approved event dates.</div>
               <div style={{ background:hasWindow?"rgba(107,63,160,0.35)":"rgba(255,255,255,0.07)", border:`1px solid ${hasWindow?"rgba(107,63,160,0.5)":"rgba(255,255,255,0.1)"}`, borderRadius:"8px", padding:"10px" }}>
@@ -4487,8 +4535,8 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 </div>
                 <div style={{ display:"flex", gap:"8px", alignItems:"center", flexWrap:"wrap" }}>
                   <Btn onClick={exportReport} outline>Export</Btn>
-                  {contacts.hotel.email && <Btn onClick={() => exportToContact("hotel")} outline color={P.navy}>🏨 Send to {contacts.hotel.name||"Hotel"}</Btn>}
-                  {contacts.travel.email && <Btn onClick={() => exportToContact("travel")} outline color={P.periwinkleD}>✈ Send to {contacts.travel.name||"Travel Agency"}</Btn>}
+                  {contacts.hotel.email && <Btn onClick={() => exportToContact("hotel")} color={P.accent}>🏨 Send to {contacts.hotel.name||"Hotel"}</Btn>}
+                  {contacts.travel.email && <Btn onClick={() => exportToContact("travel")} color={P.accent}>✈ Send to {contacts.travel.name||"Travel Agency"}</Btn>}
                 </div>
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"10px", marginBottom:"20px" }}>
@@ -4644,6 +4692,15 @@ function GroupGrid({ user, onLogin, onLogout }) {
               const botPad = vEnd < displayRows.length ? totalVH - rowTops[vEnd] : 0;
               return (
             <div style={{ background:P.white, borderRadius:"10px", boxShadow:"0 1px 2px rgba(15,29,53,0.06), 0 4px 12px rgba(15,29,53,0.05)", border:`1px solid ${P.grey100}`, overflow:"hidden" }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", borderBottom:`1px solid ${P.grey100}`, background:P.grey50 }}>
+                <span style={{ fontSize:"12px", color:P.grey400, fontFamily:font }}>Scroll to see all columns →</span>
+                <div style={{ display:"flex", gap:"6px" }}>
+                  <button onClick={() => { if (tableScrollRef.current) tableScrollRef.current.scrollBy({ left:-320, behavior:"smooth" }); }}
+                    style={{ width:"30px", height:"28px", borderRadius:"7px", border:`1px solid ${P.grey200}`, background:P.white, color:P.grey600, cursor:"pointer", fontSize:"14px", display:"flex", alignItems:"center", justifyContent:"center" }} title="Scroll left">‹</button>
+                  <button onClick={() => { if (tableScrollRef.current) tableScrollRef.current.scrollBy({ left:320, behavior:"smooth" }); }}
+                    style={{ width:"30px", height:"28px", borderRadius:"7px", border:`1px solid ${P.grey200}`, background:P.white, color:P.grey600, cursor:"pointer", fontSize:"14px", display:"flex", alignItems:"center", justifyContent:"center" }} title="Scroll right">›</button>
+                </div>
+              </div>
               <div className="gg-table-wrap" ref={tableScrollRef} onScroll={e => setTableScrollTop(e.currentTarget.scrollTop)}
                 style={{ overflowX:"auto", overflowY:"auto", maxHeight:isMobile ? `calc(100vh - 220px)` : `${containerH}px` }}>
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"14px", minWidth:hasCars?"1060px":"760px" }}>
@@ -4751,7 +4808,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                               <td colSpan={20} style={{ padding:0 }}>
                                 <div style={{ background:P.grey50, borderBottom:`1px solid ${P.grey100}`, padding:"16px 18px" }}>
                                   <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"12px", flexWrap:"wrap" }}>
-                                    <Btn onClick={() => setEmailModal(r)} small outline color={P.periwinkleD}>✉ Draft Email</Btn>
+                                    <Btn onClick={() => setEmailModal(r)} small color={P.accent}>✉ Draft Email</Btn>
                                     <div style={{ flex:1, display:"flex", alignItems:"center", gap:"8px" }}>
                                       <span style={{ fontSize:"15px", fontWeight:700, color:P.navyLight, fontFamily:font, flexShrink:0 }}>Note</span>
                                       <input value={r.note||""} onChange={e => updateMeta(r,{note:e.target.value})} placeholder={user ? `Planner note — saved to ${user.name}'s account` : "Planner note — saved locally (sign in to sync)"} onClick={e => e.stopPropagation()}
