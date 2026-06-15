@@ -2237,7 +2237,7 @@ function TermsPage({ onBack }) {
         These Terms shall be governed by the laws of the State of Delaware, United States, without regard to its conflict of law provisions. Any disputes arising under these Terms shall be resolved in the courts of Delaware.
       </Section>
       <Section title="11. Contact">
-        Questions about these Terms? Email us at <a href="mailto:legal@groupgrid.io" style={{ color:P.periwinkleD, fontWeight:600 }}>legal@groupgrid.io</a>.
+        Questions about these Terms? Email us at <a href="mailto:groupgrid@outlook.com" style={{ color:P.periwinkleD, fontWeight:600 }}>groupgrid@outlook.com</a>.
       </Section>
     </PageShell>
   );
@@ -2371,7 +2371,7 @@ function AboutPage({ onBack }) {
           <div style={{ fontSize:"15px", color:P.grey400, fontFamily:font, lineHeight:1.7, marginBottom:"16px" }}>
             GroupGrid is built by an active member of the event marketing community, including CEMA and PCMA. Have a question or want to connect? Reach out anytime.
           </div>
-          <a href="mailto:hello@groupgrid.io" style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:P.navy, borderRadius:"10px", padding:"10px 22px", fontSize:"14px", fontWeight:700, color:P.white, fontFamily:font, textDecoration:"none" }}>
+          <a href="mailto:groupgrid@outlook.com" style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:P.navy, borderRadius:"10px", padding:"10px 22px", fontSize:"14px", fontWeight:700, color:P.white, fontFamily:font, textDecoration:"none" }}>
             Get in touch →
           </a>
         </div>
@@ -2390,10 +2390,10 @@ function ContactPage({ onBack }) {
       </div>
       <div className="gg-card-grid-3" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"16px", marginBottom:"36px" }}>
         {[
-          { icon:"✉", label:"General Inquiries", value:"hello@groupgrid.io", href:"mailto:hello@groupgrid.io", color:P.periwinkleD, bg:P.grey50 },
-          { icon:"🐛", label:"Bug Reports", value:"bugs@groupgrid.io", href:"mailto:bugs@groupgrid.io", color:P.red, bg:"#FFF5F5" },
-          { icon:"💡", label:"Feature Requests", value:"ideas@groupgrid.io", href:"mailto:ideas@groupgrid.io", color:P.teal, bg:P.accentLight },
-          { icon:"🤝", label:"Partnerships", value:"partners@groupgrid.io", href:"mailto:partners@groupgrid.io", color:P.amber, bg:P.amberLight },
+          { icon:"✉", label:"General Inquiries", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.periwinkleD, bg:P.grey50 },
+          { icon:"🐛", label:"Bug Reports", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.red, bg:"#FFF5F5" },
+          { icon:"💡", label:"Feature Requests", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.teal, bg:P.accentLight },
+          { icon:"🤝", label:"Partnerships", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.amber, bg:P.amberLight },
         ].map(({ icon, label, value, href, color, bg }) => (
           <a key={label} href={href} style={{ display:"flex", alignItems:"center", gap:"14px", background:bg, border:`1.5px solid ${color}22`, borderRadius:"12px", padding:"18px 20px", textDecoration:"none" }}>
             <span style={{ fontSize:"22px" }}>{icon}</span>
@@ -2439,7 +2439,7 @@ function FAQPage({ onBack }) {
       ))}
       <div style={{ marginTop:"24px", background:P.accentLight, border:`1.5px solid ${P.accent}44`, borderRadius:"14px", padding:"22px 26px", textAlign:"center" }}>
         <div style={{ fontSize:"15px", fontWeight:800, color:P.teal, fontFamily:font, marginBottom:"6px" }}>Still have a question?</div>
-        <div style={{ fontSize:"14px", color:P.grey600, fontFamily:font }}>Email us at <a href="mailto:hello@groupgrid.io" style={{ color:P.periwinkleD, fontWeight:700, textDecoration:"none" }}>hello@groupgrid.io</a> and we'll get back to you within one business day.</div>
+        <div style={{ fontSize:"14px", color:P.grey600, fontFamily:font }}>Email us at <a href="mailto:groupgrid@outlook.com" style={{ color:P.periwinkleD, fontWeight:700, textDecoration:"none" }}>groupgrid@outlook.com</a> and we'll get back to you within one business day.</div>
       </div>
     </PageShell>
   );
@@ -2475,7 +2475,7 @@ function PrivacyPage({ onBack }) {
         We will notify users of any material changes to this policy via in-app notification and email (once accounts are available). Continued use after notification constitutes acceptance of the updated policy.
       </Section>
       <Section title="Contact">
-        Questions about privacy? Email us at <a href="mailto:privacy@groupgrid.io" style={{ color:P.periwinkleD, fontWeight:600 }}>privacy@groupgrid.io</a>.
+        Questions about privacy? Email us at <a href="mailto:groupgrid@outlook.com" style={{ color:P.periwinkleD, fontWeight:600 }}>groupgrid@outlook.com</a>.
       </Section>
     </PageShell>
   );
@@ -2621,9 +2621,9 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                 ))}
               </div>
             </div>
-            <p style={{ fontSize:"16px", fontWeight:700, color:"rgba(255,255,255,0.4)", fontFamily:font, lineHeight:1.4, margin:"0 0 16px", maxWidth:"480px", textTransform:"uppercase", letterSpacing:"0.06em" }}>
-              300 people registered. Did all 300 get booked?
-            </p>
+            <h1 style={{ fontSize:"clamp(28px, 4.5vw, 44px)", fontWeight:900, color:P.white, fontFamily:font, lineHeight:1.1, margin:"0 0 18px", maxWidth:"540px", letterSpacing:"-0.035em" }}>
+              300 people registered.<br/><span style={{ color:P.accent }}>Did all 300 get booked?</span>
+            </h1>
             <p style={{ fontSize:"18px", color:"rgba(255,255,255,0.6)", fontFamily:font, lineHeight:1.75, margin:"0 0 12px", maxWidth:"520px" }}>
               You have one list of people who registered for your event. You have separate spreadsheets from your travel and hotel vendors. Somewhere between them, people fall through — the late registrant with no flight, the hotel booking for someone who never signed up, the check-in date that doesn't match.
             </p>
@@ -2679,7 +2679,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
         <div style={{ maxWidth:"1000px", margin:"0 auto" }}>
           <div style={{ textAlign:"center", marginBottom:"56px" }}>
             <div style={{ fontSize:"12px", fontWeight:800, color:P.periwinkleD, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>SOUND FAMILIAR?</div>
-            <h2 style={{ fontSize:"38px", fontWeight:900, color:P.navy, fontFamily:font, margin:"0 0 16px", letterSpacing:"-0.03em", lineHeight:1.15 }}>
+            <h2 style={{ fontSize:"clamp(30px, 5vw, 44px)", fontWeight:900, color:P.navy, fontFamily:font, margin:"0 0 16px", letterSpacing:"-0.035em", lineHeight:1.1 }}>
               The spreadsheet death spiral<br/>before every big event
             </h2>
             <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, maxWidth:"560px", margin:"0 auto" }}>
@@ -2712,7 +2712,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
         <div style={{ maxWidth:"1000px", margin:"0 auto" }}>
           <div style={{ textAlign:"center", marginBottom:"56px" }}>
             <div style={{ fontSize:"12px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>THE GROUPGRID WAY</div>
-            <h2 style={{ fontSize:"38px", fontWeight:900, color:P.navy, fontFamily:font, margin:"0 0 16px", letterSpacing:"-0.03em", lineHeight:1.15 }}>
+            <h2 style={{ fontSize:"clamp(30px, 5vw, 44px)", fontWeight:900, color:P.navy, fontFamily:font, margin:"0 0 16px", letterSpacing:"-0.035em", lineHeight:1.1 }}>
               Days of work.<br/><span style={{ color:P.accent }}>Done in minutes.</span>
             </h2>
             <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, maxWidth:"520px", margin:"0 auto" }}>
@@ -2741,7 +2741,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
         <div style={{ maxWidth:"1000px", margin:"0 auto" }}>
           <div style={{ textAlign:"center", marginBottom:"48px" }}>
             <div style={{ fontSize:"12px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>WHAT GROUPGRID CATCHES</div>
-            <h2 style={{ fontSize:"36px", fontWeight:900, color:P.navy, fontFamily:font, margin:"0 0 14px", letterSpacing:"-0.03em", lineHeight:1.15 }}>
+            <h2 style={{ fontSize:"clamp(28px, 4.5vw, 42px)", fontWeight:900, color:P.navy, fontFamily:font, margin:"0 0 14px", letterSpacing:"-0.035em", lineHeight:1.1 }}>
               The gaps that cause<br/><span style={{ color:P.accent }}>day-of disasters.</span>
             </h2>
             <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, maxWidth:"520px", margin:"0 auto" }}>
@@ -2768,10 +2768,10 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
       </div>
 
       {/* ── Use cases ── */}
-      <div style={{ background:"#FAFBFD", padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
+      <div style={{ background:P.white, padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
         <div style={{ maxWidth:"1000px", margin:"0 auto", textAlign:"center" }}>
           <div style={{ fontSize:"12px", fontWeight:800, color:P.navy, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>WHO IT'S FOR</div>
-          <h2 style={{ fontSize:"36px", fontWeight:900, color:P.navy, fontFamily:font, margin:"0 0 12px", letterSpacing:"-0.03em" }}>
+          <h2 style={{ fontSize:"clamp(28px, 4.5vw, 42px)", fontWeight:900, color:P.navy, fontFamily:font, margin:"0 0 12px", letterSpacing:"-0.035em", lineHeight:1.1 }}>
             Built for event planners managing<br/><span style={{ color:P.periwinkleD }}>2 to 10,000+ attendees</span>
           </h2>
           <p style={{ fontSize:"16px", color:P.grey400, fontFamily:font, lineHeight:1.7, maxWidth:"520px", margin:"0 auto 40px" }}>
@@ -2794,10 +2794,10 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
       </div>
 
       {/* ── Value band (testimonials to be added once real) ── */}
-      <div style={{ background:P.white, padding:"72px 40px", borderBottom:`1px solid ${P.grey100}` }}>
+      <div style={{ background:`linear-gradient(160deg, ${P.navy} 0%, ${P.navyLight} 100%)`, padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
         <div style={{ maxWidth:"880px", margin:"0 auto", textAlign:"center" }}>
           <div style={{ fontSize:"12px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"16px" }}>WHY PLANNERS USE IT</div>
-          <h2 style={{ fontSize:"30px", fontWeight:900, color:P.navy, fontFamily:font, margin:"0 0 32px", letterSpacing:"-0.03em", lineHeight:1.2 }}>
+          <h2 style={{ fontSize:"clamp(26px, 4vw, 38px)", fontWeight:900, color:P.white, fontFamily:font, margin:"0 0 32px", letterSpacing:"-0.035em", lineHeight:1.15 }}>
             The check that used to take days,<br/>done before your coffee gets cold.
           </h2>
           <div className="gg-card-grid-3" style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"20px" }}>
@@ -2806,10 +2806,10 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               { icon:"🎯", title:"Catch what hides", body:"The late registrant with no flight, the room booked for a no-show, the date that's one day off — surfaced automatically." },
               { icon:"🔒", title:"Your data stays yours", body:"Guest files are processed in your browser and never uploaded. Nothing to worry about with sensitive attendee information." },
             ].map(({ icon, title, body }) => (
-              <div key={title} style={{ background:"#FAFBFD", border:`1.5px solid ${P.grey100}`, borderRadius:"16px", padding:"28px 24px", textAlign:"left" }}>
+              <div key={title} style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:"16px", padding:"28px 24px", textAlign:"left", backdropFilter:"blur(10px)" }}>
                 <div style={{ fontSize:"26px", marginBottom:"12px" }}>{icon}</div>
-                <div style={{ fontSize:"16px", fontWeight:800, color:P.navy, fontFamily:font, marginBottom:"6px", letterSpacing:"-0.02em" }}>{title}</div>
-                <div style={{ fontSize:"14px", color:P.grey600, fontFamily:font, lineHeight:1.65 }}>{body}</div>
+                <div style={{ fontSize:"16px", fontWeight:800, color:P.white, fontFamily:font, marginBottom:"6px", letterSpacing:"-0.02em" }}>{title}</div>
+                <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.6)", fontFamily:font, lineHeight:1.65 }}>{body}</div>
               </div>
             ))}
           </div>
@@ -2879,7 +2879,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               {/* Header */}
               <div style={{ textAlign:"center", marginBottom:"48px" }}>
                 <div style={{ fontSize:"12px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>SEE IT IN ACTION</div>
-                <h2 style={{ fontSize:"38px", fontWeight:900, color:P.navy, fontFamily:font, margin:"0 0 14px", letterSpacing:"-0.03em", lineHeight:1.1 }}>
+                <h2 style={{ fontSize:"clamp(28px, 4.5vw, 42px)", fontWeight:900, color:P.navy, fontFamily:font, margin:"0 0 14px", letterSpacing:"-0.035em", lineHeight:1.1 }}>
                   From files to flags<br/><span style={{ color:P.accent }}>in minutes, not days.</span>
                 </h2>
                 <p style={{ fontSize:"16px", color:P.grey400, fontFamily:font, lineHeight:1.7, maxWidth:"460px", margin:"0 auto" }}>
@@ -3079,9 +3079,13 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
           <h2 style={{ fontSize:"clamp(32px,5vw,52px)", fontWeight:900, color:P.white, fontFamily:font, margin:"0 0 16px", letterSpacing:"-0.04em", lineHeight:1.1 }}>
             Stop cross-checking.<br/>Start <span style={{ color:P.accent }}>running great events.</span>
           </h2>
-          <p style={{ fontSize:"18px", color:"rgba(255,255,255,0.5)", fontFamily:font, margin:"0 auto 40px", lineHeight:1.7, maxWidth:"480px" }}>
+          <p style={{ fontSize:"18px", color:"rgba(255,255,255,0.5)", fontFamily:font, margin:"0 auto 28px", lineHeight:1.7, maxWidth:"480px" }}>
             Join event professionals who've turned days of logistics work into a few minutes.
           </p>
+          <div style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:"rgba(0,201,177,0.1)", border:"1px solid rgba(0,201,177,0.25)", borderRadius:"20px", padding:"6px 16px", marginBottom:"32px" }}>
+            <ShieldCheck size={14} strokeWidth={2} color={P.accent}/>
+            <span style={{ fontSize:"13px", fontWeight:600, color:"rgba(255,255,255,0.7)", fontFamily:font }}>Built by a planner with 15+ years in the field · Your data never leaves your browser</span>
+          </div>
           <div className="gg-cta-btns" style={{ display:"flex", gap:"12px", justifyContent:"center", flexWrap:"wrap" }}>
             <button onClick={onEnter} style={{ background:`linear-gradient(135deg, ${P.accent}, ${P.accentD})`, border:"none", borderRadius:"12px", padding:"16px 40px", fontSize:"17px", fontWeight:800, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 4px 24px rgba(0,201,177,0.4)", letterSpacing:"-0.02em" }}>
               Try GroupGrid free →
@@ -3236,7 +3240,7 @@ function PricingPage({ onBack }) {
         {/* Questions */}
         <div style={{ marginTop:"36px", background:P.white, borderRadius:"14px", border:`1px solid ${P.grey100}`, padding:"20px 24px", textAlign:"center" }}>
           <div style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"6px" }}>Questions?</div>
-          <div style={{ fontSize:"14px", color:P.grey400, fontFamily:font }}>Email us at <a href="mailto:hello@groupgrid.io" style={{ color:P.periwinkleD, fontWeight:600, textDecoration:"none" }}>hello@groupgrid.io</a> and we'll get back to you within one business day.</div>
+          <div style={{ fontSize:"14px", color:P.grey400, fontFamily:font }}>Email us at <a href="mailto:groupgrid@outlook.com" style={{ color:P.periwinkleD, fontWeight:600, textDecoration:"none" }}>groupgrid@outlook.com</a> and we'll get back to you within one business day.</div>
         </div>
       </div>
     </div>
