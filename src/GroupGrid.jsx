@@ -94,6 +94,10 @@ const MOBILE_CSS = `
     .gg-landing-hero h1 { font-size: 28px !important; }
     .gg-landing-stats { grid-template-columns: 1fr !important; }
     .gg-landing-usecases { grid-template-columns: 1fr !important; }
+    .gg-setup-grid2 { grid-template-columns: 1fr !important; }
+    .gg-setup-tiles3 { grid-template-columns: 1fr !important; }
+    .gg-setup-tiles2 { grid-template-columns: 1fr !important; }
+    .gg-step-line { display: none !important; }
     .gg-cta-btns { flex-direction: column; align-items: stretch !important; }
     .gg-pricing-grid { grid-template-columns: 1fr !important; }
     .gg-contacts-grid { grid-template-columns: 1fr !important; }
@@ -347,7 +351,7 @@ function DropZone({ label, icon, sub, onFile, fileName, accent, optional }) {
   return (
     <label onDragOver={e => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)} onDrop={onDrop}
       style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", border:`2px dashed ${drag ? accent : fileName ? accent+"88" : P.grey200}`, borderRadius:"10px", padding:"18px 12px", cursor:"pointer", minHeight:"110px", background: fileName ? accent+"07" : P.white, transition:"all 0.2s", position:"relative" }}>
-      <input type="file" accept=".xlsx,.xls" style={{ display:"none" }} onChange={e => e.target.files[0] && onFile(e.target.files[0])} />
+      <input type="file" accept=".xlsx,.xls,.csv" style={{ display:"none" }} onChange={e => e.target.files[0] && onFile(e.target.files[0])} />
       {optional && !fileName && <span style={{ position:"absolute", top:7, right:10, fontSize:"10px", color:P.grey400, fontFamily:font, fontWeight:500, textTransform:"uppercase" }}>Optional</span>}
       <div style={{ marginBottom:"6px", color:P.grey400, display:"flex", alignItems:"center", justifyContent:"center" }}>{icon}</div>
       {fileName ? <>
@@ -3329,7 +3333,7 @@ function UploadSquare({ label, icon, accent, file, setter, required, sub, compac
         onDragLeave={() => setDrag(false)}
         onDrop={onDrop}
         style={{ display:"flex", alignItems:"center", gap:"8px", border:`1.5px dashed ${drag ? accent : file ? accent : P.grey200}`, borderRadius:"10px", padding:"7px 12px", cursor:"pointer", background:file ? accent+"0D" : drag ? accent+"07" : P.offWhite, transition:"all 0.15s", position:"relative", flexShrink:0, minWidth:"140px" }}>
-        <input type="file" accept=".xlsx,.xls" style={{ display:"none" }} onChange={e => e.target.files[0] && setter(e.target.files[0])} />
+        <input type="file" accept=".xlsx,.xls,.csv" style={{ display:"none" }} onChange={e => e.target.files[0] && setter(e.target.files[0])} />
         <span style={{ display:"flex", alignItems:"center", color:file?P.accent:accent }}>{file ? <Check size={14} strokeWidth={2.5}/> : icon}</span>
         <div style={{ minWidth:0 }}>
           {file ? (
@@ -3356,7 +3360,7 @@ function UploadSquare({ label, icon, accent, file, setter, required, sub, compac
       onDragLeave={() => setDrag(false)}
       onDrop={onDrop}
       style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"120px", border:`1.5px dashed ${drag ? accent : file ? accent : P.grey200}`, borderRadius:"12px", padding:"20px 12px 16px", cursor:"pointer", background:file ? accent+"08" : drag ? accent+"05" : P.white, transition:"all 0.18s", position:"relative", textAlign:"center" }}>
-      <input type="file" accept=".xlsx,.xls" style={{ display:"none" }} onChange={e => e.target.files[0] && setter(e.target.files[0])} />
+      <input type="file" accept=".xlsx,.xls,.csv" style={{ display:"none" }} onChange={e => e.target.files[0] && setter(e.target.files[0])} />
       {!required && !file && (
         <span style={{ position:"absolute", top:7, right:10, fontSize:"10px", color:P.grey400, fontFamily:font, fontWeight:500, textTransform:"uppercase", letterSpacing:"0.06em" }}>Optional</span>
       )}
@@ -3376,6 +3380,143 @@ function UploadSquare({ label, icon, accent, file, setter, required, sub, compac
     </label>
   );
 }
+
+// ── Two-step Setup screen (Option 1). Step 1 = project details (event name required),
+// Step 2 = file uploads (required on top, optional below). Accepts .xlsx/.xls/.csv.
+function SetupTile({ label, sub, icon, accent, file, setter, required, recommended, columns }) {
+  const [drag, setDrag] = useState(false);
+  const [hover, setHover] = useState(false);
+  const onDrop = e => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) setter(f); };
+  return (
+    <label
+      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+      onDragOver={e => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)} onDrop={onDrop}
+      style={{ position:"relative", display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", justifyContent:"center", minHeight:"96px", border:`1.5px ${file?"solid":"dashed"} ${file?accent:drag?accent:P.grey200}`, borderRadius:"11px", padding:"12px 10px", cursor:"pointer", background:file?accent+"0D":drag?accent+"08":P.grey50, transition:"all 0.15s" }}>
+      <input type="file" accept=".xlsx,.xls,.csv" style={{ display:"none" }} onChange={e => e.target.files[0] && setter(e.target.files[0])} />
+      <span style={{ position:"absolute", top:7, left:0, right:0, display:"flex", justifyContent:"center" }}>
+        {recommended
+          ? <span style={{ fontSize:"9px", fontWeight:600, padding:"1px 7px", borderRadius:"20px", background:"#DCF2F2", color:"#0A7B7A", fontFamily:font }}>Source of truth</span>
+          : required
+            ? <span style={{ fontSize:"9px", fontWeight:600, padding:"1px 7px", borderRadius:"20px", background:P.redLight, color:P.red, fontFamily:font }}>Required</span>
+            : <span style={{ fontSize:"9px", fontWeight:500, padding:"1px 7px", borderRadius:"20px", background:P.grey100, color:P.grey400, fontFamily:font }}>Optional</span>}
+      </span>
+      <div style={{ marginTop:"12px", marginBottom:"5px", color:file?P.green:accent }}>{file ? <Check size={20} strokeWidth={2} color={P.green}/> : icon}</div>
+      <div style={{ fontSize:"13px", fontWeight:500, color:P.navy, fontFamily:font, marginBottom:"2px", wordBreak:"break-word", maxWidth:"130px", lineHeight:1.25 }}>{file ? file.name : label}</div>
+      <div style={{ fontSize:"10px", color:file?P.green:P.grey400, fontFamily:font, fontWeight:file?500:400 }}>{file ? "Ready" : sub}</div>
+      {file && <button onClick={e => { e.preventDefault(); setter(null); }} style={{ position:"absolute", top:8, right:10, background:"transparent", border:"none", color:P.grey400, cursor:"pointer", lineHeight:1 }} title="Remove"><X size={13} strokeWidth={2}/></button>}
+      {hover && !file && columns && (
+        <div style={{ position:"absolute", bottom:"calc(100% + 8px)", left:"50%", transform:"translateX(-50%)", width:"210px", background:P.navy, borderRadius:"10px", padding:"12px 14px", boxShadow:"0 8px 24px rgba(0,0,0,0.3)", zIndex:30, textAlign:"left", pointerEvents:"none" }}>
+          <div style={{ fontSize:"11px", fontWeight:600, color:P.accent, fontFamily:font, marginBottom:"7px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Expected columns</div>
+          {columns.map(c => <div key={c} style={{ fontSize:"12px", color:"rgba(255,255,255,0.75)", fontFamily:font, lineHeight:1.7 }}>{c}</div>)}
+        </div>
+      )}
+    </label>
+  );
+}
+
+function SetupScreen({
+  eventName, setEventName, arrivalStart, setArrivalStart, arrivalEnd, setArrivalEnd,
+  departureStart, setDepartureStart, departureEnd, setDepartureEnd,
+  contacts, setContactsOpen,
+  registrationFile, setRegistrationFile, flightFile, setFlightFile, hotelFile, setHotelFile,
+  carFile, setCarFile, dietaryFile, setDietaryFile,
+  ready, loading, error, runCheck, isMobile
+}) {
+  const hasName = !!(eventName && eventName.trim());
+  const canRun = hasName && ready && !loading;
+  const hasContacts = contacts && (contacts.hotel?.email || contacts.travel?.email);
+  return (
+    <div style={{ maxWidth:"640px", margin:"0 auto", width:"100%" }}>
+      <h1 style={{ fontSize:"clamp(20px,3vw,24px)", fontWeight:600, color:P.navy, fontFamily:font, letterSpacing:"-0.02em", margin:"0 0 4px" }}>New project</h1>
+      <p style={{ fontSize:"13px", color:P.grey600, fontFamily:font, margin:"0 0 18px", lineHeight:1.5 }}>Set up your event, then upload your spreadsheets to run the cross-check.</p>
+
+      <div style={{ display:"flex", alignItems:"center", marginBottom:"18px", flexWrap:"wrap", gap:"8px" }}>
+        {[
+          { n:"1", label:"Project details", state: hasName ? "done" : "active" },
+          { n:"2", label:"Upload files", state: hasName ? (ready ? "done" : "active") : "todo" },
+          { n:"3", label:"Review results", state:"todo" },
+        ].map(({ n, label, state }, i) => (
+          <React.Fragment key={label}>
+            {i > 0 && <div className="gg-step-line" style={{ flex:1, height:"1.5px", background:P.grey100, margin:"0 12px", minWidth:"20px" }} />}
+            <div style={{ display:"flex", alignItems:"center", gap:"9px" }}>
+              <span style={{ width:26, height:26, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"13px", fontWeight:600, flexShrink:0, fontFamily:font, background: state==="done"?P.accent:state==="active"?P.navy:P.grey100, color: state==="todo"?P.grey400:P.white }}>{state==="done"?<Check size={14} strokeWidth={2.5}/>:n}</span>
+              <span style={{ fontSize:"14px", fontWeight: state==="todo"?400:500, color: state==="todo"?P.grey400:P.navy, fontFamily:font }}>{label}</span>
+            </div>
+          </React.Fragment>
+        ))}
+      </div>
+
+      <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px" }}>
+        <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 1 · Project details</div>
+        <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"14px" }}>Name your event and (optionally) set travel dates and contacts.</div>
+        <div style={{ marginBottom:"14px" }}>
+          <label style={{ display:"block", fontSize:"13px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Event name <span style={{ color:P.red }}>required</span></label>
+          <input value={eventName} onChange={e => setEventName(e.target.value)} placeholder="e.g. Sales Summit 2026"
+            style={{ width:"100%", background:P.grey50, border:`1.5px solid ${hasName?P.accent+"88":P.grey100}`, borderRadius:"10px", padding:"11px 13px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+        </div>
+        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", margin:"4px 0 12px" }}>Travel window <span style={{ textTransform:"none", letterSpacing:0, fontWeight:400 }}>· optional — flags guests arriving or leaving outside your dates</span></div>
+        <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px", marginBottom:"6px" }}>
+          {[
+            { label:"Earliest arrival", val:arrivalStart, set:setArrivalStart },
+            { label:"Latest arrival", val:arrivalEnd, set:setArrivalEnd },
+            { label:"Earliest departure", val:departureStart, set:setDepartureStart },
+            { label:"Latest departure", val:departureEnd, set:setDepartureEnd },
+          ].map(({ label, val, set }) => (
+            <div key={label} style={{ marginBottom:"12px" }}>
+              <label style={{ display:"block", fontSize:"13px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>{label}</label>
+              <input type="date" value={val} onChange={e => set(e.target.value)}
+                style={{ width:"100%", background:P.grey50, border:`1.5px solid ${val?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:val?P.navy:P.grey400, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", margin:"8px 0 12px" }}>Contacts <span style={{ textTransform:"none", letterSpacing:0, fontWeight:400 }}>· optional — to email your hotel &amp; travel agency directly</span></div>
+        <button onClick={() => setContactsOpen(true)}
+          style={{ display:"flex", alignItems:"center", gap:"10px", width:"100%", background:hasContacts?P.accent+"12":P.grey50, border:`1.5px ${hasContacts?"solid":"dashed"} ${hasContacts?P.accent+"55":P.grey200}`, borderRadius:"10px", padding:"12px 14px", cursor:"pointer", fontFamily:font, textAlign:"left" }}>
+          <Users size={18} strokeWidth={1.5} color={P.accentD}/>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:"14px", fontWeight:500, color:hasContacts?P.accentD:P.grey600, fontFamily:font }}>{hasContacts ? "Contacts added" : "Add hotel & travel agency contacts"}</div>
+            {hasContacts && <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginTop:"1px" }}>{[contacts.hotel?.name, contacts.travel?.name].filter(Boolean).join(" · ")}</div>}
+          </div>
+          {hasContacts && <Check size={15} strokeWidth={2.5} color={P.accentD}/>}
+        </button>
+      </div>
+
+      <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", opacity: hasName ? 1 : 0.55, pointerEvents: hasName ? "auto" : "none", transition:"opacity 0.2s" }}>
+        <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 2 · Upload files {!hasName && <span style={{ fontSize:"12px", fontWeight:400, color:P.grey400 }}>· name your event first</span>}</div>
+        <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"14px" }}>Excel or CSV (.xlsx, .xls, .csv). GroupGrid auto-detects the columns — hover a tile to see what it expects.</div>
+        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>Required to run</div>
+        <div className="gg-setup-tiles3" style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"10px", marginBottom:"14px" }}>
+          <SetupTile label="Registration List" sub="Recommended" icon={<Users size={20} strokeWidth={1.5} color="#00A896"/>} accent={P.accentD} file={registrationFile} setter={setRegistrationFile} recommended columns={["First/Last Name (or Name)","Email","Company / Job Title (opt)","Requested Check-In / Out (opt)","Flight / Hotel Request (opt)"]} />
+          <SetupTile label="Flight Manifest" sub=".xlsx, .xls, .csv" icon={<Plane size={20} strokeWidth={1.5} color="#4F8EF7"/>} accent={P.periwinkleD} file={flightFile} setter={setFlightFile} required columns={["First/Last Name (or Name)","Email (opt)","Arrival Date","Departure Date","Flight # (opt)"]} />
+          <SetupTile label="Hotel Roster" sub=".xlsx, .xls, .csv" icon={<Hotel size={20} strokeWidth={1.5} color="#F5A623"/>} accent={P.navy} file={hotelFile} setter={setHotelFile} required columns={["First/Last Name (or Name)","Email (opt)","Check-In Date","Check-Out Date","Hotel / Room (opt)"]} />
+        </div>
+        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>Optional</div>
+        <div className="gg-setup-tiles2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px" }}>
+          <SetupTile label="Car Transfers" sub=".xlsx, .xls, .csv" icon={<Car size={20} strokeWidth={1.5} color="#9B59B6"/>} accent={P.grey600} file={carFile} setter={setCarFile} columns={["First/Last Name (or Name)","Email (opt)","Pickup Date","Dropoff Date","Pickup Location (opt)"]} />
+          <SetupTile label="Dietary & Access" sub=".xlsx, .xls, .csv" icon={<Salad size={20} strokeWidth={1.5} color="#27AE60"/>} accent={P.teal} file={dietaryFile} setter={setDietaryFile} columns={["First/Last Name (or Name)","Email (opt)","Dietary Restrictions","Accessibility Needs","Special Notes (opt)"]} />
+        </div>
+        <div style={{ fontSize:"13px", color:P.navyLight, fontFamily:font, marginTop:"16px", padding:"10px 13px", background:P.periwinkle+"0D", borderRadius:"9px", border:`1px solid ${P.periwinkle}22`, lineHeight:1.5 }}>
+          <span style={{ background:P.periwinkle+"22", color:P.periwinkleD, borderRadius:"5px", padding:"1px 7px", fontSize:"11px", fontWeight:600, marginRight:"7px" }}>TIP</span>
+          Include an <strong style={{ fontWeight:600 }}>Email Address</strong> column for the most accurate matching. GroupGrid matches by email first, then name.
+        </div>
+      </div>
+
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:"14px", background:P.navy, borderRadius:"12px", padding:"13px 18px", flexWrap:"wrap" }}>
+        <div style={{ fontSize:"13px", color:"rgba(255,255,255,0.6)", fontFamily:font }}>
+          {!hasName ? "Name your event to begin." : !ready ? "Add a flight manifest and hotel roster to run." : "Ready to run."}
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
+          {error && <span style={{ fontSize:"13px", color:"#FFB3AB", fontFamily:font }}>{error}</span>}
+          <button onClick={runCheck} disabled={!canRun}
+            style={{ background:canRun?P.accent:"rgba(255,255,255,0.15)", color:canRun?P.white:"rgba(255,255,255,0.4)", border:"none", borderRadius:"10px", padding:"11px 24px", fontSize:"14px", fontWeight:600, fontFamily:font, cursor:canRun?"pointer":"not-allowed", transition:"all 0.18s", whiteSpace:"nowrap" }}>
+            {loading ? "Checking…" : "Run Cross-Check →"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function GroupGrid({ user, onLogin, onLogout }) {
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -4022,7 +4163,8 @@ function GroupGrid({ user, onLogin, onLogout }) {
             </div>
           )}
 
-          {/* ── Set Up Event ── */}
+          {/* ── Set Up Event (results state only; setup uses SetupScreen) ── */}
+          {results && (<>
           <div style={{ marginBottom:"20px" }}>
             <div style={{ display:"flex", alignItems:"center", gap:"6px", marginBottom:"6px" }}>
               <div style={{ width:3, height:14, background:P.accent, borderRadius:"2px" }} />
@@ -4098,6 +4240,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
           </div>
 
           <div style={{ height:1, background:"rgba(255,255,255,0.08)", marginBottom:"18px" }} />
+          </>)}
 
           {/* ── Projects section ── */}
           <div style={{ marginTop:"18px" }}>
@@ -4254,72 +4397,20 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
         {/* ── Upload hero — full size when no results, compact strip when results exist ── */}
         {!results ? (
-          <div style={{ marginBottom:"24px" }}>
-
-            {/* Value prop hero — shown when no files loaded yet */}
-            {!flightFile && !hotelFile && (
-              <div style={{ background:P.navy, borderRadius:"16px", padding:"32px 36px", marginBottom:"20px", position:"relative", overflow:"hidden" }}>
-                {/* dot grid — matches landing page hero */}
-                <svg style={{ position:"absolute", bottom:"10px", right:"0", pointerEvents:"none", width:"55%", height:"100%", minWidth:"300px" }} viewBox="0 0 1000 600" preserveAspectRatio="xMaxYMax meet" xmlns="http://www.w3.org/2000/svg">
-                  <defs>
-                    <radialGradient id="appHeroDotFade" cx="100%" cy="100%" r="85%">
-                      <stop offset="0%"   stopColor="white" stopOpacity="1"/>
-                      <stop offset="55%"  stopColor="white" stopOpacity="0.7"/>
-                      <stop offset="100%" stopColor="white" stopOpacity="0"/>
-                    </radialGradient>
-                    <mask id="appHeroDotMask">
-                      <rect width="1000" height="600" fill="url(#appHeroDotFade)"/>
-                    </mask>
-                  </defs>
-                  <g mask="url(#appHeroDotMask)">
-                    <circle cx="280"  cy="20"  r="18" fill="rgba(255,255,255,0.18)"/>
-                    <circle cx="520"  cy="20"  r="18" fill="rgba(255,255,255,0.18)"/>
-                    <circle cx="760"  cy="20"  r="18" fill="rgba(255,255,255,0.18)"/>
-                    <circle cx="1000" cy="20"  r="18" fill="rgba(255,255,255,0.18)"/>
-                    <circle cx="280"  cy="200" r="18" fill="rgba(255,255,255,0.18)"/>
-                    <circle cx="520"  cy="200" r="18" fill="rgba(255,255,255,0.18)"/>
-                    <circle cx="760"  cy="200" r="18" fill="rgba(0,201,177,1)" opacity="0.45"/>
-                    <circle cx="1000" cy="200" r="18" fill="rgba(0,201,177,1)" opacity="0.65"/>
-                    <circle cx="280"  cy="380" r="18" fill="rgba(255,255,255,0.18)"/>
-                    <circle cx="520"  cy="380" r="18" fill="rgba(0,201,177,1)" opacity="0.45"/>
-                    <circle cx="760"  cy="380" r="18" fill="rgba(0,201,177,1)" opacity="0.75"/>
-                    <circle cx="1000" cy="380" r="18" fill="rgba(0,201,177,1)" opacity="0.9"/>
-                    <circle cx="280"  cy="560" r="18" fill="rgba(0,201,177,1)" opacity="0.35"/>
-                    <circle cx="520"  cy="560" r="18" fill="rgba(0,201,177,1)" opacity="0.6"/>
-                    <circle cx="760"  cy="560" r="18" fill="rgba(0,201,177,1)" opacity="0.85"/>
-                    <circle cx="1000" cy="560" r="18" fill="rgba(0,201,177,1)" opacity="1"/>
-                  </g>
-                </svg>
-                <div style={{ padding:"6px 0 10px" }}>
-                    <h2 style={{ fontSize:"22px", fontWeight:900, color:P.white, fontFamily:font, margin:"0 0 6px", letterSpacing:"-0.03em", lineHeight:1.2 }}>
-                      Upload your spreadsheets. See every mismatch instantly.
-                    </h2>
-                    <p style={{ fontSize:"14px", color:"rgba(255,255,255,0.5)", fontFamily:font, lineHeight:1.6, margin:0 }}>
-                      Add your registration list and GroupGrid checks who's booked against who signed up. Flights, hotels, car transfers — cross-referenced automatically.
-                    </p>
-                </div>
-              </div>
-            )}
-            <div className="gg-upload-grid" style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:"12px", marginBottom:"16px" }}>
-              <UploadSquare label="Registration List" icon={<Users size={22} strokeWidth={1.5} color="#00A896"/>} accent={P.accentD} file={registrationFile} setter={setRegistrationFile} required={false} sub="Recommended · the source of truth" />
-              <UploadSquare label="Flight Manifest" icon={<Plane size={22} strokeWidth={1.5} color="#4F8EF7"/>} accent={P.periwinkleD} file={flightFile} setter={setFlightFile} required={true}  sub="Required · .xlsx / .xls" />
-              <UploadSquare label="Hotel Roster"    icon={<Hotel size={22} strokeWidth={1.5} color="#F5A623"/>} accent={P.navy}        file={hotelFile}  setter={setHotelFile}  required={true}  sub="Required · .xlsx / .xls" />
-              <UploadSquare label="Car Transfers"   icon={<Car size={22} strokeWidth={1.5} color="#9B59B6"/>} accent={P.grey600}     file={carFile}    setter={setCarFile}    required={false} sub="Optional · .xlsx / .xls" />
-              <UploadSquare label="Dietary & Access" icon={<Salad size={22} strokeWidth={1.5} color="#27AE60"/>} accent={P.teal}       file={dietaryFile} setter={setDietaryFile} required={false} sub="Optional · .xlsx / .xls" />
-            </div>
-            <div style={{ display:"flex", alignItems:"center", gap:"14px" }}>
-              <button onClick={runCheck} disabled={!ready || loading}
-                style={{ background:ready&&!loading?P.periwinkleD:P.grey100, color:ready&&!loading?P.white:P.grey400, border:"none", borderRadius:"10px", padding:"11px 28px", fontSize:"15px", fontWeight:600, fontFamily:font, cursor:ready&&!loading?"pointer":"not-allowed", transition:"all 0.18s", flexShrink:0, letterSpacing:"-0.01em", boxShadow:ready&&!loading?"0 2px 12px rgba(76,98,196,0.3)":"none" }}>
-                {loading ? "Checking…" : "Run Cross-Check"}
-              </button>
-              {!ready && !error && <span style={{ fontSize:"15px", color:P.navyLight, fontFamily:font }}>Upload a flight manifest and hotel roster to run</span>}
-              {error && <div style={{ fontSize:"15px", color:P.red, fontFamily:font, background:P.redLight, borderRadius:"8px", padding:"7px 12px" }}>{error}</div>}
-            </div>
-            <div style={{ fontSize:"13px", color:P.navyLight, fontFamily:font, marginTop:"12px", padding:"8px 12px", background:P.periwinkle+"0D", borderRadius:"8px", border:`1px solid ${P.periwinkle}22` }}>
-              <span style={{ background:P.periwinkle+"22", color:P.periwinkleD, borderRadius:"5px", padding:"1px 7px", fontSize:"11px", fontWeight:800, marginRight:"7px" }}>💡 TIP</span>
-              Include an <strong>Email Address</strong> column for the most accurate matching. GroupGrid matches by email first, then name.
-            </div>
-          </div>
+          <SetupScreen
+            eventName={eventName} setEventName={setEventName}
+            arrivalStart={arrivalStart} setArrivalStart={setArrivalStart}
+            arrivalEnd={arrivalEnd} setArrivalEnd={setArrivalEnd}
+            departureStart={departureStart} setDepartureStart={setDepartureStart}
+            departureEnd={departureEnd} setDepartureEnd={setDepartureEnd}
+            contacts={contacts} setContactsOpen={setContactsOpen}
+            registrationFile={registrationFile} setRegistrationFile={setRegistrationFile}
+            flightFile={flightFile} setFlightFile={setFlightFile}
+            hotelFile={hotelFile} setHotelFile={setHotelFile}
+            carFile={carFile} setCarFile={setCarFile}
+            dietaryFile={dietaryFile} setDietaryFile={setDietaryFile}
+            ready={ready} loading={loading} error={error} runCheck={runCheck} isMobile={isMobile}
+          />
         ) : (
           <div style={{ marginBottom:"16px", padding:"10px 14px", background:P.white, borderRadius:"12px", border:`1px solid ${P.grey100}` }}>
             <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "auto auto auto auto auto auto auto auto", gap:"8px", alignItems:"center" }}>
@@ -4336,31 +4427,6 @@ function GroupGrid({ user, onLogin, onLogout }) {
             </div>
             {error && <div style={{ fontSize:"15px", color:P.red, fontFamily:font, background:P.redLight, borderRadius:"8px", padding:"5px 10px", marginTop:"8px" }}>{error}</div>}
             {results && <div style={{ fontSize:"15px", color:P.green, fontFamily:font, fontWeight:700, marginTop:"8px", textAlign: isMobile ? "center" : "right" }}>✓ {results.length} guests · {results.filter(r=>r.status!=="ok").length} flags found</div>}
-          </div>
-        )}
-
-        {/* Format guide */}
-        {!results && !loading && (
-          <div style={{ background:P.white, borderRadius:"10px", padding:"20px", boxShadow:"0 1px 2px rgba(15,29,53,0.05)", border:`1px solid ${P.grey100}` }}>
-            <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"16px" }}>
-              <div style={{ width:4, height:16, background:P.periwinkle, borderRadius:"3px" }} />
-              <span style={{ fontFamily:font, fontSize:"14px", fontWeight:800, color:P.navy }}>Expected Column Headers</span>
-              <span style={{ background:P.periwinkle+"1A", color:P.periwinkleD, fontSize:"15px", fontWeight:700, padding:"2px 10px", borderRadius:"20px", fontFamily:font }}>Auto-detected</span>
-            </div>
-            <div className="gg-col-guide" style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr", gap:"16px" }}>
-              {[
-                {title:"Registration List",color:P.accentD,cols:["First Name + Last Name (or Name)","Email","Company / Job Title (opt)","Requested Check-In / Out (opt)","Flight / Hotel Request (opt)","Registration Notes (opt)"]},
-                {title:"Flight",color:P.periwinkleD,cols:["First Name + Last Name (or Name)","Email (opt)","Arrival Date","Departure Date","Inbound Flight # (opt)","Outbound Flight # (opt)"]},
-                {title:"Hotel",color:P.navy,cols:["First Name + Last Name (or Name)","Email (opt)","Check-In Date","Check-Out Date","Hotel Name (opt)","Room / Conf # (opt)"]},
-                {title:"Car Transfers",color:P.navy,cols:["First Name + Last Name (or Name)","Email (opt)","Pickup Date","Dropoff Date","Pickup Location (opt)","Conf # (opt)"]},
-                {title:"Dietary & Access",color:P.teal,cols:["First Name + Last Name (or Name)","Email (opt)","Dietary Restrictions","Accessibility Needs","Special Notes (opt)"]},
-              ].map(({title,color,cols}) => (
-                <div key={title}>
-                  <div style={{ fontWeight:800, color, fontSize:"15px", marginBottom:"8px", fontFamily:font }}>{title}</div>
-                  {cols.map(c => <div key={c} style={{ background:P.offWhite, border:`1px solid ${P.grey100}`, borderRadius:"7px", padding:"5px 10px", fontSize:"15px", color:P.navy, marginBottom:"4px", fontFamily:font }}>{c}</div>)}
-                </div>
-              ))}
-            </div>
           </div>
         )}
 
