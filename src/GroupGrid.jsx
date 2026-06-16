@@ -44,7 +44,7 @@
 
 import React, { useState, useCallback, useEffect, useRef, Fragment } from "react";
 import * as XLSX from "xlsx";
-import { Plane, Hotel, Car, Salad, LayoutGrid, BarChart2, Mail, Lock, Calendar, Star, Search, Upload, Send, AlertTriangle, AlertCircle, Circle, Copy, Check, X, ChevronDown, ChevronUp, Plus, ShieldCheck, Ban, FileSpreadsheet, Users, Download, ExternalLink } from "lucide-react";
+import { Plane, Hotel, Car, Salad, LayoutGrid, BarChart2, Mail, Lock, Calendar, Star, Search, Upload, Send, AlertTriangle, AlertCircle, Circle, Copy, Check, X, ChevronDown, ChevronUp, Plus, ShieldCheck, Ban, FileSpreadsheet, Users, Download, ExternalLink, Save} from "lucide-react";
 
 const P = {
   navy:"#0F1F3D", navyLight:"#1A2E52", periwinkle:"#6B7FD4", periwinkleL:"#9BAAE8",
@@ -206,6 +206,12 @@ function parseFlightSheet(wb) {
 function parseHotelSheet(wb) {
   return parseSheet(wb, { name:["name","attendee","guest","passenger"], email:["email","e-mail","email address"], checkIn:["check-in","checkin","arrival","hotel in"], checkOut:["check-out","checkout","departure","hotel out"], room:["room","confirmation","conf","booking","reservation"], hotel:["hotel","property","venue"] });
 }
+// Parse a hotel roster and tag every record with a property name.
+// Priority: the row's own "Hotel" column (combined-file case) → the file-level property name (separate-file case).
+function parseHotelSheetTagged(wb, fileProperty) {
+  const rows = parseHotelSheet(wb);
+  return rows.map(r => ({ ...r, hotel: (r.hotel && r.hotel.trim()) ? r.hotel.trim() : (fileProperty || "").trim() }));
+}
 function parseCarSheet(wb) {
   return parseSheet(wb, { name:["name","attendee","passenger","guest"], email:["email","e-mail","email address"], pickupDate:["pickup","pick up","transfer in","arrival transfer","car arrival"], dropoffDate:["dropoff","drop off","transfer out","departure transfer"], pickupLoc:["pickup location","pick up location","from","origin"], dropoffLoc:["dropoff location","drop off location","to","destination"], confirmation:["confirmation","conf","booking","transfer #","vendor"] });
 }
@@ -228,6 +234,7 @@ function parseRegistrationSheet(wb) {
     departCountry:["departing country","country","nation"],
     regNotes:["registration notes","reg notes","notes","comments","special requests"],
     reason:["reason","justification","exception reason","no travel reason","opt out reason","explanation"],
+    assignedHotel:["assigned hotel","hotel assignment","assigned property","designated hotel","hotel block","room block","expected hotel"],
   });
 }
 
@@ -302,6 +309,12 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
         if (hotel && reg.regCheckOut && hotel.checkOut) {
           const co = diffDays(reg.regCheckOut, hotel.checkOut);
           if (co !== null && co !== 0) issues.push({ type:"mismatch", text:`Hotel check-out differs from registration by ${Math.abs(co)} ${Math.abs(co)===1?"day":"days"}` });
+        }
+        // Right-hotel check (only when registration provides an assigned hotel AND the booked record names a property)
+        if (hotel && reg.assignedHotel && reg.assignedHotel.trim() && hotel.hotel && hotel.hotel.trim()) {
+          const assigned = reg.assignedHotel.trim().toLowerCase();
+          const booked = hotel.hotel.trim().toLowerCase();
+          if (assigned !== booked) issues.push({ type:"mismatch", text:`Booked at ${hotel.hotel.trim()} but assigned to ${reg.assignedHotel.trim()}` });
         }
       }
     }
@@ -483,6 +496,26 @@ function ContactsModal({ contacts, onSave, onClose }) {
               </div>
             </div>
           ))}
+          {/* Per-property hotel contacts (multi-hotel) */}
+          <div style={{ marginBottom:"24px" }}>
+            <div style={{ fontSize:"14px", fontWeight:600, color:P.navy, marginBottom:"4px", fontFamily:font, display:"flex", alignItems:"center", gap:"8px" }}>
+              <div style={{ width:3, height:16, background:"#F5A623", borderRadius:"2px" }} />Additional hotel properties
+            </div>
+            <div style={{ fontSize:"13px", color:P.navyLight, fontFamily:font, marginBottom:"12px" }}>Running multiple hotels? Add a contact per property. Emails about each guest's room route to the matching property automatically.</div>
+            {(local.hotels||[]).map((h, idx) => (
+              <div key={idx} style={{ display:"flex", gap:"8px", marginBottom:"8px", alignItems:"center", flexWrap:"wrap" }}>
+                <input value={h.property||""} onChange={e => setLocal(prev => ({ ...prev, hotels: prev.hotels.map((x,i)=>i===idx?{...x,property:e.target.value}:x) }))} placeholder="Property name"
+                  style={{ flex:"1 1 140px", background:P.offWhite, border:`1.5px solid ${h.property?"#F5A62344":P.grey100}`, borderRadius:"9px", padding:"9px 11px", fontSize:"14px", fontFamily:font, fontWeight:500, color:P.navy, outline:"none", minWidth:0 }} />
+                <input value={h.name||""} onChange={e => setLocal(prev => ({ ...prev, hotels: prev.hotels.map((x,i)=>i===idx?{...x,name:e.target.value}:x) }))} placeholder="Contact name"
+                  style={{ flex:"1 1 120px", background:P.offWhite, border:`1.5px solid ${P.grey100}`, borderRadius:"9px", padding:"9px 11px", fontSize:"14px", fontFamily:font, fontWeight:500, color:P.navy, outline:"none", minWidth:0 }} />
+                <input value={h.email||""} onChange={e => setLocal(prev => ({ ...prev, hotels: prev.hotels.map((x,i)=>i===idx?{...x,email:e.target.value}:x) }))} placeholder="email@hotel.com"
+                  style={{ flex:"2 1 160px", background:P.offWhite, border:`1.5px solid ${h.email?"#F5A62344":P.grey100}`, borderRadius:"9px", padding:"9px 11px", fontSize:"14px", fontFamily:font, fontWeight:500, color:P.navy, outline:"none", minWidth:0 }} />
+                <button onClick={() => setLocal(prev => ({ ...prev, hotels: prev.hotels.filter((_,i)=>i!==idx) }))} style={{ background:"transparent", border:"none", color:P.grey400, cursor:"pointer", flexShrink:0, padding:"4px" }} title="Remove"><X size={15} strokeWidth={2}/></button>
+              </div>
+            ))}
+            <button onClick={() => setLocal(prev => ({ ...prev, hotels:[...(prev.hotels||[]), {property:"",name:"",email:""}] }))}
+              style={{ background:"transparent", border:"none", color:P.accentD, fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer", marginTop:"4px", padding:"4px 0" }}>+ Add hotel property contact</button>
+          </div>
           <div style={{ marginBottom:"24px" }}>
             <div style={{ fontSize:"14px", fontWeight:800, color:P.navy, marginBottom:"12px", fontFamily:font, display:"flex", alignItems:"center", gap:"8px" }}>
               <div style={{ width:3, height:16, background:P.grey400, borderRadius:"2px" }} />✍ Your Name (used in email signatures)
@@ -491,7 +524,7 @@ function ContactsModal({ contacts, onSave, onClose }) {
               style={{ width:"100%", background:P.offWhite, border:`1.5px solid ${local.plannerName?P.grey400+"44":P.grey100}`, borderRadius:"10px", padding:"9px 12px", fontSize:"15px", fontFamily:font, fontWeight:600, color:P.navy, outline:"none", boxSizing:"border-box" }} />
           </div>
           <div style={{ display:"flex", gap:"10px", paddingTop:"8px", borderTop:`1px solid ${P.grey100}` }}>
-            <Btn onClick={() => { onSave(local); onClose(); }} color={P.accent}>Save Contacts</Btn>
+            <Btn onClick={() => { onSave(local); onClose(); }} color={P.accent}>Save Contacts <Save size={13} strokeWidth={2} style={{verticalAlign:"-2px"}}/></Btn>
             <Btn onClick={onClose} outline>Cancel</Btn>
           </div>
         </div>
@@ -868,7 +901,7 @@ ${evName ? evName + " Planning Team" : "Planning Team"}`,
               <div style={{ fontSize:"15px", fontWeight:700, color:P.navyLight, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em" }}>Body</div>
               {isDirtyEmail && (
                 <div style={{ display:"flex", gap:"6px" }}>
-                  <button onClick={saveEdits} style={{ background:saved?P.greenLight:P.periwinkleD, color:saved?P.green:P.white, border:"none", borderRadius:"6px", padding:"3px 10px", fontSize:"12px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>{saved?"✓ Saved":"Save"}</button>
+                  <button onClick={saveEdits} style={{ background:saved?P.greenLight:P.periwinkleD, color:saved?P.green:P.white, border:"none", borderRadius:"6px", padding:"3px 10px", fontSize:"12px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>{saved ? <>Saved <Check size={12} strokeWidth={2.5} style={{verticalAlign:"-2px"}}/></> : <>Save <Save size={12} strokeWidth={2} style={{verticalAlign:"-2px"}}/></>}</button>
                   <button onClick={resetEdits} style={{ background:P.offWhite, color:P.grey400, border:`1px solid ${P.grey200}`, borderRadius:"6px", padding:"3px 10px", fontSize:"12px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>Reset</button>
                 </div>
               )}
@@ -1334,7 +1367,7 @@ function NewTemplateModal({ onSave, onClose }) {
 
           {/* Actions */}
           <div style={{ display:"flex", gap:"10px", paddingTop:"4px" }}>
-            <Btn onClick={handleSave} color={P.accent}>✨ Save Template</Btn>
+            <Btn onClick={handleSave} color={P.accent}>Save Template <Save size={13} strokeWidth={2} style={{verticalAlign:"-2px"}}/></Btn>
             <Btn onClick={onClose} outline>Cancel</Btn>
           </div>
         </div>
@@ -1608,7 +1641,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                   style={{ width:"100%", height:"300px", background:P.offWhite, border:`1.5px solid ${P.grey200}`, borderRadius:"10px", padding:"14px", fontSize:"14px", fontFamily:font, color:P.navy, resize:"vertical", outline:"none", boxSizing:"border-box", lineHeight:1.7 }} />
               </div>
               <div style={{ display:"flex", gap:"10px" }}>
-                <Btn onClick={saveEdit} color={P.accent}>Save Template</Btn>
+                <Btn onClick={saveEdit} color={P.accent}>Save Template <Save size={13} strokeWidth={2} style={{verticalAlign:"-2px"}}/></Btn>
                 <Btn onClick={() => { setTemplates(prev => ({...prev, [editingTemplate]: DEFAULT_TEMPLATES[editingTemplate]})); setEditSubject(DEFAULT_TEMPLATES[editingTemplate].subject); setEditBody(DEFAULT_TEMPLATES[editingTemplate].body); }} outline color={P.grey400}>↺ Reset to Default</Btn>
                 <Btn onClick={() => setEditingTemplate(null)} outline>Cancel</Btn>
               </div>
@@ -1643,7 +1676,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:"16px", flexWrap:"wrap" }}>
               {flaggedWithEmail.length > 0
-                ? <button onClick={buildQueue} style={{ background:P.accent, color:P.white, border:"none", borderRadius:"11px", padding:"12px 24px", fontSize:"14px", fontWeight:600, fontFamily:font, cursor:"pointer" }}>✉ Review &amp; send {flaggedWithEmail.length} message{flaggedWithEmail.length!==1?"s":""} →</button>
+                ? <button onClick={buildQueue} style={{ background:P.accent, color:P.white, border:"none", borderRadius:"11px", padding:"12px 24px", fontSize:"14px", fontWeight:600, fontFamily:font, cursor:"pointer" }}>Review &amp; send {flaggedWithEmail.length} message{flaggedWithEmail.length!==1?"s":""} <Mail size={14} strokeWidth={2} style={{verticalAlign:"-2px",marginLeft:"2px"}}/></button>
                 : <span style={{ fontSize:"13px", color:P.grey400, fontFamily:font }}>Run a cross-check to generate messages.</span>}
               <button onClick={() => setShowTemplateConfig(v=>!v)} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>{showTemplateConfig ? "Hide template settings" : "Customize email templates"}</button>
             </div>
@@ -1667,8 +1700,8 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
               const blob = new Blob([text], {type:"text/plain"});
               const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
               a.download = `groupgrid-email-queue-${new Date().toISOString().slice(0,10)}.txt`; a.click();
-            }} style={{ background:P.white, color:P.periwinkleD, border:`1px solid ${P.grey200}`, borderRadius:"8px", padding:"7px 14px", fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>⬇ Download .txt</button>
-            <button onClick={sendAll} style={{ background:P.accent, color:P.white, border:"none", borderRadius:"8px", padding:"7px 16px", fontSize:"13px", fontWeight:600, fontFamily:font, cursor:"pointer" }}>📤 Open all {pendingCount} in mail app</button>
+            }} style={{ background:P.white, color:P.periwinkleD, border:`1px solid ${P.grey200}`, borderRadius:"8px", padding:"7px 14px", fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>Download .txt <Download size={13} strokeWidth={2} style={{verticalAlign:"-2px"}}/></button>
+            <button onClick={sendAll} style={{ background:P.accent, color:P.white, border:"none", borderRadius:"8px", padding:"7px 16px", fontSize:"13px", fontWeight:600, fontFamily:font, cursor:"pointer" }}>Open all {pendingCount} in mail app <Mail size={13} strokeWidth={2} style={{verticalAlign:"-2px"}}/></button>
           </div>}
         </div>
       )}
@@ -1714,7 +1747,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
           {/* Templates grid */}
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"12px" }}>
             <div style={{ fontSize:"14px", fontWeight:700, color:P.navy }}>Email Templates</div>
-            <Btn onClick={() => setNewTemplateOpen(true)} outline color={P.periwinkleD} small>✨ New Template</Btn>
+            <Btn onClick={() => setNewTemplateOpen(true)} outline color={P.periwinkleD} small>New Template <Plus size={12} strokeWidth={2} style={{verticalAlign:"-2px"}}/></Btn>
           </div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px" }}>
             {Object.values(templates).map(tmpl => {
@@ -3465,6 +3498,7 @@ function SetupScreen({
   departureStart, setDepartureStart, departureEnd, setDepartureEnd,
   contacts, setContactsOpen,
   registrationFile, setRegistrationFile, flightFile, setFlightFile, hotelFile, setHotelFile,
+  hotelProperty, setHotelProperty, extraHotels, setExtraHotels,
   carFile, setCarFile, dietaryFile, setDietaryFile,
   ready, loading, error, runCheck, isMobile
 }) {
@@ -3537,6 +3571,38 @@ function SetupScreen({
           <SetupTile label="Flight Manifest" sub=".xlsx, .xls, .csv" icon={<Plane size={20} strokeWidth={1.5} color="#4F8EF7"/>} accent={P.periwinkleD} file={flightFile} setter={setFlightFile} columns={["First/Last Name (or Name)","Email (opt)","Arrival Date","Departure Date","Flight # (opt)"]} />
           <SetupTile label="Hotel Roster" sub=".xlsx, .xls, .csv" icon={<Hotel size={20} strokeWidth={1.5} color="#F5A623"/>} accent={P.navy} file={hotelFile} setter={setHotelFile} columns={["First/Last Name (or Name)","Email (opt)","Check-In Date","Check-Out Date","Hotel / Room (opt)"]} />
         </div>
+
+        {/* Multi-hotel: name the property and add more rooming lists */}
+        {hotelFile && (
+          <div style={{ background:P.grey50, border:`1px solid ${P.grey100}`, borderRadius:"12px", padding:"14px 16px", marginBottom:"14px" }}>
+            <div style={{ fontSize:"13px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Hotel properties</div>
+            <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"12px", lineHeight:1.5 }}>Running more than one hotel? Name each property and add its rooming list. If a file already has a "Hotel" column, GroupGrid uses that automatically.</div>
+
+            <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"8px" }}>
+              <Hotel size={16} strokeWidth={1.5} color="#F5A623" style={{ flexShrink:0 }}/>
+              <span style={{ fontSize:"13px", color:P.grey600, fontFamily:font, flex:"0 0 130px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{hotelFile.name}</span>
+              <input value={hotelProperty} onChange={e => setHotelProperty(e.target.value)} placeholder="Property name (optional)"
+                style={{ flex:1, background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"8px", padding:"7px 11px", fontSize:"13px", color:P.navy, fontFamily:font, outline:"none", minWidth:0 }} />
+            </div>
+
+            {extraHotels.map((eh, idx) => (
+              <div key={eh.id} style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"8px" }}>
+                <Hotel size={16} strokeWidth={1.5} color="#F5A623" style={{ flexShrink:0 }}/>
+                <label style={{ flex:"0 0 130px", overflow:"hidden" }}>
+                  <input type="file" accept=".xlsx,.xls,.csv" style={{ display:"none" }} onChange={e => { const f = e.target.files[0]; if (f) setExtraHotels(prev => prev.map(x => x.id===eh.id ? { ...x, file:f } : x)); }} />
+                  <span style={{ display:"inline-block", fontSize:"13px", color:eh.file?P.navy:P.periwinkleD, fontFamily:font, cursor:"pointer", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"130px", fontWeight:500 }}>{eh.file ? eh.file.name : "+ choose file"}</span>
+                </label>
+                <input value={eh.property} onChange={e => setExtraHotels(prev => prev.map(x => x.id===eh.id ? { ...x, property:e.target.value } : x))} placeholder="Property name (optional)"
+                  style={{ flex:1, background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"8px", padding:"7px 11px", fontSize:"13px", color:P.navy, fontFamily:font, outline:"none", minWidth:0 }} />
+                <button onClick={() => setExtraHotels(prev => prev.filter(x => x.id !== eh.id))} style={{ background:"transparent", border:"none", color:P.grey400, cursor:"pointer", flexShrink:0 }} title="Remove"><X size={15} strokeWidth={2}/></button>
+              </div>
+            ))}
+
+            <button onClick={() => setExtraHotels(prev => [...prev, { id:Date.now(), file:null, property:"" }])}
+              style={{ background:"transparent", border:"none", color:P.accentD, fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer", marginTop:"4px", padding:"4px 0" }}>+ Add another hotel property</button>
+          </div>
+        )}
+
         <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>More files</div>
         <div className="gg-setup-tiles2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px" }}>
           <SetupTile label="Car Transfers" sub=".xlsx, .xls, .csv" icon={<Car size={20} strokeWidth={1.5} color="#9B59B6"/>} accent={P.grey600} file={carFile} setter={setCarFile} columns={["First/Last Name (or Name)","Email (opt)","Pickup Date","Dropoff Date","Pickup Location (opt)"]} />
@@ -3569,6 +3635,8 @@ function GroupGrid({ user, onLogin, onLogout }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [flightFile, setFlightFile] = useState(null);
   const [hotelFile, setHotelFile] = useState(null);
+  const [hotelProperty, setHotelProperty] = useState(""); // optional property name for the primary hotel file
+  const [extraHotels, setExtraHotels] = useState([]); // [{ id, file, property }] additional hotel properties
   const [carFile, setCarFile] = useState(null);
   const [dietaryFile, setDietaryFile] = useState(null);
   const [registrationFile, setRegistrationFile] = useState(null);
@@ -3600,7 +3668,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
   const TABLE_EXPANDED_HEIGHT = 320;
   const TABLE_VISIBLE_ROWS = 16; // rows visible at once (~600px container)
   const [savedSessions, setSavedSessions] = useState([]);
-  const [contacts, setContacts] = useState({ hotel:{name:"",email:"",phone:"",property:""}, travel:{name:"",email:"",phone:"",agency:""}, plannerName:"" });
+  const [contacts, setContacts] = useState({ hotel:{name:"",email:"",phone:"",property:""}, travel:{name:"",email:"",phone:"",agency:""}, hotels:[], plannerName:"" });
   const [contactsOpen, setContactsOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [sortBy, setSortBy] = useState(null);       // null | "name" | "status" | "arrival" | "checkin" | "departure" | "checkout"
@@ -3702,7 +3770,11 @@ function GroupGrid({ user, onLogin, onLogout }) {
     try {
       let flights = [], hotels = [], cars = [], dietary = [], registration = [];
       if (flightFile)       { const w = await readXlsx(flightFile);       flights = parseFlightSheet(w); }
-      if (hotelFile)        { const w = await readXlsx(hotelFile);        hotels = parseHotelSheet(w); }
+      if (hotelFile)        { const w = await readXlsx(hotelFile);        hotels = parseHotelSheetTagged(w, hotelProperty); }
+      // Additional hotel properties (multi-hotel): parse each and merge into one hotels array
+      for (const eh of extraHotels) {
+        if (eh.file) { const w = await readXlsx(eh.file); hotels = hotels.concat(parseHotelSheetTagged(w, eh.property)); }
+      }
       if (carFile)          { const w = await readXlsx(carFile);          cars = parseCarSheet(w); }
       if (dietaryFile)      { const w = await readXlsx(dietaryFile);      dietary = parseDietarySheet(w); }
       if (registrationFile) { const w = await readXlsx(registrationFile); registration = parseRegistrationSheet(w); }
@@ -3743,9 +3815,40 @@ function GroupGrid({ user, onLogin, onLogout }) {
     setTimeout(() => setSaveMsg(""), 3000);
   }
 
+  // Multi-hotel: build and send a separate guest list to each property's contact, containing only that property's guests.
+  function exportToHotelsByProperty() {
+    if (!XLSX) { setError("Spreadsheet library not loaded."); return; }
+    const propContacts = (contacts.hotels || []).filter(h => h.email && h.property);
+    if (propContacts.length === 0) { setContactsOpen(true); return; }
+    let sent = 0;
+    propContacts.forEach((pc, idx) => {
+      const propRows = filtered.filter(r => (r.hotel?.hotel || "").trim().toLowerCase() === pc.property.trim().toLowerCase());
+      if (propRows.length === 0) return;
+      const rows = propRows.map(r => ({
+        "Guest": r.displayName, "Email": r.email||"—",
+        "Status": {ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status],
+        "Active Issues": r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None",
+        "Hotel": r.hotel?.hotel||"—", "Check-In": fmt(r.hotel?.checkIn), "Check-Out": fmt(r.hotel?.checkOut), "Room/Conf": r.hotel?.room||"—",
+        "Note": r.note||"—",
+      }));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "Rooming List");
+      XLSX.writeFile(wb, `groupgrid-${(eventName||"event").replace(/\s+/g,"-")}-${pc.property.replace(/\s+/g,"-")}.xlsx`);
+      const subject = encodeURIComponent(`${eventName||"Event"} — Rooming list for ${pc.property}`);
+      const body = encodeURIComponent(`Dear ${pc.name||"Team"},\n\nAttached is the current rooming list for ${pc.property} (${propRows.length} guests) for ${eventName||"our event"}.\n\nThe Excel file has been downloaded to your device — please attach it before sending.\n\nThank you,\n${contacts.plannerName||"[Your Name]"}`);
+      setTimeout(() => window.open(`mailto:${pc.email}?subject=${subject}&body=${body}`, "_blank"), 300 * (idx+1));
+      sent++;
+    });
+    if (sent === 0) setError("No guests matched your hotel properties. Check the property names match the rooming lists.");
+  }
+
   function exportToContact(contactType) {
     
     if (!XLSX) { setError("Spreadsheet library not loaded."); return; }
+    // Multi-hotel routing: if sending to "hotel" and per-property contacts exist, send each property its own list.
+    if (contactType === "hotel" && Array.isArray(contacts.hotels) && contacts.hotels.filter(h=>h.email).length > 0) {
+      return exportToHotelsByProperty();
+    }
     const contact = contacts[contactType];
     if (!contact?.email) { setContactsOpen(true); return; }
     const rows = filtered.map(r => ({
@@ -4052,7 +4155,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
   const hasCars = results?.some(r => r.car);
   const hasDiet = results?.some(r => r.diet);
-  const uploadedCount = [registrationFile, flightFile, hotelFile, carFile, dietaryFile].filter(Boolean).length;
+  const uploadedCount = [registrationFile, flightFile, hotelFile, carFile, dietaryFile].filter(Boolean).length + extraHotels.filter(h=>h.file).length;
   const ready = uploadedCount >= 2;
 
 
@@ -4455,6 +4558,8 @@ function GroupGrid({ user, onLogin, onLogout }) {
             registrationFile={registrationFile} setRegistrationFile={setRegistrationFile}
             flightFile={flightFile} setFlightFile={setFlightFile}
             hotelFile={hotelFile} setHotelFile={setHotelFile}
+            hotelProperty={hotelProperty} setHotelProperty={setHotelProperty}
+            extraHotels={extraHotels} setExtraHotels={setExtraHotels}
             carFile={carFile} setCarFile={setCarFile}
             dietaryFile={dietaryFile} setDietaryFile={setDietaryFile}
             ready={ready} loading={loading} error={error} runCheck={runCheck} isMobile={isMobile}
@@ -4535,8 +4640,8 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 </div>
                 <div style={{ display:"flex", gap:"8px", alignItems:"center", flexWrap:"wrap" }}>
                   <Btn onClick={exportReport} outline>Export</Btn>
-                  {contacts.hotel.email && <Btn onClick={() => exportToContact("hotel")} color={P.accent}>🏨 Send to {contacts.hotel.name||"Hotel"}</Btn>}
-                  {contacts.travel.email && <Btn onClick={() => exportToContact("travel")} color={P.accent}>✈ Send to {contacts.travel.name||"Travel Agency"}</Btn>}
+                  {contacts.hotel.email && <Btn onClick={() => exportToContact("hotel")} color={P.accent}>Send to {contacts.hotel.name||"Hotel"} <Mail size={13} strokeWidth={2} style={{verticalAlign:"-2px"}}/></Btn>}
+                  {contacts.travel.email && <Btn onClick={() => exportToContact("travel")} color={P.accent}>Send to {contacts.travel.name||"Travel Agency"} <Mail size={13} strokeWidth={2} style={{verticalAlign:"-2px"}}/></Btn>}
                 </div>
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"10px", marginBottom:"20px" }}>
@@ -4564,7 +4669,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                         <div style={{ fontWeight:700, fontSize:"14px", color:P.navy, fontFamily:font }}>{r.firstName} {r.lastName}</div>
                         <div style={{ fontSize:"15px", color:P.red, fontFamily:font, marginTop:"2px" }}>{r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join(" · ")}</div>
                       </div>
-                      <Btn onClick={() => setEmailModal(r)} small outline color={P.red}>✉ Draft</Btn>
+                      <Btn onClick={() => setEmailModal(r)} small outline color={P.red}>Draft <Mail size={12} strokeWidth={2} style={{verticalAlign:"-2px"}}/></Btn>
                     </div>
                   ))}
                 </div>
@@ -4647,12 +4752,12 @@ function GroupGrid({ user, onLogin, onLogout }) {
               {/* Excel export — PRIMARY */}
               <button onClick={exportSelected}
                 style={{ display:"flex", alignItems:"center", gap:"5px", background:P.accent, border:"none", borderRadius:"7px", padding:"5px 13px", fontSize:"13px", fontWeight:700, fontFamily:font, color:P.white, cursor:"pointer", transition:"all 0.15s", whiteSpace:"nowrap", flexShrink:0, boxShadow:"0 1px 6px rgba(0,201,177,0.3)" }}>
-                <FileSpreadsheet size={13} strokeWidth={1.8}/> {someSelected ? `Export ${selCount} to Excel` : "Export to Excel"}
+                {someSelected ? `Export ${selCount} to Excel` : "Export to Excel"} <FileSpreadsheet size={13} strokeWidth={1.8} style={{verticalAlign:"-2px",marginLeft:"4px"}}/>
               </button>
               {/* Share HTML Report — SECONDARY */}
               <button onClick={generateShareableReport}
                 style={{ display:"flex", alignItems:"center", gap:"5px", background:P.offWhite, border:`1.5px solid ${P.grey200}`, borderRadius:"7px", padding:"5px 12px", fontSize:"13px", fontWeight:600, fontFamily:font, color:P.grey600, cursor:"pointer", flexShrink:0, whiteSpace:"nowrap" }}>
-                <Send size={12} strokeWidth={1.5}/> Share HTML Report
+                Share HTML Report <Send size={12} strokeWidth={1.5} style={{verticalAlign:"-2px",marginLeft:"4px"}}/>
               </button>
               {someSelected && (
                 <button onClick={() => setSelectedRows(new Set())}
@@ -4808,7 +4913,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                               <td colSpan={20} style={{ padding:0 }}>
                                 <div style={{ background:P.grey50, borderBottom:`1px solid ${P.grey100}`, padding:"16px 18px" }}>
                                   <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"12px", flexWrap:"wrap" }}>
-                                    <Btn onClick={() => setEmailModal(r)} small color={P.accent}>✉ Draft Email</Btn>
+                                    <Btn onClick={() => setEmailModal(r)} small color={P.accent}>Draft Email <Mail size={12} strokeWidth={2} style={{verticalAlign:"-2px"}}/></Btn>
                                     <div style={{ flex:1, display:"flex", alignItems:"center", gap:"8px" }}>
                                       <span style={{ fontSize:"15px", fontWeight:700, color:P.navyLight, fontFamily:font, flexShrink:0 }}>Note</span>
                                       <input value={r.note||""} onChange={e => updateMeta(r,{note:e.target.value})} placeholder={user ? `Planner note — saved to ${user.name}'s account` : "Planner note — saved locally (sign in to sync)"} onClick={e => e.stopPropagation()}
