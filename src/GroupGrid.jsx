@@ -100,7 +100,10 @@ const MOBILE_CSS = `
     .gg-step-line { display: none !important; }
     .gg-setup-cols { grid-template-columns: 1fr !important; }
     .gg-eventbar { flex-direction: column !important; align-items: stretch !important; }
-    .gg-eventbar > div, .gg-eventbar > button { width: 100% !important; }
+    .gg-eventbar > div { width: 100% !important; }
+    .gg-eventbar > div:last-child { display: flex !important; gap: 8px !important; }
+    .gg-eventbar > div:last-child > * { flex: 1 !important; }
+    .gg-eventbar > div:last-child button { width: 100% !important; justify-content: center !important; }
     .gg-cta-btns { flex-direction: column; align-items: stretch !important; }
     .gg-pricing-grid { grid-template-columns: 1fr !important; }
     .gg-contacts-grid { grid-template-columns: 1fr !important; }
@@ -4201,6 +4204,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
     if (filter === "issues") return r.status !== "ok";
     if (filter === "missing") return r.issues.some(x => x.type === "missing");
     if (filter === "window") return r.issues.some(x => x.type === "window");
+    if (filter === "mismatch") return r.issues.some(x => x.type === "mismatch");
     if (filter === "duplicate") return r.issues.some(x => x.type === "duplicate");
     if (filter === "unregistered") return r.issues.some(x => x.type === "unregistered");
     if (["ok","warn","error"].includes(filter)) return r.status === filter;
@@ -4355,11 +4359,11 @@ function GroupGrid({ user, onLogin, onLogout }) {
         </div>
       </div>
 
-      <div style={{ display:"flex", flex:1, width:"100%", minHeight:`calc(100vh - ${isMobile && results ? "104px" : "52px"})`, alignItems:"flex-start" }}>
+      <div style={{ display:"flex", flex:1, width:"100%", minHeight:`calc(100vh - ${isMobile && results ? "104px" : "52px"})`, alignItems:"stretch" }}>
 
         {/* ── Left Sidebar / Mobile Drawer ── */}
         <div className={`gg-sidebar${isMobile && sidebarOpen ? " open" : ""}`}
-          style={{ width:224, flexShrink:0, background:P.navy, borderRight:`1px solid rgba(255,255,255,0.07)`, display:"flex", flexDirection:"column", padding:"20px 14px", overflowY:"auto", position: isMobile ? "fixed" : "sticky", top: isMobile ? "52px" : 0, height: isMobile ? "calc(100vh - 52px)" : "calc(100vh)", alignSelf:"flex-start", zIndex: isMobile ? 200 : "auto" }}>
+          style={{ width:224, flexShrink:0, background:P.navy, borderRight:`1px solid rgba(255,255,255,0.07)`, display:"flex", flexDirection:"column", padding:"20px 14px", overflowY:"auto", position: isMobile ? "fixed" : "relative", top: isMobile ? "52px" : 0, height: isMobile ? "calc(100vh - 52px)" : "auto", minHeight: isMobile ? undefined : `calc(100vh - 52px)`, alignSelf:"stretch", zIndex: isMobile ? 200 : "auto" }}>
 
           {/* Mobile drawer close */}
           {isMobile && (
@@ -4471,24 +4475,38 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
             <div style={{ width:"100%", height:1, background:"rgba(255,255,255,0.08)", margin:"14px 0" }} />
             <div style={{ fontSize:"14px", fontWeight:600, color:"rgba(255,255,255,0.5)", letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"8px", paddingLeft:"2px" }}>Filters</div>
-            {[
-              { k:"all", icon:"◉", label:"All Guests", count: results.length },
-              { k:"issues", icon:"⚑", label:"Action Needed", count: results.filter(r=>r.status!=="ok").length, color:P.red },
-              { k:"ok", icon:"✓", label:"Aligned", count: results.filter(r=>r.status==="ok").length, color:P.accent },
-              { k:"missing", icon:"○", label:"Missing Records", count: results.filter(r=>r.issues.some(x=>x.type==="missing")).length, color:P.amber },
-              { k:"window", icon:"🗓", label:"Outside Window", count: results.filter(r=>r.issues.some(x=>x.type==="window")).length, color:"#C4A0F0" },
-              { k:"duplicate", icon:<AlertCircle size={13} strokeWidth={1.5}/>, label:"Duplicates", count: results.filter(r=>r.issues.some(x=>x.type==="duplicate")).length, color:"#FF8A65" },
-            ].map(({ k, icon, label, count, color }) => (
-              <button key={k} onClick={() => { setFilter(k); setActiveTab("grid"); if (isMobile) setSidebarOpen(false); }}
-                style={{ width:"100%", display:"flex", alignItems:"center", gap:"8px", background:filter===k&&activeTab==="grid"?"rgba(0,201,177,0.15)":"transparent", border:`1px solid ${filter===k&&activeTab==="grid"?"rgba(0,201,177,0.3)":"transparent"}`, borderRadius:"7px", padding:"6px 10px", cursor:"pointer", marginBottom:"2px", textAlign:"left" }}
-                onMouseEnter={e => (filter!==k||activeTab!=="grid") && (e.currentTarget.style.background="rgba(255,255,255,0.07)")}
-                onMouseLeave={e => (filter!==k||activeTab!=="grid") && (e.currentTarget.style.background="transparent")}>
-                <span style={{ fontSize:"14px", color:color||"rgba(255,255,255,0.45)", width:16, textAlign:"center", flexShrink:0 }}>{icon}</span>
-                <span style={{ flex:1, fontSize:"15px", fontWeight:filter===k&&activeTab==="grid"?600:400, color:filter===k&&activeTab==="grid"?P.accent:"rgba(255,255,255,0.65)", fontFamily:font }}>{label}</span>
-                <span style={{ fontSize:"15px", fontWeight:600, color:color||"rgba(255,255,255,0.5)", background:(color||"rgba(255,255,255,0.5)")+"22", padding:"1px 7px", borderRadius:"20px", flexShrink:0 }}>{count}</span>
-              </button>
-            ))}
-
+            {(() => {
+              const alignedCount = results.filter(r=>r.status==="ok").length;
+              const actionCount = results.filter(r=>r.status!=="ok").length;
+              const mainFilters = [
+                { k:"all", icon:"◉", label:"All Guests", count: results.length, color:null, indent:false },
+                { k:"ok", icon:"✓", label:"Aligned", count: alignedCount, color:P.accent, indent:false },
+                { k:"issues", icon:"⚑", label:"Action Needed", count: actionCount, color:P.red, indent:false },
+              ];
+              const subFilters = [
+                { k:"missing", icon:"○", label:"Missing records", count: results.filter(r=>r.issues.some(x=>x.type==="missing")).length, color:P.amber, indent:true },
+                { k:"window", icon:"🗓", label:"Outside dates", count: results.filter(r=>r.issues.some(x=>x.type==="window")).length, color:"#C4A0F0", indent:true },
+                { k:"mismatch", icon:"⇄", label:"Date mismatches", count: results.filter(r=>r.issues.some(x=>x.type==="mismatch")).length, color:"#E67E22", indent:true },
+                { k:"duplicate", icon:<AlertCircle size={13} strokeWidth={1.5}/>, label:"Duplicates", count: results.filter(r=>r.issues.some(x=>x.type==="duplicate")).length, color:"#FF8A65", indent:true },
+              ].filter(f => f.count > 0);
+              const renderBtn = ({ k, icon, label, count, color, indent }) => (
+                <button key={k} onClick={() => { setFilter(k); setActiveTab("grid"); if (isMobile) setSidebarOpen(false); }}
+                  style={{ width:"100%", display:"flex", alignItems:"center", gap:"8px", background:filter===k&&activeTab==="grid"?"rgba(0,201,177,0.15)":"transparent", border:`1px solid ${filter===k&&activeTab==="grid"?"rgba(0,201,177,0.3)":"transparent"}`, borderRadius:"7px", padding:"6px 10px", paddingLeft: indent ? "26px" : "10px", cursor:"pointer", marginBottom:"2px", textAlign:"left" }}
+                  onMouseEnter={e => (filter!==k||activeTab!=="grid") && (e.currentTarget.style.background="rgba(255,255,255,0.07)")}
+                  onMouseLeave={e => (filter!==k||activeTab!=="grid") && (e.currentTarget.style.background="transparent")}>
+                  <span style={{ fontSize:"14px", color:color||"rgba(255,255,255,0.45)", width:16, textAlign:"center", flexShrink:0 }}>{icon}</span>
+                  <span style={{ flex:1, fontSize: indent ? "13px" : "15px", fontWeight:filter===k&&activeTab==="grid"?600:400, color:filter===k&&activeTab==="grid"?P.accent:(indent?"rgba(255,255,255,0.5)":"rgba(255,255,255,0.65)"), fontFamily:font }}>{label}</span>
+                  <span style={{ fontSize:"13px", fontWeight:600, color:filter===k&&activeTab==="grid"?P.accent:"rgba(255,255,255,0.4)", fontFamily:font }}>{count}</span>
+                </button>
+              );
+              return (<>
+                {mainFilters.map(renderBtn)}
+                {subFilters.length > 0 && (<>
+                  <div style={{ fontSize:"11px", fontWeight:500, color:"rgba(255,255,255,0.3)", letterSpacing:"0.04em", margin:"8px 0 4px", paddingLeft:"10px" }}>Within Action Needed</div>
+                  {subFilters.map(renderBtn)}
+                </>)}
+              </>);
+            })()}
             <div style={{ width:"100%", height:1, background:"rgba(255,255,255,0.08)", margin:"14px 0" }} />
             <div style={{ fontSize:"14px", fontWeight:800, color:"rgba(255,255,255,0.5)", letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"8px", paddingLeft:"4px" }}>Export</div>
             <button onClick={exportReport} style={{ width:"100%", display:"flex", alignItems:"center", gap:"8px", background:"transparent", border:`1.5px solid rgba(255,255,255,0.12)`, borderRadius:"9px", padding:"7px 10px", cursor:"pointer", marginBottom:"6px", fontFamily:font }}
@@ -4527,19 +4545,23 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
         {/* ── Event Info TOP BAR (results state) — moved off the sidebar so the table gets full width ── */}
         {results && (
-          <div className="gg-eventbar" style={{ display:"flex", alignItems:"center", gap:"12px", flexWrap:"wrap", background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"12px", padding:"10px 14px", marginBottom:"16px" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:"8px", flex:"1 1 220px", minWidth:0 }}>
-              <span style={{ width:3, height:18, background:P.accent, borderRadius:"2px", flexShrink:0 }} />
-              <input value={eventName} onChange={e => setEventName(e.target.value)} placeholder="Name your event"
-                style={{ flex:1, minWidth:0, background:"transparent", border:"none", fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font, outline:"none", padding:"4px 2px" }} />
+          <div className="gg-eventbar" style={{ display:"flex", alignItems:"center", gap:"12px", flexWrap:"wrap", background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"12px", padding:"12px 16px", marginBottom:"16px" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:"11px", flex:"1 1 200px", minWidth:0 }}>
+              <span style={{ width:4, height:34, background:P.accent, borderRadius:"3px", flexShrink:0 }} />
+              <div style={{ display:"flex", flexDirection:"column", minWidth:0, flex:1 }}>
+                <span style={{ fontSize:"11px", fontWeight:600, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"1px" }}>Event</span>
+                <input value={eventName} onChange={e => setEventName(e.target.value)} placeholder="Name your event"
+                  style={{ width:"100%", minWidth:0, background:"transparent", border:"none", fontSize:"22px", fontWeight:600, letterSpacing:"-0.02em", color:P.navy, fontFamily:font, outline:"none", padding:"0", lineHeight:1.15 }} />
+              </div>
             </div>
-            <div style={{ position:"relative" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:"8px", flexShrink:0 }}>
+            <div style={{ position:"relative", display:"flex" }}>
               <button onClick={() => setWindowOpen(!windowOpen)}
-                style={{ display:"inline-flex", alignItems:"center", gap:"7px", background:hasWindow?P.periwinkle+"14":P.grey50, border:`1.5px solid ${hasWindow?P.periwinkle+"55":P.grey100}`, borderRadius:"9px", padding:"8px 13px", fontSize:"13px", fontWeight:500, color:hasWindow?P.periwinkleD:P.grey600, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>
+                style={{ display:"inline-flex", alignItems:"center", gap:"7px", height:"36px", background:hasWindow?P.periwinkle+"14":P.grey50, border:`1.5px solid ${hasWindow?P.periwinkle+"55":P.grey100}`, borderRadius:"9px", padding:"0 13px", fontSize:"13px", fontWeight:500, color:hasWindow?P.periwinkleD:P.grey600, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>
                 {hasWindow ? "Dates set" : "Approved travel dates"} <Calendar size={14} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/>
               </button>
               {windowOpen && (
-                <div style={{ position:"absolute", top:"calc(100% + 6px)", left:0, zIndex:60, width:"260px", background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"12px", padding:"14px", boxShadow:"0 12px 32px rgba(15,29,53,0.16)" }}>
+                <div style={{ position:"absolute", top:"calc(100% + 6px)", right:0, zIndex:60, width:"260px", background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"12px", padding:"14px", boxShadow:"0 12px 32px rgba(15,29,53,0.16)" }}>
                   <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"10px", lineHeight:1.5 }}>Flag guests arriving or departing outside these dates.</div>
                   <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
                     {[
@@ -4563,9 +4585,10 @@ function GroupGrid({ user, onLogin, onLogout }) {
               )}
             </div>
             <button onClick={() => setContactsOpen(true)}
-              style={{ display:"inline-flex", alignItems:"center", gap:"7px", background:(contacts.hotel.email||contacts.travel.email)?P.accent+"14":P.grey50, border:`1.5px solid ${(contacts.hotel.email||contacts.travel.email)?P.accent+"55":P.grey100}`, borderRadius:"9px", padding:"8px 13px", fontSize:"13px", fontWeight:500, color:(contacts.hotel.email||contacts.travel.email)?P.accentD:P.grey600, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>
+              style={{ display:"inline-flex", alignItems:"center", gap:"7px", height:"36px", background:(contacts.hotel.email||contacts.travel.email)?P.accent+"14":P.grey50, border:`1.5px solid ${(contacts.hotel.email||contacts.travel.email)?P.accent+"55":P.grey100}`, borderRadius:"9px", padding:"0 13px", fontSize:"13px", fontWeight:500, color:(contacts.hotel.email||contacts.travel.email)?P.accentD:P.grey600, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>
               {(contacts.hotel.email||contacts.travel.email) ? "Contacts added" : "Contacts"} <Users size={14} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/>
             </button>
+            </div>
           </div>
         )}
 
