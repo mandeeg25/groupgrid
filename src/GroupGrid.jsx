@@ -44,7 +44,7 @@
 
 import React, { useState, useCallback, useEffect, useRef, Fragment } from "react";
 import * as XLSX from "xlsx";
-import { Plane, Hotel, Car, Salad, LayoutGrid, BarChart2, Mail, Lock, Calendar, Send, AlertTriangle, AlertCircle, Circle, Copy, Check, X, Plus, ShieldCheck, Ban, FileSpreadsheet, Users, Download, Save } from "lucide-react";
+import { Plane, Hotel, Car, Salad, LayoutGrid, BarChart2, Mail, Lock, Calendar, Send, AlertTriangle, AlertCircle, Circle, Copy, Check, X, Plus, ShieldCheck, Ban, FileSpreadsheet, Users, Download, Save, Trash2, Pencil} from "lucide-react";
 
 const P = {
   navy:"#0F1F3D", navyLight:"#1A2E52", periwinkle:"#6B7FD4", periwinkleL:"#9BAAE8",
@@ -1680,7 +1680,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
               {flaggedWithEmail.length > 0
                 ? <button onClick={buildQueue} style={{ background:P.accent, color:P.white, border:"none", borderRadius:"11px", padding:"12px 24px", fontSize:"14px", fontWeight:600, fontFamily:font, cursor:"pointer" }}>Review &amp; send {flaggedWithEmail.length} message{flaggedWithEmail.length!==1?"s":""} <Mail size={14} strokeWidth={2} style={{verticalAlign:"-2px",marginLeft:"2px"}}/></button>
                 : <span style={{ fontSize:"13px", color:P.grey400, fontFamily:font }}>Run a cross-check to generate messages.</span>}
-              <button onClick={() => setShowTemplateConfig(v=>!v)} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>{showTemplateConfig ? "Hide template settings" : "Customize email templates"}</button>
+              <button onClick={() => setShowTemplateConfig(v=>!v)} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>{showTemplateConfig ? "Hide send settings" : "Send settings"}</button>
             </div>
           </div>
           {queue && <button onClick={() => setActiveView("queue")} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer", marginBottom:"14px" }}>← Back to your send queue ({pendingCount} pending)</button>}
@@ -1745,10 +1745,15 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
               </div>
             ))}
           </div>
+        </>
+      )}
 
+      {/* Templates grid — always visible (templates list is core, not a setting) */}
+      {activeView === "templates" && (
+        <>
           {/* Templates grid */}
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"12px" }}>
-            <div style={{ fontSize:"14px", fontWeight:700, color:P.navy }}>Email Templates</div>
+            <div style={{ fontSize:"14px", fontWeight:600, color:P.navy }}>Email Templates</div>
             <Btn onClick={() => setNewTemplateOpen(true)} outline color={P.periwinkleD} small>New Template <Plus size={12} strokeWidth={2} style={{verticalAlign:"-2px"}}/></Btn>
           </div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px" }}>
@@ -1761,28 +1766,28 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                     <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
                       <div style={{ width:36, height:36, borderRadius:"10px", background:tmpl.color+"18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"18px", flexShrink:0 }}>{tmpl.icon}</div>
                       <div>
-                        <div style={{ fontSize:"15px", fontWeight:800, color:P.navy }}>{tmpl.label}</div>
-                        <div style={{ fontSize:"15px", color:P.navyLight, marginTop:"2px" }}>{tmpl.description}</div>
+                        <div style={{ fontSize:"15px", fontWeight:600, color:P.navy }}>{tmpl.label}</div>
+                        <div style={{ fontSize:"13px", color:P.navyLight, marginTop:"2px" }}>{tmpl.description}</div>
                       </div>
                     </div>
-                    {isCustomized && <span style={{ background:P.periwinkle+"22", color:P.periwinkleD, fontSize:"14px", fontWeight:800, padding:"2px 8px", borderRadius:"20px", flexShrink:0, marginLeft:"8px" }}>Edited</span>}
-                    {tmpl.isCustom && <span style={{ background:P.periwinkleD+"18", color:P.periwinkleD, fontSize:"14px", fontWeight:800, padding:"2px 8px", borderRadius:"20px", flexShrink:0, marginLeft:"4px" }}>✨ Custom</span>}
+                    {isCustomized && <span style={{ background:P.periwinkle+"22", color:P.periwinkleD, fontSize:"12px", fontWeight:500, padding:"2px 8px", borderRadius:"20px", flexShrink:0, marginLeft:"8px" }}>Edited</span>}
+                    {tmpl.isCustom && <span style={{ background:P.periwinkleD+"18", color:P.periwinkleD, fontSize:"12px", fontWeight:500, padding:"2px 8px", borderRadius:"20px", flexShrink:0, marginLeft:"4px" }}>Custom</span>}
                   </div>
                   <div style={{ background:P.offWhite, borderRadius:"8px", padding:"10px 12px", marginBottom:"12px" }}>
-                    <div style={{ fontSize:"15px", fontWeight:700, color:P.navy, marginBottom:"3px" }}>Subject preview</div>
+                    <div style={{ fontSize:"11px", fontWeight:500, color:P.grey400, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"4px" }}>Subject preview</div>
                     <div style={{ fontSize:"14px", color:P.navy, fontWeight:600 }}>{tmpl.subject.replace(/\{\{[^}]+\}\}/g, "…")}</div>
                   </div>
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
                       {applicable.length > 0
-                        ? <span style={{ background:tmpl.color+"18", color:tmpl.color, fontSize:"15px", fontWeight:700, padding:"3px 10px", borderRadius:"20px" }}>Applies to {applicable.length} guest{applicable.length!==1?"s":""}</span>
-                        : <span style={{ background:P.grey50, color:P.navyLight, fontSize:"15px", fontWeight:600, padding:"3px 10px", borderRadius:"20px" }}>No guests currently</span>}
+                        ? <span style={{ background:tmpl.color+"18", color:tmpl.color, fontSize:"12px", fontWeight:500, padding:"3px 10px", borderRadius:"20px" }}>Applies to {applicable.length} guest{applicable.length!==1?"s":""}</span>
+                        : <span style={{ background:P.grey50, color:P.navyLight, fontSize:"12px", fontWeight:500, padding:"3px 10px", borderRadius:"20px" }}>No guests currently</span>}
                     </div>
                     <div style={{ display:"flex", gap:"6px" }}>
                       {tmpl.isCustom && (
-                        <Btn onClick={() => { if (window.confirm(`Delete "${tmpl.label}"?`)) deleteTemplate(tmpl.id); }} outline small color={P.red}>🗑 Delete</Btn>
+                        <Btn onClick={() => { if (window.confirm(`Delete "${tmpl.label}"?`)) deleteTemplate(tmpl.id); }} outline small color={P.red}>Delete <Trash2 size={12} strokeWidth={2} style={{verticalAlign:"-2px"}}/></Btn>
                       )}
-                      <Btn onClick={() => startEdit(tmpl.id)} outline small color={P.periwinkleD}>✏ Edit</Btn>
+                      <Btn onClick={() => startEdit(tmpl.id)} outline small color={P.periwinkleD}>Edit <Pencil size={12} strokeWidth={2} style={{verticalAlign:"-2px"}}/></Btn>
                     </div>
                   </div>
                 </div>
