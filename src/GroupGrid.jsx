@@ -1245,11 +1245,14 @@ function fillTemplate(template, record, extra = {}) {
 function getApplicableTemplates(record) {
   const applicable = [];
   const issues = record.issues || [];
-  if (issues.some(x => x.text?.includes("before check-in"))) applicable.push("arrives_early");
-  if (issues.some(x => x.text?.includes("before check-out"))) applicable.push("departs_late");
-  if (issues.some(x => x.text === "Missing from hotel roster")) applicable.push("missing_hotel");
-  if (issues.some(x => x.text === "Missing from flight manifest")) applicable.push("missing_flight");
-  if (issues.some(x => x.text === "Missing from car transfers")) applicable.push("missing_transfer");
+  const has = (sub) => issues.some(x => x.text && x.text.includes(sub));
+  if (has("before check-in")) applicable.push("arrives_early");
+  if (has("before check-out")) applicable.push("departs_late");
+  // Missing hotel — matches both the registration-anchored text and the travel-vs-travel fallback text
+  if (has("no hotel booked") || has("Missing from hotel roster") || has("no hotel' but no reason")) applicable.push("missing_hotel");
+  // Missing flight — same, across both engine paths
+  if (has("no flight booked") || has("Missing from flight manifest") || has("no flight' but no reason")) applicable.push("missing_flight");
+  if (has("Missing from car transfers")) applicable.push("missing_transfer");
   if (issues.some(x => x.type === "window")) applicable.push("outside_window");
   return applicable;
 }
@@ -1432,19 +1435,31 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
     const q = [];
     (results || []).forEach(record => {
       if (!record.email) return;
+      const unresolved = (record.issues || []).filter(x => !(record.resolved || []).includes(x.text));
+      if (unresolved.length === 0) return; // only message guests who actually have an open issue
+      let matched = false;
       // Default templates: use first applicable match
       const applicable = getApplicableTemplates(record);
       if (applicable.length > 0) {
         const templateId = applicable[0];
         const tmpl = templates[templateId];
-        if (tmpl) q.push({ id: `${record.key}-${templateId}`, record, templateId, subject: fillTemplate(tmpl.subject, record, extra), body: fillTemplate(tmpl.body, record, extra), to: record.email, status: "pending" });
+        if (tmpl) { q.push({ id: `${record.key}-${templateId}`, record, templateId, subject: fillTemplate(tmpl.subject, record, extra), body: fillTemplate(tmpl.body, record, extra), to: record.email, status: "pending" }); matched = true; }
       }
       // Custom templates: add a separate queue item for each that matches
       Object.values(templates).filter(t => t.isCustom).forEach(tmpl => {
         if (getCustomApplicable(record, tmpl)) {
           q.push({ id: `${record.key}-${tmpl.id}`, record, templateId: tmpl.id, subject: fillTemplate(tmpl.subject, record, extra), body: fillTemplate(tmpl.body, record, extra), to: record.email, status: "pending" });
+          matched = true;
         }
       });
+      // Fallback: flagged guest with an email but no matching template — still queue a generic note
+      // so they're never silently dropped (covers date mismatches, wrong-hotel, unregistered, etc.)
+      if (!matched) {
+        const issueList = unresolved.map(x => "• " + x.text).join("\n");
+        const subject = `${eventName || "Event"} — please review your travel details`;
+        const body = `Hi ${record.firstName || record.displayName || "there"},\n\nWhile reviewing arrangements for ${eventName || "our event"}, we found something on your record that needs attention:\n\n${issueList}\n\nCould you take a look and let us know? Thank you.\n\n${contacts?.plannerName || "[Your Name]"}`;
+        q.push({ id: `${record.key}-generic`, record, templateId: null, subject, body, to: record.email, status: "pending" });
+      }
     });
     setQueue(q);
     setReviewIdx(0);
@@ -1603,9 +1618,10 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
 
   const guestsWithEmail = (results || []).filter(r => r.email);
   const customTemplates = Object.values(templates).filter(t => t.isCustom);
+  // A guest "needs a message" if they have an email AND any unresolved issue —
+  // whether or not a prebuilt template matches (date mismatches, wrong-hotel, etc. still count).
   const flaggedWithEmail = guestsWithEmail.filter(r =>
-    getApplicableTemplates(r).length > 0 ||
-    customTemplates.some(t => getCustomApplicable(r, t))
+    (r.issues || []).filter(x => !(r.resolved || []).includes(x.text)).length > 0
   );
   const pendingCount = (queue || []).filter(x => x.status === "pending").length;
   const sentCount = (queue || []).filter(x => x.status === "sent").length;
@@ -3926,6 +3942,36 @@ function GroupGrid({ user, onLogin, onLogout }) {
     setSelectedRows(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
   }
 
+  // Quick-send emails for selected guests, right from the cross-check grid (no tab switch).
+  // Uses the standard templates; deep customization lives in the Communications tab.
+  function emailSelected() {
+    const picked = filtered.filter(r => selectedRows.has(r.key) && r.email && (r.issues||[]).filter(x=>!(r.resolved||[]).includes(x.text)).length > 0);
+    if (picked.length === 0) return;
+    if (picked.length > 8 && !window.confirm(`This will open ${picked.length} email drafts in your mail app, one at a time. Continue?`)) return;
+    const extra = {
+      eventName: eventName || "our event",
+      plannerName: contacts?.plannerName || "",
+      hotelName: contacts?.hotel?.name || "", hotelEmail: contacts?.hotel?.email || "",
+      travelName: contacts?.travel?.name || "", travelEmail: contacts?.travel?.email || "",
+    };
+    picked.forEach((record, idx) => {
+      const applicable = getApplicableTemplates(record);
+      let subject, body;
+      if (applicable.length > 0 && DEFAULT_TEMPLATES[applicable[0]]) {
+        const tmpl = DEFAULT_TEMPLATES[applicable[0]];
+        subject = fillTemplate(tmpl.subject, record, extra);
+        body = fillTemplate(tmpl.body, record, extra);
+      } else {
+        // Generic fallback for issues without a specific template (date mismatch, wrong hotel, etc.)
+        const issueList = (record.issues||[]).filter(x=>!(record.resolved||[]).includes(x.text)).map(x => "• " + x.text).join("\n");
+        subject = `${eventName || "Event"} — please review your travel details`;
+        body = `Hi ${record.firstName || record.displayName || "there"},\n\nWhile reviewing arrangements for ${eventName || "our event"}, we found something on your record that needs attention:\n\n${issueList}\n\nCould you take a look and let us know? Thank you.\n\n${contacts?.plannerName || "[Your Name]"}`;
+      }
+      // Stagger so the browser doesn't block multiple mailto: opens
+      setTimeout(() => window.open(`mailto:${record.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, "_blank"), 250 * idx);
+    });
+  }
+
   function exportSelected() {
     const toExport = selectedRows.size > 0 ? filtered.filter(r => selectedRows.has(r.key)) : filtered;
     const rows = toExport.map(r => ({ "First Name":r.firstName||r.displayName.split(" ")[0]||"—", "Last Name":r.lastName||r.displayName.split(" ").slice(1).join(" ")||"—", "Full Name":r.displayName, "Email":r.email||"—", "Registered":r.reg?"Yes":(r.registered?"Yes":"No"), "Status":{ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status], "Active Issues":r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None", "Note":r.note||"—", "Company":r.reg?.company||"—", "Job Title":r.reg?.jobTitle||"—", "Requested Check-In":fmt(r.reg?.regCheckIn), "Requested Check-Out":fmt(r.reg?.regCheckOut), "Flight Arrival":fmt(r.flight?.flightArrival), "Flight In":r.flight?.flightIn||"—", "Hotel Check-In":fmt(r.hotel?.checkIn), "Arrival Δ":r.details?.arrDiff??"N/A", "Flight Departure":fmt(r.flight?.flightDeparture), "Flight Out":r.flight?.flightOut||"—", "Hotel Check-Out":fmt(r.hotel?.checkOut), "Departure Δ":r.details?.depDiff??"N/A", "Airport":r.flight?.airport||"—", "Hotel":r.hotel?.hotel||"—", "Room":r.hotel?.room||"—", "Car Pickup":fmt(r.car?.pickupDate), "Car Dropoff":fmt(r.car?.dropoffDate), "Dietary":r.diet?.dietary||r.reg?.dietaryRequest||"—", "Accessibility":r.diet?.accessibility||"—" }));
@@ -4408,7 +4454,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
             {[
               { k:"grid", icon:<LayoutGrid size={15} strokeWidth={1.5}/>, label:"Group Grid", badge: null },
               { k:"summary", icon:<BarChart2 size={15} strokeWidth={1.5}/>, label:"Summary", badge: results.filter(r=>r.status!=="ok").length > 0 ? results.filter(r=>r.status!=="ok").length : null },
-              { k:"comms", icon:<Mail size={15} strokeWidth={1.5}/>, label:"Communications", badge: results.filter(r=>r.email && getApplicableTemplates(r).length > 0).length > 0 ? results.filter(r=>r.email && getApplicableTemplates(r).length > 0).length : null },
+              { k:"comms", icon:<Mail size={15} strokeWidth={1.5}/>, label:"Communications", badge: (() => { const n = results.filter(r => r.email && (r.issues||[]).filter(x=>!(r.resolved||[]).includes(x.text)).length > 0).length; return n > 0 ? n : null; })() },
             ].map(({ k, icon, label, badge }) => (
               <button key={k} onClick={() => { setActiveTab(k); if (isMobile) setSidebarOpen(false); }}
                 style={{ width:"100%", display:"flex", alignItems:"center", gap:"10px", background:activeTab===k?"rgba(0,201,177,0.18)":"transparent", border:`1px solid ${activeTab===k?"rgba(0,201,177,0.35)":"transparent"}`, borderRadius:"7px", padding:"7px 10px", cursor:"pointer", marginBottom:"2px", textAlign:"left", transition:"all 0.15s" }}
@@ -4728,6 +4774,17 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 style={{ display:"flex", alignItems:"center", gap:"5px", background:P.accent, border:"none", borderRadius:"7px", padding:"5px 13px", fontSize:"13px", fontWeight:700, fontFamily:font, color:P.white, cursor:"pointer", transition:"all 0.15s", whiteSpace:"nowrap", flexShrink:0, boxShadow:"0 1px 6px rgba(0,201,177,0.3)" }}>
                 {someSelected ? `Export ${selCount} to Excel` : "Export to Excel"} <FileSpreadsheet size={13} strokeWidth={1.8} style={{verticalAlign:"-2px",marginLeft:"4px"}}/>
               </button>
+              {/* Email selected — send messages without leaving the cross-check tab */}
+              {someSelected && (() => {
+                const emailable = displayRows.filter(r => selectedRows.has(r.key) && r.email && (r.issues||[]).filter(x=>!(r.resolved||[]).includes(x.text)).length > 0);
+                return (
+                  <button onClick={() => emailSelected()} disabled={emailable.length===0}
+                    title={emailable.length===0 ? "Selected guests have no email or no open issues" : `Draft emails to ${emailable.length} guest(s)`}
+                    style={{ display:"flex", alignItems:"center", gap:"5px", background:emailable.length>0?P.white:P.grey50, border:`1.5px solid ${emailable.length>0?P.accent:P.grey100}`, borderRadius:"7px", padding:"5px 12px", fontSize:"13px", fontWeight:600, fontFamily:font, color:emailable.length>0?P.accentD:P.grey400, cursor:emailable.length>0?"pointer":"not-allowed", flexShrink:0, whiteSpace:"nowrap" }}>
+                    Email {emailable.length>0?emailable.length:""} selected <Mail size={13} strokeWidth={2} style={{verticalAlign:"-2px",marginLeft:"2px"}}/>
+                  </button>
+                );
+              })()}
               {/* Share HTML Report — SECONDARY */}
               <button onClick={generateShareableReport}
                 style={{ display:"flex", alignItems:"center", gap:"5px", background:P.offWhite, border:`1.5px solid ${P.grey200}`, borderRadius:"7px", padding:"5px 12px", fontSize:"13px", fontWeight:600, fontFamily:font, color:P.grey600, cursor:"pointer", flexShrink:0, whiteSpace:"nowrap" }}>
