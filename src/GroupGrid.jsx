@@ -98,6 +98,7 @@ const MOBILE_CSS = `
     .gg-setup-tiles3 { grid-template-columns: 1fr !important; }
     .gg-setup-tiles2 { grid-template-columns: 1fr !important; }
     .gg-step-line { display: none !important; }
+    .gg-setup-cols { grid-template-columns: 1fr !important; }
     .gg-eventbar { flex-direction: column !important; align-items: stretch !important; }
     .gg-eventbar > div, .gg-eventbar > button { width: 100% !important; }
     .gg-cta-btns { flex-direction: column; align-items: stretch !important; }
@@ -942,7 +943,7 @@ We are so excited to have you joining us for {{eventName}} — it is going to be
 
 We are doing a careful review of all guest travel details to make sure everything lines up perfectly, and we noticed something we wanted to flag with you right away:
 
-┌─────────────────────────────────────────────────────────────────┐
+┌────────────────────────┐
     Here is what needs your attention:
 
     Your flight arrives into {{airport}} on {{flightArrival}}
@@ -951,7 +952,7 @@ We are doing a careful review of all guest travel details to make sure everythin
     Your hotel check-in at {{hotel}} is {{checkIn}}
 
   Your flight lands the day before your hotel check-in date.
-└─────────────────────────────────────────────────────────────────┘
+└────────────────────────┘
 
 We just want to make sure you have somewhere comfortable to stay that first night, {{guestName}}!
 
@@ -988,7 +989,7 @@ We are so excited to have you joining us for {{eventName}} — it is going to be
 
 We are doing a careful review of all guest travel details to make sure everything lines up perfectly, and we noticed something we wanted to flag with you right away:
 
-┌─────────────────────────────────────────────────────────────────┐
+┌────────────────────────┐
     Here is what needs your attention:
 
     Your hotel check-out at {{hotel}} is {{checkOut}}
@@ -997,7 +998,7 @@ We are doing a careful review of all guest travel details to make sure everythin
          Flight: {{flightOut}}
 
   Your hotel checks out the day before your flight departs.
-└─────────────────────────────────────────────────────────────────┘
+└────────────────────────┘
 
 We just want to make sure you have somewhere comfortable to stay that last night, {{guestName}}!
 
@@ -1034,7 +1035,7 @@ We are so looking forward to welcoming you to {{eventName}} — it is going to b
 
 We are reviewing travel details for all of our guests to make sure no one has any gaps, and we noticed something important we wanted to flag with you right away:
 
-┌─────────────────────────────────────────────────────────────────┐
+┌────────────────────────┐
     Here is what needs your attention:
 
     Your flight arrives into {{airport}} on {{flightArrival}}
@@ -1043,7 +1044,7 @@ We are reviewing travel details for all of our guests to make sure no one has an
     Hotel booking: Not currently on file
 
   We do not have a hotel booking on file for you for {{eventName}}.
-└─────────────────────────────────────────────────────────────────┘
+└────────────────────────┘
 
 We would hate for you to arrive at {{airport}} on {{flightArrival}} without confirmed accommodations, {{guestName}} — so we wanted to reach out right away!
 
@@ -1071,7 +1072,7 @@ We are so thrilled you will be joining us for {{eventName}} — it is going to b
 
 We are reviewing travel details for all of our guests to make sure everything is perfectly coordinated, and we noticed something we wanted to flag with you:
 
-┌─────────────────────────────────────────────────────────────────┐
+┌────────────────────────┐
     Here is what needs your attention:
 
     Flight details: Not currently on file
@@ -1081,7 +1082,7 @@ We are reviewing travel details for all of our guests to make sure everything is
     Check-out date: {{checkOut}}
 
   We have your hotel confirmed but no flight information on file.
-└─────────────────────────────────────────────────────────────────┘
+└────────────────────────┘
 
 Your room at {{hotel}} is all confirmed and ready for you, {{guestName}} — we just need your flight details to complete your travel profile! Having your flight information helps us coordinate your ground transfer, make sure someone is there to greet you when you land, and catch anything that might need attention before you travel.
 
@@ -1112,7 +1113,7 @@ We hope you are getting excited for {{eventName}} — we certainly are, and we t
 
 We are finalizing ground transportation for all of our guests, and we noticed something we wanted to check with you on:
 
-┌─────────────────────────────────────────────────────────────────┐
+┌────────────────────────┐
     Here is what needs your attention:
 
     Your flight arrives into {{airport}} on {{flightArrival}}
@@ -1122,7 +1123,7 @@ We are finalizing ground transportation for all of our guests, and we noticed so
     Your hotel: {{hotel}}
 
   We do not have a transfer arranged for you from {{airport}} to {{hotel}}.
-└─────────────────────────────────────────────────────────────────┘
+└────────────────────────┘
 
 We want to make absolutely sure you have a smooth, stress-free arrival at {{hotel}}, {{guestName}} — so we wanted to check in right away!
 
@@ -1150,7 +1151,7 @@ We are so glad you will be joining us for {{eventName}} — we want to make sure
 
 While reviewing travel details for all of our guests, we noticed something we wanted to bring to your attention right away:
 
-┌─────────────────────────────────────────────────────────────────┐
+┌────────────────────────┐
     Here is what needs your attention:
 
     Your flight arrives into {{airport}} on {{flightArrival}}
@@ -1159,7 +1160,7 @@ While reviewing travel details for all of our guests, we noticed something we wa
     {{eventName}} travel window: {{eventStart}} – {{eventEnd}}
 
   Your travel dates fall outside the standard event travel window.
-└─────────────────────────────────────────────────────────────────┘
+└────────────────────────┘
 
 This might be completely intentional, {{guestName}} — perhaps you are extending your trip to explore, which sounds wonderful! If that is the case, no action is needed at all — just reply to let us know you are all set and we will note it in your travel record.
 
@@ -1191,7 +1192,7 @@ As we get closer to {{eventName}}, we are doing a final check to make sure every
 
 Here is your complete travel summary for {{eventName}}:
 
-┌─────────────────────────────────────────────────────────────────┐
+┌────────────────────────┐
     Arrival flight:     {{flightArrival}} into {{airport}}
                           Flight {{flightIn}}
 
@@ -1200,7 +1201,7 @@ Here is your complete travel summary for {{eventName}}:
 
     Departure flight:  {{flightDeparture}} from {{airport}}
                           Flight {{flightOut}}
-└─────────────────────────────────────────────────────────────────┘
+└────────────────────────┘
 
 Does everything look right, {{guestName}}?
 
@@ -3529,7 +3530,7 @@ function SetupScreen({
   const canRun = hasName && ready && !loading;
   const hasContacts = contacts && (contacts.hotel?.email || contacts.travel?.email);
   return (
-    <div style={{ maxWidth:"640px", margin:"0 auto", width:"100%" }}>
+    <div style={{ maxWidth:"1080px", margin:"0 auto", width:"100%" }}>
       <h1 style={{ fontSize:"clamp(20px,3vw,24px)", fontWeight:600, color:P.navy, fontFamily:font, letterSpacing:"-0.02em", margin:"0 0 4px" }}>New project</h1>
       <p style={{ fontSize:"13px", color:P.grey600, fontFamily:font, margin:"0 0 18px", lineHeight:1.5 }}>Set up your event, then upload your spreadsheets to run the cross-check.</p>
 
@@ -3549,6 +3550,7 @@ function SetupScreen({
         ))}
       </div>
 
+      <div className="gg-setup-cols" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(380px, 1fr))", gap:"14px", alignItems:"start" }}>
       <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px" }}>
         <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 1 · Project details</div>
         <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"14px" }}>Name your event and (optionally) set travel dates and contacts.</div>
@@ -3635,6 +3637,7 @@ function SetupScreen({
           <span style={{ background:P.periwinkle+"22", color:P.periwinkleD, borderRadius:"5px", padding:"1px 7px", fontSize:"11px", fontWeight:600, marginRight:"7px" }}>TIP</span>
           Include an <strong style={{ fontWeight:600 }}>Email Address</strong> column for the most accurate matching. GroupGrid matches by email first, then name.
         </div>
+      </div>
       </div>
 
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:"14px", background:P.navy, borderRadius:"12px", padding:"13px 18px", flexWrap:"wrap" }}>
@@ -4352,7 +4355,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
         </div>
       </div>
 
-      <div style={{ display:"flex", flex:1, maxWidth:"1400px", margin:"0 auto", width:"100%", minHeight:`calc(100vh - ${isMobile && results ? "104px" : "52px"})`, alignItems:"flex-start" }}>
+      <div style={{ display:"flex", flex:1, width:"100%", minHeight:`calc(100vh - ${isMobile && results ? "104px" : "52px"})`, alignItems:"flex-start" }}>
 
         {/* ── Left Sidebar / Mobile Drawer ── */}
         <div className={`gg-sidebar${isMobile && sidebarOpen ? " open" : ""}`}
