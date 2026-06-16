@@ -1,11 +1,11 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// GroupGrid — mobile-optimised build  (v3, June 2026)
+// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+// GroupGrid ‚Äî mobile-optimised build  (v3, June 2026)
 // Architecture: 100% browser-local React SPA. No server, no PII storage.
 //
 // Mobile changes (v2):
 //   [x] useIsMobile hook drives layout switching at 768px
 //   [x] Sidebar becomes slide-in drawer on mobile (hamburger toggle)
-//   [x] Upload grid: 4-col desktop → 2-col mobile
+//   [x] Upload grid: 4-col desktop ‚Üí 2-col mobile
 //   [x] Compact upload bar: wraps cleanly on small screens
 //   [x] Guest table: horizontal scroll + touch-friendly row height on mobile
 //   [x] Guest detail expand: single-column card stack on mobile
@@ -20,13 +20,13 @@
 //   [x] Sign up with name, email, password (min 8 chars)
 //   [x] Password reset via email link
 //   [x] Session persists across page refreshes (Supabase session tokens)
-//   [x] Anonymous → user session migration on sign-in
+//   [x] Anonymous ‚Üí user session migration on sign-in
 //   [x] Supabase JS loaded via CDN (no build step required)
 //   [x] Graceful fallback if Supabase CDN fails (app still works)
 //
 // Registration source-of-truth (v4):
 //   [x] Registration list upload added (optional 5th file)
-//   [x] parseRegistrationSheet — detects company, job title, requested dates, flight/hotel requests
+//   [x] parseRegistrationSheet ‚Äî detects company, job title, requested dates, flight/hotel requests
 //   [x] crossMatch reworked: registration anchors the comparison when present
 //   [x] New flag: "Registered but no flight booked"
 //   [x] New flag: "Registered but no hotel booked"
@@ -40,7 +40,7 @@
 //   [ ] Compare registration's dietary requests vs. dietary file
 //   [ ] Change tracking: diff current run vs saved session
 //   [ ] Custom report branding (logo upload)
-// ─────────────────────────────────────────────────────────────────────────────
+// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 
 import React, { useState, useCallback, useEffect, useRef, Fragment } from "react";
 import * as XLSX from "xlsx";
@@ -57,7 +57,7 @@ const P = {
 };
 const font = "'Manrope', sans-serif";
 
-// ── Responsive hook ───────────────────────────────────────────────────────────
+// ‚îÄ‚îÄ Responsive hook ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" ? window.innerWidth < breakpoint : false);
   useEffect(() => {
@@ -70,7 +70,7 @@ function useIsMobile(breakpoint = 768) {
   return isMobile;
 }
 
-// ── Global mobile CSS (injected once) ────────────────────────────────────────
+// ‚îÄ‚îÄ Global mobile CSS (injected once) ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 const MOBILE_CSS = `
   @media (max-width: 767px) {
     .gg-sidebar { transform: translateX(-100%); transition: transform 0.25s ease; position: fixed !important; z-index: 200; height: calc(100vh - 52px) !important; top: 52px !important; }
@@ -100,7 +100,10 @@ const MOBILE_CSS = `
     .gg-step-line { display: none !important; }
     .gg-setup-cols { grid-template-columns: 1fr !important; }
     .gg-eventbar { flex-direction: column !important; align-items: stretch !important; }
-    .gg-eventbar > div, .gg-eventbar > button { width: 100% !important; }
+    .gg-eventbar > div { width: 100% !important; }
+    .gg-eventbar > div:last-child { display: flex !important; gap: 8px !important; }
+    .gg-eventbar > div:last-child > * { flex: 1 !important; }
+    .gg-eventbar > div:last-child button { width: 100% !important; justify-content: center !important; }
     .gg-cta-btns { flex-direction: column; align-items: stretch !important; }
     .gg-pricing-grid { grid-template-columns: 1fr !important; }
     .gg-contacts-grid { grid-template-columns: 1fr !important; }
@@ -139,7 +142,7 @@ function parseDate(val) {
   if (typeof val === "number") { const d = new Date(Math.round((val - 25569) * 86400 * 1000)); return isNaN(d) ? null : d; }
   const d = new Date(val); return isNaN(d) ? null : d;
 }
-function fmt(date) { if (!date) return "—"; return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); }
+function fmt(date) { if (!date) return "‚Äî"; return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); }
 function stripTime(d) { if (!d) return null; const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
 function diffDays(a, b) { if (!a || !b) return null; return Math.round((stripTime(a) - stripTime(b)) / 86400000); }
 function findCol(headers, candidates) {
@@ -210,7 +213,7 @@ function parseHotelSheet(wb) {
   return parseSheet(wb, { name:["name","attendee","guest","passenger"], email:["email","e-mail","email address"], checkIn:["check-in","checkin","arrival","hotel in"], checkOut:["check-out","checkout","departure","hotel out"], room:["room","confirmation","conf","booking","reservation"], hotel:["hotel","property","venue"] });
 }
 // Parse a hotel roster and tag every record with a property name.
-// Priority: the row's own "Hotel" column (combined-file case) → the file-level property name (separate-file case).
+// Priority: the row's own "Hotel" column (combined-file case) ‚Üí the file-level property name (separate-file case).
 function parseHotelSheetTagged(wb, fileProperty) {
   const rows = parseHotelSheet(wb);
   return rows.map(r => ({ ...r, hotel: (r.hotel && r.hotel.trim()) ? r.hotel.trim() : (fileProperty || "").trim() }));
@@ -264,14 +267,14 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
     const reason = (reg.reason || "").trim();
     return note.length > 0 || reason.length > 0;
   };
-  // Does a row request a flight/hotel? Blank → expected (flag if missing). Explicit "No" → only
-  // suppress the missing flag if a reason is noted; "No" with no reason is an incomplete record → still flag.
+  // Does a row request a flight/hotel? Blank ‚Üí expected (flag if missing). Explicit "No" ‚Üí only
+  // suppress the missing flag if a reason is noted; "No" with no reason is an incomplete record ‚Üí still flag.
   const NEGATIVE = ["no","n","none","not needed","not required","false","0"];
   const wantsFlight = (reg) => {
     if (!reg) return false;
     const v = (reg.flightRequest || "").toLowerCase().trim();
     if (v === "") return true;
-    if (NEGATIVE.includes(v)) return !hasReason(reg); // No + reason → don't expect; No + no reason → still flag
+    if (NEGATIVE.includes(v)) return !hasReason(reg); // No + reason ‚Üí don't expect; No + no reason ‚Üí still flag
     return true;
   };
   const wantsHotel = (reg) => {
@@ -289,13 +292,13 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
     const existing = existingMeta?.[metaKey] || {};
     const issues = [];
 
-    // ── Registration-anchored checks (only when a registration list is uploaded) ──
+    // ‚îÄ‚îÄ Registration-anchored checks (only when a registration list is uploaded) ‚îÄ‚îÄ
     if (hasReg) {
       if (!reg) {
-        // Travel record exists but person is NOT in registration → booked but not registered
+        // Travel record exists but person is NOT in registration ‚Üí booked but not registered
         issues.push({ type:"unregistered", text:"Booked travel but not on registration list" });
       } else {
-        // Person IS registered — check what they requested vs. what got booked
+        // Person IS registered ‚Äî check what they requested vs. what got booked
         if (wantsFlight(reg) && !flight) {
           const saidNo = NEGATIVE.includes((reg.flightRequest || "").toLowerCase().trim());
           issues.push({ type:"missing", text: saidNo ? "Marked 'no flight' but no reason given" : "Registered but no flight booked" });
@@ -322,7 +325,7 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
       }
     }
 
-    // ── Existing travel-vs-travel checks (only flag files that were actually uploaded) ──
+    // ‚îÄ‚îÄ Existing travel-vs-travel checks (only flag files that were actually uploaded) ‚îÄ‚îÄ
     if (!hasReg) {
       // Original behavior when no registration list: flag missing across travel files,
       // but only for file types the planner actually provided.
@@ -362,7 +365,7 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
   return results;
 }
 
-// ── Change tracking diff ──────────────────────────────────────────────────────
+// ‚îÄ‚îÄ Change tracking diff ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 function diffResults(prev, curr) {
   if (!prev || !curr) return { added:[], removed:[], changed:[], unchanged:[] };
   const prevMap = new Map((prev||[]).map(r => [r.email || r.key, r]));
@@ -381,7 +384,7 @@ function diffResults(prev, curr) {
 }
 
 
-// ── UI ────────────────────────────────────────────────────────────────────────
+// ‚îÄ‚îÄ UI ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 function DropZone({ label, icon, sub, onFile, fileName, accent, optional }) {
   const [drag, setDrag] = useState(false);
   const onDrop = useCallback(e => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) onFile(f); }, [onFile]);
@@ -409,7 +412,7 @@ function StatusChip({ status }) {
 }
 
 function Delta({ val }) {
-  if (val === null || val === undefined) return <span style={{ color:P.grey400 }}>—</span>;
+  if (val === null || val === undefined) return <span style={{ color:P.grey400 }}>‚Äî</span>;
   if (val === 0) return <span style={{ color:P.green, fontWeight:700, fontFamily:font, fontSize:"15px" }}>On time</span>;
   const days = Math.abs(val);
   const word = days === 1 ? "day" : "days";
@@ -443,7 +446,7 @@ function DR({ label, val, accent, warn }) {
   return (
     <div style={{ display:"flex", justifyContent:"space-between", gap:"8px", fontSize:"14px", fontFamily:font, marginBottom:"4px" }}>
       <span style={{ color:P.navy, fontWeight:600, flexShrink:0 }}>{label}</span>
-      <span style={{ color:warn?P.red:accent?P.periwinkleD:P.navy, fontWeight:accent||warn?700:500, textAlign:"right", wordBreak:"break-all" }}>{val||"—"}</span>
+      <span style={{ color:warn?P.red:accent?P.periwinkleD:P.navy, fontWeight:accent||warn?700:500, textAlign:"right", wordBreak:"break-all" }}>{val||"‚Äî"}</span>
     </div>
   );
 }
@@ -463,7 +466,7 @@ function Btn({ onClick, children, color, outline, small, disabled }) {
   );
 }
 
-// ── Contacts Manager Modal ────────────────────────────────────────────────────
+// ‚îÄ‚îÄ Contacts Manager Modal ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 function ContactsModal({ contacts, onSave, onClose }) {
   const [local, setLocal] = useState(JSON.parse(JSON.stringify(contacts)));
   function update(type, field, val) {
@@ -521,7 +524,7 @@ function ContactsModal({ contacts, onSave, onClose }) {
           </div>
           <div style={{ marginBottom:"24px" }}>
             <div style={{ fontSize:"14px", fontWeight:800, color:P.navy, marginBottom:"12px", fontFamily:font, display:"flex", alignItems:"center", gap:"8px" }}>
-              <div style={{ width:3, height:16, background:P.grey400, borderRadius:"2px" }} />✍ Your Name (used in email signatures)
+              <div style={{ width:3, height:16, background:P.grey400, borderRadius:"2px" }} />‚úç Your Name (used in email signatures)
             </div>
             <input value={local.plannerName||""} onChange={e => setLocal(prev => ({...prev, plannerName:e.target.value}))} placeholder="e.g. Your name, Events Team"
               style={{ width:"100%", background:P.offWhite, border:`1.5px solid ${local.plannerName?P.grey400+"44":P.grey100}`, borderRadius:"10px", padding:"9px 12px", fontSize:"15px", fontFamily:font, fontWeight:600, color:P.navy, outline:"none", boxSizing:"border-box" }} />
@@ -536,7 +539,7 @@ function ContactsModal({ contacts, onSave, onClose }) {
   );
 }
 
-// ── Email Modal ───────────────────────────────────────────────────────────────
+// ‚îÄ‚îÄ Email Modal ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 
 function ShareModal({ html, filename, onClose }) {
   const [copied, setCopied] = useState(false);
@@ -595,7 +598,7 @@ function ShareModal({ html, filename, onClose }) {
                 <Download size={17} strokeWidth={2} color="white"/>
               </div>
               <div>
-                <div style={{ fontSize:"14px", fontWeight:700, color:downloaded?P.green:P.navy, fontFamily:font }}>{downloaded ? "✓ Downloaded!" : "Download HTML File"}</div>
+                <div style={{ fontSize:"14px", fontWeight:700, color:downloaded?P.green:P.navy, fontFamily:font }}>{downloaded ? "‚úì Downloaded!" : "Download HTML File"}</div>
                 <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginTop:"2px" }}>Save to your device. Email it, or upload to Google Drive to share with your team.</div>
               </div>
             </button>
@@ -606,13 +609,13 @@ function ShareModal({ html, filename, onClose }) {
                 <Copy size={17} strokeWidth={2} color="white"/>
               </div>
               <div>
-                <div style={{ fontSize:"14px", fontWeight:700, color:copied?P.periwinkleD:P.navy, fontFamily:font }}>{copied ? "✓ HTML copied!" : "Copy HTML Source"}</div>
+                <div style={{ fontSize:"14px", fontWeight:700, color:copied?P.periwinkleD:P.navy, fontFamily:font }}>{copied ? "‚úì HTML copied!" : "Copy HTML Source"}</div>
                 <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginTop:"2px" }}>Copy the full HTML to paste into an email, CMS, or any editor that accepts HTML.</div>
               </div>
             </button>
 
             <div style={{ background:P.offWhite, borderRadius:"8px", padding:"10px 14px", fontSize:"12px", color:P.grey400, fontFamily:font, lineHeight:1.6 }}>
-              🔒 All guest data is embedded in the file only — nothing is uploaded anywhere.
+              üîí All guest data is embedded in the file only ‚Äî nothing is uploaded anywhere.
             </div>
           </div>
         )}
@@ -620,7 +623,7 @@ function ShareModal({ html, filename, onClose }) {
         {tab === "preview" && (
           <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
             <div style={{ padding:"8px 16px", background:P.offWhite, borderBottom:`1px solid ${P.grey100}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-              <span style={{ fontSize:"12px", color:P.grey400, fontFamily:font }}>Report preview — scroll to explore</span>
+              <span style={{ fontSize:"12px", color:P.grey400, fontFamily:font }}>Report preview ‚Äî scroll to explore</span>
               <button onClick={download} style={{ display:"flex", alignItems:"center", gap:"6px", background:P.navy, border:"none", borderRadius:"8px", padding:"6px 14px", cursor:"pointer", fontFamily:font, fontSize:"12px", fontWeight:700, color:P.white }}>
                 <Download size={13} strokeWidth={2} color="white"/> Download
               </button>
@@ -667,29 +670,29 @@ function EmailModal({ record, eventName, contacts, onClose }) {
   const checkOut = record.hotel?.checkOut ? record.hotel.checkOut.toLocaleDateString("en-US", { month:"long", day:"numeric", year:"numeric" }) : null;
   const hotel = record.hotel?.hotel || hotelName;
 
-  // Build specific discrepancy lines for each issue — no emojis, clean plain text
+  // Build specific discrepancy lines for each issue ‚Äî no emojis, clean plain text
   function buildGuestIssueLines() {
     return issues.map(issue => {
       // Flight arrives BEFORE hotel check-in (early arrival)
       if (issue.text?.includes("before check-in") && flightArrival && checkIn)
-        return `  Your flight arrives:   ${flightArrival}${airport ? " (" + airport + ")" : ""}${flightIn ? " — Flight " + flightIn : ""}\n  Your hotel check-in:   ${checkIn}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}\n\n  Your flight lands before your hotel check-in date. We want to make sure you have somewhere to stay that first night.\n  Do you need an extra night${hotel && hotel !== "the hotel" ? " at " + hotel : ""}, or do you have accommodations arranged?`;
+        return `  Your flight arrives:   ${flightArrival}${airport ? " (" + airport + ")" : ""}${flightIn ? " ‚Äî Flight " + flightIn : ""}\n  Your hotel check-in:   ${checkIn}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}\n\n  Your flight lands before your hotel check-in date. We want to make sure you have somewhere to stay that first night.\n  Do you need an extra night${hotel && hotel !== "the hotel" ? " at " + hotel : ""}, or do you have accommodations arranged?`;
       // Flight arrives AFTER hotel check-in (late arrival)
       if (issue.text?.includes("after check-in") && flightArrival && checkIn)
-        return `  Your flight arrives:   ${flightArrival}${airport ? " (" + airport + ")" : ""}${flightIn ? " — Flight " + flightIn : ""}\n  Your hotel check-in:   ${checkIn}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}\n\n  Your flight arrives after your hotel check-in date. Your room will be held, but we wanted to flag this in case the dates need updating.\n  Could you confirm these details are correct?`;
+        return `  Your flight arrives:   ${flightArrival}${airport ? " (" + airport + ")" : ""}${flightIn ? " ‚Äî Flight " + flightIn : ""}\n  Your hotel check-in:   ${checkIn}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}\n\n  Your flight arrives after your hotel check-in date. Your room will be held, but we wanted to flag this in case the dates need updating.\n  Could you confirm these details are correct?`;
       // Flight departs BEFORE hotel check-out (early departure)
       if (issue.text?.includes("before check-out") && checkOut && flightDeparture)
-        return `  Your hotel check-out:  ${checkOut}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}\n  Your flight departs:   ${flightDeparture}${airport ? " (" + airport + ")" : ""}${flightOut ? " — Flight " + flightOut : ""}\n\n  Your flight departs before your hotel check-out date. You may be paying for a night you won't use.\n  Would you like us to adjust your check-out, or is this intentional?`;
-      // Flight departs AFTER hotel check-out (late departure — the common case)
+        return `  Your hotel check-out:  ${checkOut}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}\n  Your flight departs:   ${flightDeparture}${airport ? " (" + airport + ")" : ""}${flightOut ? " ‚Äî Flight " + flightOut : ""}\n\n  Your flight departs before your hotel check-out date. You may be paying for a night you won't use.\n  Would you like us to adjust your check-out, or is this intentional?`;
+      // Flight departs AFTER hotel check-out (late departure ‚Äî the common case)
       if (issue.text?.includes("after check-out") && checkOut && flightDeparture)
-        return `  Your hotel check-out:  ${checkOut}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}\n  Your flight departs:   ${flightDeparture}${airport ? " (" + airport + ")" : ""}${flightOut ? " — Flight " + flightOut : ""}\n\n  Your hotel checks out on ${checkOut}, but your flight does not depart until ${flightDeparture}. You may not have somewhere to stay on your last night.\n  Would you like to extend your stay${hotel && hotel !== "the hotel" ? " at " + hotel : ""} by one night, or do you have other arrangements?`;
+        return `  Your hotel check-out:  ${checkOut}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}\n  Your flight departs:   ${flightDeparture}${airport ? " (" + airport + ")" : ""}${flightOut ? " ‚Äî Flight " + flightOut : ""}\n\n  Your hotel checks out on ${checkOut}, but your flight does not depart until ${flightDeparture}. You may not have somewhere to stay on your last night.\n  Would you like to extend your stay${hotel && hotel !== "the hotel" ? " at " + hotel : ""} by one night, or do you have other arrangements?`;
       if (issue.text === "Missing from hotel roster")
-        return `  Your flight arrives:   ${flightArrival || "—"}${airport ? " (" + airport + ")" : ""}\n  Hotel booking:         Not currently on file\n\n  We do not have a hotel booking on file for you. We want to make sure you have somewhere to stay.\n  Have you arranged your own accommodations, or would you like us to help?`;
+        return `  Your flight arrives:   ${flightArrival || "‚Äî"}${airport ? " (" + airport + ")" : ""}\n  Hotel booking:         Not currently on file\n\n  We do not have a hotel booking on file for you. We want to make sure you have somewhere to stay.\n  Have you arranged your own accommodations, or would you like us to help?`;
       if (issue.text === "Missing from flight manifest")
-        return `  Flight details:        Not currently on file\n  Your hotel check-in:   ${checkIn || "—"}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}\n\n  We do not have your flight details on file. Could you share your inbound and outbound flight numbers and dates?`;
+        return `  Flight details:        Not currently on file\n  Your hotel check-in:   ${checkIn || "‚Äî"}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}\n\n  We do not have your flight details on file. Could you share your inbound and outbound flight numbers and dates?`;
       if (issue.text === "Missing from car transfers")
-        return `  Your flight arrives:   ${flightArrival || "—"}${airport ? " (" + airport + ")" : ""}${flightIn ? " — Flight " + flightIn : ""}\n  Ground transfer:       Not currently on file\n  Hotel:                 ${hotel}\n\n  We do not have a ground transfer arranged for you. Would you like us to arrange transportation from ${airport || "the airport"} to ${hotel}?`;
+        return `  Your flight arrives:   ${flightArrival || "‚Äî"}${airport ? " (" + airport + ")" : ""}${flightIn ? " ‚Äî Flight " + flightIn : ""}\n  Ground transfer:       Not currently on file\n  Hotel:                 ${hotel}\n\n  We do not have a ground transfer arranged for you. Would you like us to arrange transportation from ${airport || "the airport"} to ${hotel}?`;
       if (issue.type === "window")
-        return `  Your arrival:          ${flightArrival || "—"}\n  Your departure:        ${flightDeparture || "—"}\n\n  Your travel dates appear to fall outside the approved event travel window. Could you confirm these dates are correct, or let us know if any changes are needed?`;
+        return `  Your arrival:          ${flightArrival || "‚Äî"}\n  Your departure:        ${flightDeparture || "‚Äî"}\n\n  Your travel dates appear to fall outside the approved event travel window. Could you confirm these dates are correct, or let us know if any changes are needed?`;
       return `  ${issue.text}`;
     }).join("\n\n");
   }
@@ -697,32 +700,32 @@ function EmailModal({ record, eventName, contacts, onClose }) {
   function buildHotelIssueLines() {
     return issues.map(issue => {
       if (issue.text?.includes("before check-in") && flightArrival && checkIn)
-        return `  • Guest flight arrives ${flightArrival}${flightIn ? " (Flight " + flightIn + ")" : ""} — hotel check-in is ${checkIn}\n    The guest arrives before check-in. Could you accommodate an early check-in or add a night?`;
+        return `  ‚Ä¢ Guest flight arrives ${flightArrival}${flightIn ? " (Flight " + flightIn + ")" : ""} ‚Äî hotel check-in is ${checkIn}\n    The guest arrives before check-in. Could you accommodate an early check-in or add a night?`;
       if (issue.text?.includes("after check-in") && flightArrival && checkIn)
-        return `  • Guest flight arrives ${flightArrival}${flightIn ? " (Flight " + flightIn + ")" : ""} — hotel check-in is ${checkIn}\n    The guest arrives after the check-in date. Please confirm the reservation is held correctly.`;
+        return `  ‚Ä¢ Guest flight arrives ${flightArrival}${flightIn ? " (Flight " + flightIn + ")" : ""} ‚Äî hotel check-in is ${checkIn}\n    The guest arrives after the check-in date. Please confirm the reservation is held correctly.`;
       if (issue.text?.includes("before check-out") && checkOut && flightDeparture)
-        return `  • Hotel check-out is ${checkOut} — guest flight departs ${flightDeparture}${flightOut ? " (Flight " + flightOut + ")" : ""}\n    The guest departs before check-out. You may want to adjust the checkout date.`;
+        return `  ‚Ä¢ Hotel check-out is ${checkOut} ‚Äî guest flight departs ${flightDeparture}${flightOut ? " (Flight " + flightOut + ")" : ""}\n    The guest departs before check-out. You may want to adjust the checkout date.`;
       if (issue.text?.includes("after check-out") && checkOut && flightDeparture)
-        return `  • Hotel check-out is ${checkOut}${hotel && hotel !== "the hotel" ? " at " + hotel : ""} — guest flight departs ${flightDeparture}${flightOut ? " (Flight " + flightOut + ")" : ""}\n    The guest's flight departs the day after check-out. Could you extend the stay by one night or arrange a late check-out?`;
+        return `  ‚Ä¢ Hotel check-out is ${checkOut}${hotel && hotel !== "the hotel" ? " at " + hotel : ""} ‚Äî guest flight departs ${flightDeparture}${flightOut ? " (Flight " + flightOut + ")" : ""}\n    The guest's flight departs the day after check-out. Could you extend the stay by one night or arrange a late check-out?`;
       if (issue.text === "Missing from hotel roster")
-        return `  • No hotel booking found on file for this guest\n    Could you confirm whether a reservation exists, or assist with creating one?`;
-      return `  • ${issue.text}`;
+        return `  ‚Ä¢ No hotel booking found on file for this guest\n    Could you confirm whether a reservation exists, or assist with creating one?`;
+      return `  ‚Ä¢ ${issue.text}`;
     }).join("\n");
   }
 
   function buildTravelIssueLines() {
     return issues.map(issue => {
       if (issue.text?.includes("before check-in") && flightArrival && checkIn)
-        return `  • Inbound flight ${flightIn || ""} arrives ${flightArrival}${airport ? " into " + airport : ""} — hotel check-in is ${checkIn}\n    The guest arrives before check-in. Please confirm whether this itinerary is correct.`;
+        return `  ‚Ä¢ Inbound flight ${flightIn || ""} arrives ${flightArrival}${airport ? " into " + airport : ""} ‚Äî hotel check-in is ${checkIn}\n    The guest arrives before check-in. Please confirm whether this itinerary is correct.`;
       if (issue.text?.includes("after check-in") && flightArrival && checkIn)
-        return `  • Inbound flight ${flightIn || ""} arrives ${flightArrival}${airport ? " into " + airport : ""} — hotel check-in is ${checkIn}\n    The guest arrives after the hotel check-in date. Please confirm the booking is correctly held.`;
+        return `  ‚Ä¢ Inbound flight ${flightIn || ""} arrives ${flightArrival}${airport ? " into " + airport : ""} ‚Äî hotel check-in is ${checkIn}\n    The guest arrives after the hotel check-in date. Please confirm the booking is correctly held.`;
       if (issue.text?.includes("before check-out") && checkOut && flightDeparture)
-        return `  • Hotel check-out is ${checkOut} — outbound flight ${flightOut || ""} departs ${flightDeparture}${airport ? " from " + airport : ""}\n    The guest departs before hotel check-out. Please confirm if the itinerary needs adjusting.`;
+        return `  ‚Ä¢ Hotel check-out is ${checkOut} ‚Äî outbound flight ${flightOut || ""} departs ${flightDeparture}${airport ? " from " + airport : ""}\n    The guest departs before hotel check-out. Please confirm if the itinerary needs adjusting.`;
       if (issue.text?.includes("after check-out") && checkOut && flightDeparture)
-        return `  • Hotel check-out is ${checkOut}${hotel && hotel !== "the hotel" ? " at " + hotel : ""} — outbound flight ${flightOut || ""} departs ${flightDeparture}${airport ? " from " + airport : ""}\n    The guest's flight departs after hotel check-out. Please confirm whether the stay should be extended or a late check-out arranged.`;
+        return `  ‚Ä¢ Hotel check-out is ${checkOut}${hotel && hotel !== "the hotel" ? " at " + hotel : ""} ‚Äî outbound flight ${flightOut || ""} departs ${flightDeparture}${airport ? " from " + airport : ""}\n    The guest's flight departs after hotel check-out. Please confirm whether the stay should be extended or a late check-out arranged.`;
       if (issue.text === "Missing from flight manifest")
-        return `  • No flight record found on file for this guest\n    Hotel check-in${hotel && hotel !== "the hotel" ? " at " + hotel : ""} is confirmed for ${checkIn || "—"}. Could you provide the inbound and outbound itinerary?`;
-      return `  • ${issue.text}`;
+        return `  ‚Ä¢ No flight record found on file for this guest\n    Hotel check-in${hotel && hotel !== "the hotel" ? " at " + hotel : ""} is confirmed for ${checkIn || "‚Äî"}. Could you provide the inbound and outbound itinerary?`;
+      return `  ‚Ä¢ ${issue.text}`;
     }).join("\n");
   }
 
@@ -731,7 +734,7 @@ function EmailModal({ record, eventName, contacts, onClose }) {
       contactName: hotelContact,
       toDisplay: hotelEmail ? `${hotelContact} <${hotelEmail}>` : hotelContact,
       toEmail: hotelEmail,
-      subject: `${evName ? evName + " — " : ""}Guest Record Review: ${guestName}`,
+      subject: `${evName ? evName + " ‚Äî " : ""}Guest Record Review: ${guestName}`,
       body: `Dear ${hotelContact},
 
 I hope this message finds you well! I am reaching out regarding the reservation for ${guestName}${record.email ? " (" + record.email + ")" : ""} ${hotel && hotel !== "the hotel" ? "at " + hotel : ""}${evName ? " for " + evName : ""}.
@@ -742,10 +745,10 @@ ${buildHotelIssueLines()}
 
 Here is the full travel summary we have on file for this guest:
 
-    Flight arrival:    ${flightArrival || "—"}${flightIn ? " — Flight " + flightIn : ""}
-    Hotel check-in:   ${checkIn || "—"}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}
-    Hotel check-out:  ${checkOut || "—"}
-    Flight departure:  ${flightDeparture || "—"}${flightOut ? " — Flight " + flightOut : ""}
+    Flight arrival:    ${flightArrival || "‚Äî"}${flightIn ? " ‚Äî Flight " + flightIn : ""}
+    Hotel check-in:   ${checkIn || "‚Äî"}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}
+    Hotel check-out:  ${checkOut || "‚Äî"}
+    Flight departure:  ${flightDeparture || "‚Äî"}${flightOut ? " ‚Äî Flight " + flightOut : ""}
 
 Could you please review and confirm the correct booking details at your earliest convenience? We truly appreciate your help in making sure ${guestName}'s stay is perfectly arranged!
 
@@ -757,7 +760,7 @@ ${evName ? evName + " Planning Team" : "Planning Team"}`,
       contactName: travelContact,
       toDisplay: travelEmail ? `${travelContact} <${travelEmail}>` : travelContact,
       toEmail: travelEmail,
-      subject: `${evName ? evName + " — " : ""}Itinerary Review: ${guestName}`,
+      subject: `${evName ? evName + " ‚Äî " : ""}Itinerary Review: ${guestName}`,
       body: `Dear ${travelContact},
 
 I hope you are doing well! I am reaching out regarding the travel itinerary for ${guestName}${record.email ? " (" + record.email + ")" : ""}${evName ? " for " + evName : ""}.
@@ -768,10 +771,10 @@ ${buildTravelIssueLines()}
 
 Here is the full travel summary we have on file for this guest:
 
-    Inbound:           ${flightArrival || "—"}${airport ? " into " + airport : ""}${flightIn ? " — Flight " + flightIn : ""}
-    Hotel check-in:   ${checkIn || "—"}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}
-    Hotel check-out:  ${checkOut || "—"}
-    Outbound:          ${flightDeparture || "—"}${airport ? " from " + airport : ""}${flightOut ? " — Flight " + flightOut : ""}
+    Inbound:           ${flightArrival || "‚Äî"}${airport ? " into " + airport : ""}${flightIn ? " ‚Äî Flight " + flightIn : ""}
+    Hotel check-in:   ${checkIn || "‚Äî"}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}
+    Hotel check-out:  ${checkOut || "‚Äî"}
+    Outbound:          ${flightDeparture || "‚Äî"}${airport ? " from " + airport : ""}${flightOut ? " ‚Äî Flight " + flightOut : ""}
 
 Kindly advise on the correct details and any changes needed. We really appreciate your support in making sure everything lines up perfectly for ${guestName}!
 
@@ -794,16 +797,16 @@ ITEM REQUIRING YOUR REVIEW:
 
 ${buildGuestIssueLines()}
 
-Could you take a quick look and let us know if anything needs to be updated? We are happy to help with any changes — please just reply to this email.
+Could you take a quick look and let us know if anything needs to be updated? We are happy to help with any changes ‚Äî please just reply to this email.
 
 Your full travel summary on file:
 
-  Arrival:          ${flightArrival || "—"}${airport ? " (" + airport + ")" : ""}${flightIn ? " — Flight " + flightIn : ""}
-  Hotel check-in:   ${checkIn || "—"}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}
-  Hotel check-out:  ${checkOut || "—"}
-  Departure:        ${flightDeparture || "—"}${airport ? " (" + airport + ")" : ""}${flightOut ? " — Flight " + flightOut : ""}
+  Arrival:          ${flightArrival || "‚Äî"}${airport ? " (" + airport + ")" : ""}${flightIn ? " ‚Äî Flight " + flightIn : ""}
+  Hotel check-in:   ${checkIn || "‚Äî"}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}
+  Hotel check-out:  ${checkOut || "‚Äî"}
+  Departure:        ${flightDeparture || "‚Äî"}${airport ? " (" + airport + ")" : ""}${flightOut ? " ‚Äî Flight " + flightOut : ""}
 
-Thank you so much — we truly look forward to seeing you${evName ? " at " + evName : ""}!
+Thank you so much ‚Äî we truly look forward to seeing you${evName ? " at " + evName : ""}!
 
 Warmly,
 [Your Name]
@@ -847,8 +850,8 @@ ${evName ? evName + " Planning Team" : "Planning Team"}`,
   const hasContact = type === "hotel" ? !!hotelEmail : type === "travel" ? !!travelEmail : !!record.email;
   const tabs = [
     { k:"hotel", l:"Hotel", hasContact: !!hotelEmail },
-    { k:"travel", l:"✈ Travel Agency", hasContact: !!travelEmail },
-    { k:"guest", l:"👤 Guest", hasContact: !!record.email },
+    { k:"travel", l:"‚úà Travel Agency", hasContact: !!travelEmail },
+    { k:"guest", l:"üë§ Guest", hasContact: !!record.email },
   ];
 
   return (
@@ -857,7 +860,7 @@ ${evName ? evName + " Planning Team" : "Planning Team"}`,
         <div style={{ padding:"20px 24px", borderBottom:`1px solid ${P.grey100}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
           <div>
             <div style={{ fontWeight:600, fontSize:"15px", color:P.navy, fontFamily:font }}>Draft Email</div>
-            <div style={{ fontSize:"14px", color:P.navyLight, fontFamily:font, marginTop:"2px" }}>{record.displayName} · {issues.length} flag{issues.length !== 1 ? "s" : ""}</div>
+            <div style={{ fontSize:"14px", color:P.navyLight, fontFamily:font, marginTop:"2px" }}>{record.displayName} ¬∑ {issues.length} flag{issues.length !== 1 ? "s" : ""}</div>
           </div>
           <button onClick={onClose} style={{ background:P.grey100, border:"none", borderRadius:"10px", width:30, height:30, cursor:"pointer", fontSize:"14px", color:P.navy, display:"flex", alignItems:"center", justifyContent:"center" }}><X size={15} strokeWidth={2}/></button>
         </div>
@@ -879,26 +882,26 @@ ${evName ? evName + " Planning Team" : "Planning Team"}`,
             <div style={{ background:P.amberLight, border:`1px solid ${P.amber}44`, borderRadius:"10px", padding:"10px 14px", marginBottom:"14px", fontSize:"14px", color:P.amber, fontWeight:700, fontFamily:font, display:"flex", alignItems:"center", gap:"8px" }}>
               <AlertTriangle size={13} strokeWidth={2}/>
               <span>No {type === "hotel" ? "hotel" : type === "travel" ? "travel agency" : "guest"} email on file.
-                {type !== "guest" && <span style={{ fontWeight:400, color:P.amber }}> Close this and click <strong>📇 Contacts</strong> to add one.</span>}
+                {type !== "guest" && <span style={{ fontWeight:400, color:P.amber }}> Close this and click <strong>üìá Contacts</strong> to add one.</span>}
               </span>
             </div>
           )}
 
-          {/* To field — editable */}
+          {/* To field ‚Äî editable */}
           <div style={{ marginBottom:"10px" }}>
             <div style={{ fontSize:"15px", fontWeight:700, color:P.navyLight, fontFamily:font, marginBottom:"3px", textTransform:"uppercase", letterSpacing:"0.06em" }}>To</div>
-            <input value={toEmail} onChange={e => setToEmail(e.target.value)} placeholder={draft.toDisplay || "Enter email address…"}
+            <input value={toEmail} onChange={e => setToEmail(e.target.value)} placeholder={draft.toDisplay || "Enter email address‚Ä¶"}
               style={{ width:"100%", background:toEmail?P.white:P.offWhite, border:`1.5px solid ${toEmail?P.periwinkle+"44":P.grey100}`, borderRadius:"9px", padding:"8px 12px", fontSize:"15px", fontFamily:font, fontWeight:600, color:P.navy, outline:"none", boxSizing:"border-box" }} />
           </div>
 
-          {/* Subject — editable */}
+          {/* Subject ‚Äî editable */}
           <div style={{ marginBottom:"10px" }}>
             <div style={{ fontSize:"15px", fontWeight:700, color:P.navyLight, fontFamily:font, marginBottom:"3px", textTransform:"uppercase", letterSpacing:"0.06em" }}>Subject</div>
             <input value={currentSubject} onChange={e => setEditedSubject(e.target.value)}
               style={{ width:"100%", background:editedSubject!==null?P.white:P.offWhite, border:`1.5px solid ${editedSubject!==null?P.periwinkle+"66":P.grey100}`, borderRadius:"9px", padding:"8px 12px", fontSize:"15px", fontFamily:font, fontWeight:600, color:P.navy, outline:"none", boxSizing:"border-box" }} />
           </div>
 
-          {/* Body — editable */}
+          {/* Body ‚Äî editable */}
           <div style={{ marginBottom:"16px" }}>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"3px" }}>
               <div style={{ fontSize:"15px", fontWeight:700, color:P.navyLight, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em" }}>Body</div>
@@ -916,7 +919,7 @@ ${evName ? evName + " Planning Team" : "Planning Team"}`,
           {/* Actions */}
           <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
             <Btn onClick={openMailto} color={hasContact || toEmail ? P.navy : P.grey400} disabled={!hasContact && !toEmail}>
-              {hasContact || toEmail ? "Open in Mail App ↗" : "Open in Mail App ↗"}
+              {hasContact || toEmail ? "Open in Mail App ‚Üó" : "Open in Mail App ‚Üó"}
             </Btn>
             <Btn onClick={copy} color={copied?P.green:P.periwinkleD} outline>{copied?"Copied!":"Copy to Clipboard"}</Btn>
             <Btn onClick={onClose} outline>Close</Btn>
@@ -928,22 +931,22 @@ ${evName ? evName + " Planning Team" : "Planning Team"}`,
   );
 }
 
-// ── Default Email Templates ───────────────────────────────────────────────────
+// ‚îÄ‚îÄ Default Email Templates ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 const DEFAULT_TEMPLATES = {
   arrives_early: {
     id: "arrives_early",
     label: "Arrives Before Check-In",
-    icon: "✈",
+    icon: "‚úà",
     color: P.amber,
     description: "Guest flight arrives before hotel check-in date",
     subject: "Quick question about your arrival for {{eventName}}",
     body: `Hi {{guestName}},
 
-We are so excited to have you joining us for {{eventName}} — it is going to be a wonderful event and we truly cannot wait to see you there!
+We are so excited to have you joining us for {{eventName}} ‚Äî it is going to be a wonderful event and we truly cannot wait to see you there!
 
 We are doing a careful review of all guest travel details to make sure everything lines up perfectly, and we noticed something we wanted to flag with you right away:
 
-┌────────────────────────┐
+‚îå‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îê
     Here is what needs your attention:
 
     Your flight arrives into {{airport}} on {{flightArrival}}
@@ -952,23 +955,23 @@ We are doing a careful review of all guest travel details to make sure everythin
     Your hotel check-in at {{hotel}} is {{checkIn}}
 
   Your flight lands the day before your hotel check-in date.
-└────────────────────────┘
+‚îî‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îò
 
 We just want to make sure you have somewhere comfortable to stay that first night, {{guestName}}!
 
 Could you take a quick look and let us know one of the following?
 
-    I have accommodations arranged for my arrival night — no changes needed!
-    I would like to add an extra night at {{hotel}} — please help me sort this out.
+    I have accommodations arranged for my arrival night ‚Äî no changes needed!
+    I would like to add an extra night at {{hotel}} ‚Äî please help me sort this out.
 
-Either answer is completely fine — we just want to make sure you are taken care of from the moment you land at {{airport}}. If you need us to reach out to {{hotel}} on your behalf, we are more than happy to do that for you!
+Either answer is completely fine ‚Äî we just want to make sure you are taken care of from the moment you land at {{airport}}. If you need us to reach out to {{hotel}} on your behalf, we are more than happy to do that for you!
 
 Here is your full travel summary for {{eventName}} as we have it:
 
-    Arrival:          {{flightArrival}} into {{airport}} — Flight {{flightIn}}
+    Arrival:          {{flightArrival}} into {{airport}} ‚Äî Flight {{flightIn}}
     Hotel check-in:  {{checkIn}} at {{hotel}}
     Hotel check-out: {{checkOut}}
-    Departure:        {{flightDeparture}} — Flight {{flightOut}}
+    Departure:        {{flightDeparture}} ‚Äî Flight {{flightOut}}
 
 Thank you so much for helping us make sure every detail is just right for your trip to {{eventName}}!
 
@@ -979,17 +982,17 @@ Warmly,
   departs_late: {
     id: "departs_late",
     label: "Departs After Check-Out",
-    icon: "🏨",
+    icon: "üè®",
     color: P.amber,
     description: "Guest flight departs after hotel check-out date",
     subject: "Quick question about your departure for {{eventName}}",
     body: `Hi {{guestName}},
 
-We are so excited to have you joining us for {{eventName}} — it is going to be a wonderful event and we truly cannot wait to see you there!
+We are so excited to have you joining us for {{eventName}} ‚Äî it is going to be a wonderful event and we truly cannot wait to see you there!
 
 We are doing a careful review of all guest travel details to make sure everything lines up perfectly, and we noticed something we wanted to flag with you right away:
 
-┌────────────────────────┐
+‚îå‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îê
     Here is what needs your attention:
 
     Your hotel check-out at {{hotel}} is {{checkOut}}
@@ -998,23 +1001,23 @@ We are doing a careful review of all guest travel details to make sure everythin
          Flight: {{flightOut}}
 
   Your hotel checks out the day before your flight departs.
-└────────────────────────┘
+‚îî‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îò
 
 We just want to make sure you have somewhere comfortable to stay that last night, {{guestName}}!
 
 Could you take a quick look and let us know one of the following?
 
-    I have accommodations arranged for my departure night — no changes needed!
-    I would like to extend my stay at {{hotel}} by one night — please help me sort this out.
+    I have accommodations arranged for my departure night ‚Äî no changes needed!
+    I would like to extend my stay at {{hotel}} by one night ‚Äî please help me sort this out.
 
-Either answer is completely fine — we just want to make sure you are comfortable right up until your flight home from {{airport}}. If you need us to reach out to {{hotel}} on your behalf, we are absolutely happy to do that for you!
+Either answer is completely fine ‚Äî we just want to make sure you are comfortable right up until your flight home from {{airport}}. If you need us to reach out to {{hotel}} on your behalf, we are absolutely happy to do that for you!
 
 Here is your full travel summary for {{eventName}} as we have it:
 
-    Arrival:          {{flightArrival}} into {{airport}} — Flight {{flightIn}}
+    Arrival:          {{flightArrival}} into {{airport}} ‚Äî Flight {{flightIn}}
     Hotel check-in:  {{checkIn}} at {{hotel}}
     Hotel check-out: {{checkOut}}
-    Departure:        {{flightDeparture}} from {{airport}} — Flight {{flightOut}}
+    Departure:        {{flightDeparture}} from {{airport}} ‚Äî Flight {{flightOut}}
 
 Thank you so much for helping us make sure every detail is just right for your trip to {{eventName}}!
 
@@ -1025,17 +1028,17 @@ Warmly,
   missing_hotel: {
     id: "missing_hotel",
     label: "No Hotel Record Found",
-    icon: "🏨",
+    icon: "üè®",
     color: P.red,
     description: "Guest appears in flight list but no hotel booking on file",
     subject: "We want to make sure you have a place to stay at {{eventName}}",
     body: `Hi {{guestName}},
 
-We are so looking forward to welcoming you to {{eventName}} — it is going to be a fantastic event and we are thrilled you will be joining us!
+We are so looking forward to welcoming you to {{eventName}} ‚Äî it is going to be a fantastic event and we are thrilled you will be joining us!
 
 We are reviewing travel details for all of our guests to make sure no one has any gaps, and we noticed something important we wanted to flag with you right away:
 
-┌────────────────────────┐
+‚îå‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îê
     Here is what needs your attention:
 
     Your flight arrives into {{airport}} on {{flightArrival}}
@@ -1044,16 +1047,16 @@ We are reviewing travel details for all of our guests to make sure no one has an
     Hotel booking: Not currently on file
 
   We do not have a hotel booking on file for you for {{eventName}}.
-└────────────────────────┘
+‚îî‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îò
 
-We would hate for you to arrive at {{airport}} on {{flightArrival}} without confirmed accommodations, {{guestName}} — so we wanted to reach out right away!
+We would hate for you to arrive at {{airport}} on {{flightArrival}} without confirmed accommodations, {{guestName}} ‚Äî so we wanted to reach out right away!
 
 Could you help us out with a quick reply?
 
-    I have already booked my own hotel — here is my confirmation: ___________
-    I would love help booking a room — please arrange one for me!
+    I have already booked my own hotel ‚Äî here is my confirmation: ___________
+    I would love help booking a room ‚Äî please arrange one for me!
 
-There is truly no wrong answer — we just want to make sure you have a wonderful, comfortable stay during {{eventName}}. Please reach out with any questions at all and we will get this sorted for you immediately!
+There is truly no wrong answer ‚Äî we just want to make sure you have a wonderful, comfortable stay during {{eventName}}. Please reach out with any questions at all and we will get this sorted for you immediately!
 
 Warmly,
 {{plannerName}}
@@ -1062,17 +1065,17 @@ Warmly,
   missing_flight: {
     id: "missing_flight",
     label: "No Flight Record Found",
-    icon: "✈",
+    icon: "‚úà",
     color: P.red,
     description: "Guest appears in hotel list but no flight on file",
     subject: "Could you share your flight details for {{eventName}}?",
     body: `Hi {{guestName}},
 
-We are so thrilled you will be joining us for {{eventName}} — it is going to be such a wonderful event and we genuinely cannot wait to see you there!
+We are so thrilled you will be joining us for {{eventName}} ‚Äî it is going to be such a wonderful event and we genuinely cannot wait to see you there!
 
 We are reviewing travel details for all of our guests to make sure everything is perfectly coordinated, and we noticed something we wanted to flag with you:
 
-┌────────────────────────┐
+‚îå‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îê
     Here is what needs your attention:
 
     Flight details: Not currently on file
@@ -1082,9 +1085,9 @@ We are reviewing travel details for all of our guests to make sure everything is
     Check-out date: {{checkOut}}
 
   We have your hotel confirmed but no flight information on file.
-└────────────────────────┘
+‚îî‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îò
 
-Your room at {{hotel}} is all confirmed and ready for you, {{guestName}} — we just need your flight details to complete your travel profile! Having your flight information helps us coordinate your ground transfer, make sure someone is there to greet you when you land, and catch anything that might need attention before you travel.
+Your room at {{hotel}} is all confirmed and ready for you, {{guestName}} ‚Äî we just need your flight details to complete your travel profile! Having your flight information helps us coordinate your ground transfer, make sure someone is there to greet you when you land, and catch anything that might need attention before you travel.
 
 When you get a moment, could you send us the following?
 
@@ -1092,7 +1095,7 @@ When you get a moment, could you send us the following?
     Outbound flight number and departure date
     Arriving airport
 
-If you are making your own way to {{hotel}} without flying, just let us know and we will update your record — no problem at all!
+If you are making your own way to {{hotel}} without flying, just let us know and we will update your record ‚Äî no problem at all!
 
 Thank you so much, and please do not hesitate to reach out with any questions. We cannot wait to see you at {{eventName}}!
 
@@ -1103,17 +1106,17 @@ Warmly,
   missing_transfer: {
     id: "missing_transfer",
     label: "No Transfer on File",
-    icon: "🚗",
+    icon: "üöó",
     color: P.amber,
     description: "Guest has no car transfer record",
     subject: "Can we arrange your airport transfer for {{eventName}}?",
     body: `Hi {{guestName}},
 
-We hope you are getting excited for {{eventName}} — we certainly are, and we truly cannot wait to see you!
+We hope you are getting excited for {{eventName}} ‚Äî we certainly are, and we truly cannot wait to see you!
 
 We are finalizing ground transportation for all of our guests, and we noticed something we wanted to check with you on:
 
-┌────────────────────────┐
+‚îå‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îê
     Here is what needs your attention:
 
     Your flight arrives into {{airport}} on {{flightArrival}}
@@ -1123,14 +1126,14 @@ We are finalizing ground transportation for all of our guests, and we noticed so
     Your hotel: {{hotel}}
 
   We do not have a transfer arranged for you from {{airport}} to {{hotel}}.
-└────────────────────────┘
+‚îî‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îò
 
-We want to make absolutely sure you have a smooth, stress-free arrival at {{hotel}}, {{guestName}} — so we wanted to check in right away!
+We want to make absolutely sure you have a smooth, stress-free arrival at {{hotel}}, {{guestName}} ‚Äî so we wanted to check in right away!
 
 Could you let us know your preference?
 
-    Yes please — I would love a transfer from {{airport}} to {{hotel}}!
-    No thank you — I have my own transportation arranged.
+    Yes please ‚Äî I would love a transfer from {{airport}} to {{hotel}}!
+    No thank you ‚Äî I have my own transportation arranged.
 
 We want to make sure you arrive at {{hotel}} feeling relaxed and completely ready to enjoy every moment of {{eventName}}. Just reply with your preference and we will take care of everything from there!
 
@@ -1141,37 +1144,37 @@ With warm regards,
   outside_window: {
     id: "outside_window",
     label: "Outside Approved Travel Window",
-    icon: "🗓",
+    icon: "üóì",
     color: P.purple,
     description: "Guest travel dates fall outside the approved event window",
     subject: "A quick note about your travel dates for {{eventName}}",
     body: `Hi {{guestName}},
 
-We are so glad you will be joining us for {{eventName}} — we want to make sure every detail of your trip is perfectly arranged and that you have the most wonderful experience!
+We are so glad you will be joining us for {{eventName}} ‚Äî we want to make sure every detail of your trip is perfectly arranged and that you have the most wonderful experience!
 
 While reviewing travel details for all of our guests, we noticed something we wanted to bring to your attention right away:
 
-┌────────────────────────┐
+‚îå‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îê
     Here is what needs your attention:
 
     Your flight arrives into {{airport}} on {{flightArrival}}
     Your flight departs {{airport}} on {{flightDeparture}}
 
-    {{eventName}} travel window: {{eventStart}} – {{eventEnd}}
+    {{eventName}} travel window: {{eventStart}} ‚Äì {{eventEnd}}
 
   Your travel dates fall outside the standard event travel window.
-└────────────────────────┘
+‚îî‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îò
 
-This might be completely intentional, {{guestName}} — perhaps you are extending your trip to explore, which sounds wonderful! If that is the case, no action is needed at all — just reply to let us know you are all set and we will note it in your travel record.
+This might be completely intentional, {{guestName}} ‚Äî perhaps you are extending your trip to explore, which sounds wonderful! If that is the case, no action is needed at all ‚Äî just reply to let us know you are all set and we will note it in your travel record.
 
 If you think your dates may have been entered incorrectly or you would like to revisit your booking, we are more than happy to help sort it out together. No question is too small!
 
 Here is your full travel summary for {{eventName}} as we have it:
 
-    Arrival:          {{flightArrival}} into {{airport}} — Flight {{flightIn}}
+    Arrival:          {{flightArrival}} into {{airport}} ‚Äî Flight {{flightIn}}
     Hotel check-in:  {{checkIn}} at {{hotel}}
     Hotel check-out: {{checkOut}}
-    Departure:        {{flightDeparture}} from {{airport}} — Flight {{flightOut}}
+    Departure:        {{flightDeparture}} from {{airport}} ‚Äî Flight {{flightOut}}
 
 Warmly,
 {{plannerName}}
@@ -1180,19 +1183,19 @@ Warmly,
   general_confirmation: {
     id: "general_confirmation",
     label: "General Travel Confirmation",
-    icon: "✅",
+    icon: "‚úÖ",
     color: P.green,
     description: "Proactive confirmation request for all guests",
     subject: "Does your travel info look right for {{eventName}}?",
     body: `Hi {{guestName}},
 
-We are getting SO excited for {{eventName}} and we hope you are too — we truly cannot wait to see you there!
+We are getting SO excited for {{eventName}} and we hope you are too ‚Äî we truly cannot wait to see you there!
 
 As we get closer to {{eventName}}, we are doing a final check to make sure every guest's travel details are perfectly in order. We would love for you to take just 30 seconds to review what we have on file and confirm everything looks right!
 
 Here is your complete travel summary for {{eventName}}:
 
-┌────────────────────────┐
+‚îå‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îê
     Arrival flight:     {{flightArrival}} into {{airport}}
                           Flight {{flightIn}}
 
@@ -1201,14 +1204,14 @@ Here is your complete travel summary for {{eventName}}:
 
     Departure flight:  {{flightDeparture}} from {{airport}}
                           Flight {{flightOut}}
-└────────────────────────┘
+‚îî‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îò
 
 Does everything look right, {{guestName}}?
 
-    Yes, everything looks perfect — I am all set!
-    Something needs to be updated — here is what to change: ___________
+    Yes, everything looks perfect ‚Äî I am all set!
+    Something needs to be updated ‚Äî here is what to change: ___________
 
-If everything is correct, you do not need to do a single thing — just sit back, relax, and get ready for a fantastic time at {{eventName}}! If anything needs adjusting, please reply and we will take care of it immediately. No change is too small and no question is too silly — we are here for you!
+If everything is correct, you do not need to do a single thing ‚Äî just sit back, relax, and get ready for a fantastic time at {{eventName}}! If anything needs adjusting, please reply and we will take care of it immediately. No change is too small and no question is too silly ‚Äî we are here for you!
 
 See you very soon at {{eventName}}!
 
@@ -1224,19 +1227,19 @@ function fillTemplate(template, record, extra = {}) {
     "{{guestLastName}}": record.lastName || record.displayName.split(" ").slice(1).join(" ") || "",
     "{{guestFullName}}": record.displayName || "",
     "{{eventName}}": extra.eventName || "our event",
-    "{{flightArrival}}": fmt(record.flight?.flightArrival) || "—",
-    "{{flightDeparture}}": fmt(record.flight?.flightDeparture) || "—",
-    "{{flightIn}}": record.flight?.flightIn || "—",
-    "{{flightOut}}": record.flight?.flightOut || "—",
+    "{{flightArrival}}": fmt(record.flight?.flightArrival) || "‚Äî",
+    "{{flightDeparture}}": fmt(record.flight?.flightDeparture) || "‚Äî",
+    "{{flightIn}}": record.flight?.flightIn || "‚Äî",
+    "{{flightOut}}": record.flight?.flightOut || "‚Äî",
     "{{airport}}": record.flight?.airport || "the airport",
-    "{{checkIn}}": fmt(record.hotel?.checkIn) || "—",
-    "{{checkOut}}": fmt(record.hotel?.checkOut) || "—",
+    "{{checkIn}}": fmt(record.hotel?.checkIn) || "‚Äî",
+    "{{checkOut}}": fmt(record.hotel?.checkOut) || "‚Äî",
     "{{hotel}}": record.hotel?.hotel || "the hotel",
     "{{plannerName}}": extra.plannerName || "The Planning Team",
-    "{{arrivalEnd}}": extra.arrivalEnd ? fmt(new Date(extra.arrivalEnd)) : "—",
-    "{{departureEnd}}": extra.departureEnd ? fmt(new Date(extra.departureEnd)) : "—",
-    "{{eventStart}}": extra.arrivalStart ? fmt(new Date(extra.arrivalStart)) : "—",
-    "{{eventEnd}}": extra.departureEnd ? fmt(new Date(extra.departureEnd)) : "—",
+    "{{arrivalEnd}}": extra.arrivalEnd ? fmt(new Date(extra.arrivalEnd)) : "‚Äî",
+    "{{departureEnd}}": extra.departureEnd ? fmt(new Date(extra.departureEnd)) : "‚Äî",
+    "{{eventStart}}": extra.arrivalStart ? fmt(new Date(extra.arrivalStart)) : "‚Äî",
+    "{{eventEnd}}": extra.departureEnd ? fmt(new Date(extra.departureEnd)) : "‚Äî",
   };
   let s = template;
   Object.entries(map).forEach(([k, v]) => { s = s.split(k).join(v); });
@@ -1249,17 +1252,17 @@ function getApplicableTemplates(record) {
   const has = (sub) => issues.some(x => x.text && x.text.includes(sub));
   if (has("before check-in")) applicable.push("arrives_early");
   if (has("before check-out")) applicable.push("departs_late");
-  // Missing hotel — matches both the registration-anchored text and the travel-vs-travel fallback text
+  // Missing hotel ‚Äî matches both the registration-anchored text and the travel-vs-travel fallback text
   if (has("no hotel booked") || has("Missing from hotel roster") || has("no hotel' but no reason")) applicable.push("missing_hotel");
-  // Missing flight — same, across both engine paths
+  // Missing flight ‚Äî same, across both engine paths
   if (has("no flight booked") || has("Missing from flight manifest") || has("no flight' but no reason")) applicable.push("missing_flight");
   if (has("Missing from car transfers")) applicable.push("missing_transfer");
   if (issues.some(x => x.type === "window")) applicable.push("outside_window");
   return applicable;
 }
 
-// ── New Template Modal ────────────────────────────────────────────────────────
-const ICON_OPTIONS = ["✉","📋","⭐","🔔","🎯","🚨","💬","📌","🏷","👋","🎉","⚡","📣","🤝","📝","🔁","❓","✅","🛎","💡"];
+// ‚îÄ‚îÄ New Template Modal ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+const ICON_OPTIONS = ["‚úâ","üìã","‚≠ê","üîî","üéØ","üö®","üí¨","üìå","üè∑","üëã","üéâ","‚ö°","üì£","ü§ù","üìù","üîÅ","‚ùì","‚úÖ","üõé","üí°"];
 const TRIGGER_OPTIONS = [
   { value:"all_guests", label:"All guests with email" },
   { value:"missing_hotel", label:"Missing hotel booking" },
@@ -1274,7 +1277,7 @@ const TRIGGER_OPTIONS = [
 
 function NewTemplateModal({ onSave, onClose }) {
   const [label, setLabel] = useState("");
-  const [icon, setIcon] = useState("✉");
+  const [icon, setIcon] = useState("‚úâ");
   const [trigger, setTrigger] = useState("manual_only");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
@@ -1382,7 +1385,7 @@ function NewTemplateModal({ onSave, onClose }) {
   );
 }
 
-// ── Communications Hub ────────────────────────────────────────────────────────
+// ‚îÄ‚îÄ Communications Hub ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, departureStart, departureEnd }) {
   const [templates, setTemplates] = useState(DEFAULT_TEMPLATES);
   const [editingTemplate, setEditingTemplate] = useState(null);
@@ -1398,7 +1401,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
   const [checkedIds, setCheckedIds] = useState(new Set());
   const [bulkRecipient, setBulkRecipient] = useState("guest"); // guest | hotel | travel | all
   const [editedIds, setEditedIds] = useState(new Set()); // tracks which queue items have been manually edited
-  const [localEdits, setLocalEdits] = useState({}); // {id: {to, subject, body}} — staged edits before save
+  const [localEdits, setLocalEdits] = useState({}); // {id: {to, subject, body}} ‚Äî staged edits before save
   const [showTemplateConfig, setShowTemplateConfig] = useState(false); // collapse template/config UI by default
 
   const plannerName = contacts?.plannerName || "The Planning Team";
@@ -1453,11 +1456,11 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
           matched = true;
         }
       });
-      // Fallback: flagged guest with an email but no matching template — still queue a generic note
+      // Fallback: flagged guest with an email but no matching template ‚Äî still queue a generic note
       // so they're never silently dropped (covers date mismatches, wrong-hotel, unregistered, etc.)
       if (!matched) {
-        const issueList = unresolved.map(x => "• " + x.text).join("\n");
-        const subject = `${eventName || "Event"} — please review your travel details`;
+        const issueList = unresolved.map(x => "‚Ä¢ " + x.text).join("\n");
+        const subject = `${eventName || "Event"} ‚Äî please review your travel details`;
         const body = `Hi ${record.firstName || record.displayName || "there"},\n\nWhile reviewing arrangements for ${eventName || "our event"}, we found something on your record that needs attention:\n\n${issueList}\n\nCould you take a look and let us know? Thank you.\n\n${contacts?.plannerName || "[Your Name]"}`;
         q.push({ id: `${record.key}-generic`, record, templateId: null, subject, body, to: record.email, status: "pending" });
       }
@@ -1533,7 +1536,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
       markSent(item.id);
     });
     setCheckedIds(new Set());
-    setSendMsg(`Opening ${items.length} email${items.length !== 1 ? "s" : ""}…`);
+    setSendMsg(`Opening ${items.length} email${items.length !== 1 ? "s" : ""}‚Ä¶`);
     setTimeout(() => setSendMsg(""), 3000);
   }
 
@@ -1593,7 +1596,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
         markSent(item.id);
       }, i * 400);
     });
-    setSendMsg(`Opening ${pending.length} email${pending.length !== 1 ? "s" : ""}…`);
+    setSendMsg(`Opening ${pending.length} email${pending.length !== 1 ? "s" : ""}‚Ä¶`);
     setTimeout(() => setSendMsg(""), 3000);
   }
 
@@ -1619,7 +1622,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
 
   const guestsWithEmail = (results || []).filter(r => r.email);
   const customTemplates = Object.values(templates).filter(t => t.isCustom);
-  // A guest "needs a message" if they have an email AND any unresolved issue —
+  // A guest "needs a message" if they have an email AND any unresolved issue ‚Äî
   // whether or not a prebuilt template matches (date mismatches, wrong-hotel, etc. still count).
   const flaggedWithEmail = guestsWithEmail.filter(r =>
     (r.issues || []).filter(x => !(r.resolved || []).includes(x.text)).length > 0
@@ -1661,7 +1664,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
               </div>
               <div style={{ display:"flex", gap:"10px" }}>
                 <Btn onClick={saveEdit} color={P.accent}>Save Template <Save size={13} strokeWidth={2} style={{verticalAlign:"-2px"}}/></Btn>
-                <Btn onClick={() => { setTemplates(prev => ({...prev, [editingTemplate]: DEFAULT_TEMPLATES[editingTemplate]})); setEditSubject(DEFAULT_TEMPLATES[editingTemplate].subject); setEditBody(DEFAULT_TEMPLATES[editingTemplate].body); }} outline color={P.grey400}>↺ Reset to Default</Btn>
+                <Btn onClick={() => { setTemplates(prev => ({...prev, [editingTemplate]: DEFAULT_TEMPLATES[editingTemplate]})); setEditSubject(DEFAULT_TEMPLATES[editingTemplate].subject); setEditBody(DEFAULT_TEMPLATES[editingTemplate].body); }} outline color={P.grey400}>‚Ü∫ Reset to Default</Btn>
                 <Btn onClick={() => setEditingTemplate(null)} outline>Cancel</Btn>
               </div>
             </div>
@@ -1669,7 +1672,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
         </div>
       )}
 
-      {/* ── Streamlined start: one clear next step ── */}
+      {/* ‚îÄ‚îÄ Streamlined start: one clear next step ‚îÄ‚îÄ */}
       {activeView === "templates" && (
         <>
           <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"16px", padding:"24px 26px", marginBottom:"14px" }}>
@@ -1700,20 +1703,20 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
               <button onClick={() => setShowTemplateConfig(v=>!v)} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>{showTemplateConfig ? "Hide send settings" : "Send settings"}</button>
             </div>
           </div>
-          {queue && <button onClick={() => setActiveView("queue")} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer", marginBottom:"14px" }}>← Back to your send queue ({pendingCount} pending)</button>}
+          {queue && <button onClick={() => setActiveView("queue")} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer", marginBottom:"14px" }}>‚Üê Back to your send queue ({pendingCount} pending)</button>}
         </>
       )}
 
       {/* Queue-view actions bar */}
       {activeView === "queue" && queue && (
         <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"16px", flexWrap:"wrap" }}>
-          <button onClick={() => setActiveView("templates")} style={{ background:P.white, color:P.grey600, border:`1px solid ${P.grey100}`, borderRadius:"8px", padding:"7px 14px", fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>← Back</button>
-          <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font }}>{sentCount} sent · {skippedCount} skipped · {pendingCount} pending</div>
+          <button onClick={() => setActiveView("templates")} style={{ background:P.white, color:P.grey600, border:`1px solid ${P.grey100}`, borderRadius:"8px", padding:"7px 14px", fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>‚Üê Back</button>
+          <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font }}>{sentCount} sent ¬∑ {skippedCount} skipped ¬∑ {pendingCount} pending</div>
           {sendMsg && <span style={{ fontSize:"13px", color:P.green, fontWeight:600, fontFamily:font }}>{sendMsg}</span>}
           {pendingCount > 0 && <div style={{ marginLeft:"auto", display:"flex", gap:"8px" }}>
             <button onClick={() => {
               const text = (queue||[]).filter(x=>x.status==="pending").map(item =>
-                `TO: ${item.to}\nSUBJECT: ${item.subject}\n\n${item.body}\n\n${"─".repeat(60)}`
+                `TO: ${item.to}\nSUBJECT: ${item.subject}\n\n${item.body}\n\n${"‚îÄ".repeat(60)}`
               ).join("\n\n");
               navigator.clipboard?.writeText(text).then(() => {});
               const blob = new Blob([text], {type:"text/plain"});
@@ -1736,9 +1739,9 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
             </div>
             <div style={{ display:"flex", gap:"8px", marginLeft:"auto" }}>
               {[
-                { k:"manual", l:"✋ Manual", sub:"You open each email individually" },
-                { k:"review", l:"👁 Review First", sub:"Preview every email before sending" },
-                { k:"auto", l:"⚡ Build & Send", sub:"Open all in mail app at once" },
+                { k:"manual", l:"‚úã Manual", sub:"You open each email individually" },
+                { k:"review", l:"üëÅ Review First", sub:"Preview every email before sending" },
+                { k:"auto", l:"‚ö° Build & Send", sub:"Open all in mail app at once" },
               ].map(({k,l,sub}) => (
                 <button key={k} onClick={() => setSendMode(k)} style={{ background:sendMode===k?P.navy:P.offWhite, color:sendMode===k?P.white:P.grey600, border:`1px solid ${sendMode===k?P.navy:P.grey100}`, borderRadius:"8px", padding:"9px 14px", cursor:"pointer", textAlign:"left", fontFamily:font }}>
                   <div style={{ fontSize:"14px", fontWeight:500, color:sendMode===k?P.white:P.navy }}>{l}</div>
@@ -1753,7 +1756,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
             {[
               { label:"Guests with Email", val: guestsWithEmail.length, sub:`of ${(results||[]).length} total guests`, color:P.periwinkleD },
               { label:"Need a Message", val: flaggedWithEmail.length, sub:"flagged guests with email on file", color:P.amber },
-              { label:"No Email on File", val: (results||[]).filter(r=>!r.email&&r.issues.length>0).length, sub:"flagged guests — manual follow-up needed", color:P.navyLight },
+              { label:"No Email on File", val: (results||[]).filter(r=>!r.email&&r.issues.length>0).length, sub:"flagged guests ‚Äî manual follow-up needed", color:P.navyLight },
             ].map(({label,val,sub,color}) => (
               <div key={label} style={{ background:P.white, borderRadius:"8px", padding:"12px 16px", border:`1px solid ${P.grey100}` }}>
                 <div style={{ fontSize:"22px", fontWeight:600, color, fontFamily:font }}>{val}</div>
@@ -1765,7 +1768,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
         </>
       )}
 
-      {/* Templates grid — always visible (templates list is core, not a setting) */}
+      {/* Templates grid ‚Äî always visible (templates list is core, not a setting) */}
       {activeView === "templates" && (
         <>
           {/* Templates grid */}
@@ -1792,7 +1795,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                   </div>
                   <div style={{ background:P.offWhite, borderRadius:"8px", padding:"10px 12px", marginBottom:"12px" }}>
                     <div style={{ fontSize:"11px", fontWeight:500, color:P.grey400, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"4px" }}>Subject preview</div>
-                    <div style={{ fontSize:"14px", color:P.navy, fontWeight:600 }}>{tmpl.subject.replace(/\{\{[^}]+\}\}/g, "…")}</div>
+                    <div style={{ fontSize:"14px", color:P.navy, fontWeight:600 }}>{tmpl.subject.replace(/\{\{[^}]+\}\}/g, "‚Ä¶")}</div>
                   </div>
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
@@ -1819,7 +1822,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
         <>
           {!queue && (
             <div style={{ background:P.white, borderRadius:"10px", padding:"40px", textAlign:"center", border:`1px solid ${P.grey100}` }}>
-              <div style={{ fontSize:"32px", marginBottom:"12px" }}>📤</div>
+              <div style={{ fontSize:"32px", marginBottom:"12px" }}>üì§</div>
               <div style={{ fontSize:"15px", fontWeight:800, color:P.navy, marginBottom:"6px" }}>No queue yet</div>
               <div style={{ fontSize:"15px", color:P.navyLight, marginBottom:"20px" }}>Go to Templates and click "Build Send Queue" to generate personalized emails for all flagged guests.</div>
               <Btn onClick={() => setActiveView("templates")}>Go to Templates</Btn>
@@ -1828,7 +1831,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
 
           {queue && queue.length === 0 && (
             <div style={{ background:P.white, borderRadius:"10px", padding:"40px", textAlign:"center", border:`1px solid ${P.grey100}` }}>
-              <div style={{ fontSize:"32px", marginBottom:"12px" }}>✅</div>
+              <div style={{ fontSize:"32px", marginBottom:"12px" }}>‚úÖ</div>
               <div style={{ fontSize:"15px", fontWeight:800, color:P.green, marginBottom:"6px" }}>No emails to send</div>
               <div style={{ fontSize:"15px", color:P.navyLight }}>Either no guests have flags, or no flagged guests have email addresses on file.</div>
             </div>
@@ -1845,13 +1848,13 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
             return (
             <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
 
-              {/* ── Bulk Send Toolbar ── */}
+              {/* ‚îÄ‚îÄ Bulk Send Toolbar ‚îÄ‚îÄ */}
               <div style={{ background:P.white, border:`1px solid ${someChecked ? P.periwinkle+"66" : P.grey100}`, borderRadius:"10px", padding:"12px 16px", display:"flex", alignItems:"center", gap:"14px", flexWrap:"wrap", transition:"border-color 0.2s" }}>
                 {/* Select all checkbox */}
                 <label style={{ display:"flex", alignItems:"center", gap:"8px", cursor:"pointer", flexShrink:0 }}>
                   <div onClick={toggleCheckAll} style={{ width:20, height:20, borderRadius:"6px", border:`2px solid ${allChecked ? P.periwinkleD : someChecked ? P.periwinkle : P.grey200}`, background:allChecked ? P.periwinkleD : someChecked ? P.periwinkle+"33" : P.white, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", transition:"all 0.15s", flexShrink:0 }}>
-                    {allChecked && <span style={{ color:P.white, fontSize:"14px", lineHeight:1, fontWeight:900 }}>✓</span>}
-                    {!allChecked && someChecked && <span style={{ color:P.periwinkleD, fontSize:"15px", lineHeight:1, fontWeight:900 }}>—</span>}
+                    {allChecked && <span style={{ color:P.white, fontSize:"14px", lineHeight:1, fontWeight:900 }}>‚úì</span>}
+                    {!allChecked && someChecked && <span style={{ color:P.periwinkleD, fontSize:"15px", lineHeight:1, fontWeight:900 }}>‚Äî</span>}
                   </div>
                   <span style={{ fontSize:"14px", fontWeight:700, color:P.navy, fontFamily:font }}>
                     {someChecked ? `${checkedPending.length} selected` : `Select all (${pendingItems.length} pending)`}
@@ -1873,7 +1876,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                       title={!available ? "Add this contact first" : ""}
                       style={{ background:bulkRecipient===k ? P.navy : available ? P.offWhite : P.grey50, color:bulkRecipient===k ? P.white : available ? P.navy : P.grey300, border:`1.5px solid ${bulkRecipient===k ? P.navy : available ? P.grey200 : P.grey100}`, borderRadius:"8px", padding:"5px 12px", fontSize:"15px", fontWeight:800, fontFamily:font, cursor:available?"pointer":"not-allowed", transition:"all 0.15s", opacity: available ? 1 : 0.5 }}>
                       {l}
-                      {!available && <span style={{ fontSize:"14px", marginLeft:"4px" }}>⚠</span>}
+                      {!available && <span style={{ fontSize:"14px", marginLeft:"4px" }}>‚ö†</span>}
                     </button>
                   ))}
                 </div>
@@ -1883,7 +1886,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                   {unsavedCount > 0 && (
                     <button onClick={saveAllEdits}
                       style={{ background:P.amber+"18", border:`1.5px solid ${P.amber}66`, borderRadius:"9px", padding:"7px 14px", fontSize:"13px", fontWeight:800, fontFamily:font, color:P.amber, cursor:"pointer", display:"flex", alignItems:"center", gap:"6px" }}>
-                      💾 Save All Edits ({unsavedCount})
+                      üíæ Save All Edits ({unsavedCount})
                     </button>
                   )}
                   {checkedPending.length > 0 ? (
@@ -1891,7 +1894,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                       style={{ background:`linear-gradient(135deg, ${P.periwinkleD}, ${P.periwinkle})`, border:"none", borderRadius:"10px", padding:"9px 20px", fontSize:"15px", fontWeight:800, fontFamily:font, color:P.white, cursor:"pointer", boxShadow:"0 3px 12px rgba(91,109,184,0.4)", display:"flex", alignItems:"center", gap:"8px" }}>
                       Send {checkedPending.length} Email{checkedPending.length !== 1 ? "s" : ""}
                       <span style={{ background:"rgba(255,255,255,0.25)", borderRadius:"6px", padding:"1px 7px", fontSize:"15px" }}>
-                        {bulkRecipient === "all" ? "× 3 recipients" : `to ${bulkRecipient === "guest" ? "Guests" : bulkRecipient === "hotel" ? (contacts?.hotel?.name || "Hotel") : (contacts?.travel?.name || "Travel")}`}
+                        {bulkRecipient === "all" ? "√ó 3 recipients" : `to ${bulkRecipient === "guest" ? "Guests" : bulkRecipient === "hotel" ? (contacts?.hotel?.name || "Hotel") : (contacts?.travel?.name || "Travel")}`}
                       </span>
                     </button>
                   ) : (
@@ -1900,7 +1903,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                 </div>
               </div>
 
-              {/* ── Queue Items ── */}
+              {/* ‚îÄ‚îÄ Queue Items ‚îÄ‚îÄ */}
               {queue.map((item, idx) => {
                 const tmpl = templates[item.templateId];
                 const isActive = reviewIdx === idx;
@@ -1909,34 +1912,34 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                   <div key={item.id} style={{ background:P.white, borderRadius:"16px", border:`1.5px solid ${item.status==="sent"?P.green+"44":item.status==="skipped"?P.grey200:isChecked?P.periwinkle+"88":isActive?P.periwinkle+"55":P.grey100}`, overflow:"hidden", opacity:item.status==="skipped"?0.55:1, transition:"border-color 0.15s" }}>
                     {/* Queue item header */}
                     <div style={{ display:"flex", alignItems:"center", gap:"12px", padding:"14px 18px" }}>
-                      {/* Checkbox — only for pending items */}
+                      {/* Checkbox ‚Äî only for pending items */}
                       {item.status === "pending" ? (
                         <div onClick={() => toggleCheck(item.id)} style={{ width:20, height:20, borderRadius:"6px", border:`2px solid ${isChecked ? P.periwinkleD : P.grey200}`, background:isChecked ? P.periwinkleD : P.white, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", transition:"all 0.15s", flexShrink:0 }}>
-                          {isChecked && <span style={{ color:P.white, fontSize:"14px", lineHeight:1, fontWeight:900 }}>✓</span>}
+                          {isChecked && <span style={{ color:P.white, fontSize:"14px", lineHeight:1, fontWeight:900 }}>‚úì</span>}
                         </div>
                       ) : (
                         <div style={{ width:20, height:20, flexShrink:0 }} />
                       )}
                       <div onClick={() => setReviewIdx(isActive ? -1 : idx)} style={{ display:"flex", alignItems:"center", gap:"12px", flex:1, minWidth:0, cursor:"pointer" }}>
                         <div style={{ width:34, height:34, borderRadius:"9px", background:item.status==="sent"?P.greenLight:item.status==="skipped"?P.grey50:tmpl.color+"18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"16px", flexShrink:0 }}>
-                          {item.status==="sent"?"✓":item.status==="skipped"?"—":tmpl.icon}
+                          {item.status==="sent"?"‚úì":item.status==="skipped"?"‚Äî":tmpl.icon}
                         </div>
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ display:"flex", alignItems:"center", gap:"8px", flexWrap:"wrap" }}>
                             <span style={{ fontWeight:800, fontSize:"15px", color:P.navy }}>{item.record.displayName}</span>
                             <span style={{ fontSize:"15px", color:P.navyLight }}>{item.to}</span>
                             <span style={{ background:tmpl.color+"18", color:tmpl.color, fontSize:"15px", fontWeight:700, padding:"1px 8px", borderRadius:"20px" }}>{tmpl.label}</span>
-                            {item.status==="sent" && <span style={{ background:P.greenLight, color:P.green, fontSize:"15px", fontWeight:800, padding:"1px 8px", borderRadius:"20px" }}>✓ Sent</span>}
+                            {item.status==="sent" && <span style={{ background:P.greenLight, color:P.green, fontSize:"15px", fontWeight:800, padding:"1px 8px", borderRadius:"20px" }}>‚úì Sent</span>}
                             {item.status==="skipped" && <span style={{ background:P.grey50, color:P.navyLight, fontSize:"15px", fontWeight:800, padding:"1px 8px", borderRadius:"20px" }}>Skipped</span>}
                             {editedIds.has(item.id) && item.status==="pending" && <span style={{ background:P.amber+"22", color:P.amber, fontSize:"15px", fontWeight:800, padding:"1px 8px", borderRadius:"20px" }}>Edited</span>}
-                            {hasUnsavedEdits(item.id) && <span style={{ background:P.amber+"22", color:P.amber, fontSize:"13px", fontWeight:800, padding:"1px 8px", borderRadius:"20px" }}>⚠ Unsaved</span>}
+                            {hasUnsavedEdits(item.id) && <span style={{ background:P.amber+"22", color:P.amber, fontSize:"13px", fontWeight:800, padding:"1px 8px", borderRadius:"20px" }}>‚ö† Unsaved</span>}
                           </div>
                           <div style={{ fontSize:"14px", color:P.navy, marginTop:"2px", fontWeight:600 }}>{item.subject}</div>
                         </div>
                       </div>
                       {item.status === "pending" && (
                         <div style={{ display:"flex", gap:"6px", flexShrink:0 }}>
-                          <Btn onClick={e => { e.stopPropagation(); openMailto(item); }} small color={P.navy}>Open in Mail ↗</Btn>
+                          <Btn onClick={e => { e.stopPropagation(); openMailto(item); }} small color={P.navy}>Open in Mail ‚Üó</Btn>
                           <Btn onClick={e => { e.stopPropagation(); markSkipped(item.id); }} small outline color={P.grey400}>Skip</Btn>
                         </div>
                       )}
@@ -1951,7 +1954,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"14px" }}>
                           <div style={{ fontSize:"14px", fontWeight:800, color:P.navy }}>
                             Edit Email
-                            {editedIds.has(item.id) && <span style={{ marginLeft:"8px", background:P.amber+"22", color:P.amber, fontSize:"15px", fontWeight:800, padding:"2px 8px", borderRadius:"20px" }}>Edited — will use your version on bulk send</span>}
+                            {editedIds.has(item.id) && <span style={{ marginLeft:"8px", background:P.amber+"22", color:P.amber, fontSize:"15px", fontWeight:800, padding:"2px 8px", borderRadius:"20px" }}>Edited ‚Äî will use your version on bulk send</span>}
                           </div>
                           {editedIds.has(item.id) && (
                             <button onClick={() => resetToOriginal(item)} style={{ background:"transparent", border:`1px solid ${P.grey200}`, borderRadius:"7px", padding:"4px 10px", fontSize:"15px", fontWeight:700, color:P.grey500||P.grey400, fontFamily:font, cursor:"pointer" }}>
@@ -1983,22 +1986,22 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                           {hasUnsavedEdits(item.id) ? (
                             <button onClick={() => { saveEdits(item.id); setReviewIdx(-1); }}
                               style={{ background:P.green, border:"none", borderRadius:"10px", padding:"9px 20px", fontSize:"14px", fontWeight:800, fontFamily:font, color:P.white, cursor:"pointer", boxShadow:"0 2px 8px rgba(34,197,94,0.3)", display:"flex", alignItems:"center", gap:"7px" }}>
-                              ✓ Save Changes
+                              ‚úì Save Changes
                             </button>
                           ) : (
                             <button onClick={() => openMailto({ ...item, to: getStagedField(item,"to"), subject: getStagedField(item,"subject"), body: getStagedField(item,"body") })}
                               style={{ background:P.navy, border:"none", borderRadius:"10px", padding:"9px 20px", fontSize:"14px", fontWeight:800, fontFamily:font, color:P.white, cursor:"pointer" }}>
-                              Open in Mail App ↗
+                              Open in Mail App ‚Üó
                             </button>
                           )}
                           {hasUnsavedEdits(item.id) && (
                             <button onClick={() => openMailto({ ...item, to: getStagedField(item,"to"), subject: getStagedField(item,"subject"), body: getStagedField(item,"body") })}
                               style={{ background:"transparent", border:`1.5px solid ${P.navy}`, borderRadius:"10px", padding:"9px 20px", fontSize:"14px", fontWeight:800, fontFamily:font, color:P.navy, cursor:"pointer" }}>
-                              Send without saving ↗
+                              Send without saving ‚Üó
                             </button>
                           )}
                           <Btn onClick={() => markSkipped(item.id)} outline color={P.grey400}>Skip</Btn>
-                          {hasUnsavedEdits(item.id) && <span style={{ fontSize:"15px", color:P.amber, fontFamily:font, fontWeight:700 }}>⚠ Save to include in bulk send — or use "Save All Edits" above</span>}
+                          {hasUnsavedEdits(item.id) && <span style={{ fontSize:"15px", color:P.amber, fontFamily:font, fontWeight:700 }}>‚ö† Save to include in bulk send ‚Äî or use "Save All Edits" above</span>}
                         </div>
                       </div>
                     )}
@@ -2036,7 +2039,7 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// ── Login Panel (slide-in drawer) ────────────────────────────────────────────
+// ‚îÄ‚îÄ Login Panel (slide-in drawer) ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 function LoginPanel({ onLogin, onClose }) {
   const [mode, setMode]         = useState("signin"); // "signin" | "signup" | "reset"
   const [email, setEmail]       = useState("");
@@ -2171,14 +2174,14 @@ function LoginPanel({ onLogin, onClose }) {
         {/* Success message */}
         {success && (
           <div style={{ background:"rgba(0,201,177,0.12)", border:"1px solid rgba(0,201,177,0.3)", borderRadius:"10px", padding:"12px 14px", fontSize:"14px", color:P.accent, fontWeight:600, marginBottom:"20px", lineHeight:1.5 }}>
-            ✓ {success}
+            ‚úì {success}
           </div>
         )}
 
         {/* Error message */}
         {error && (
           <div style={{ background:"rgba(197,59,59,0.15)", border:"1px solid rgba(197,59,59,0.35)", borderRadius:"10px", padding:"10px 14px", fontSize:"14px", color:"#F08080", fontWeight:700, marginBottom:"20px" }}>
-            ⚠ {error}
+            ‚ö† {error}
           </div>
         )}
 
@@ -2195,13 +2198,13 @@ function LoginPanel({ onLogin, onClose }) {
                 <button type="button" onClick={() => { setMode("reset"); clearForm(); }} style={{ background:"transparent", border:"none", color:P.periwinkleL, fontSize:"13px", fontWeight:700, cursor:"pointer", padding:0 }}>Forgot password?</button>
               </div>
               <div style={{ position:"relative" }}>
-                <input type={showPw?"text":"password"} value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onFocus={() => setFocused("password")} onBlur={() => setFocused("")} placeholder="••••••••" style={{ ...inputStyle("password"), paddingRight:"42px" }} />
-                <button type="button" onClick={() => setShowPw(s => !s)} style={{ position:"absolute", right:13, top:"50%", transform:"translateY(-50%)", background:"transparent", border:"none", color:"rgba(255,255,255,0.3)", cursor:"pointer", fontSize:"15px", padding:0 }}>{showPw?"🙈":"👁"}</button>
+                <input type={showPw?"text":"password"} value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onFocus={() => setFocused("password")} onBlur={() => setFocused("")} placeholder="‚Ä¢‚Ä¢‚Ä¢‚Ä¢‚Ä¢‚Ä¢‚Ä¢‚Ä¢" style={{ ...inputStyle("password"), paddingRight:"42px" }} />
+                <button type="button" onClick={() => setShowPw(s => !s)} style={{ position:"absolute", right:13, top:"50%", transform:"translateY(-50%)", background:"transparent", border:"none", color:"rgba(255,255,255,0.3)", cursor:"pointer", fontSize:"15px", padding:0 }}>{showPw?"üôà":"üëÅ"}</button>
               </div>
             </div>
             <button type="submit" disabled={loading}
               style={{ width:"100%", background:loading?"rgba(91,109,184,0.5)":`linear-gradient(135deg, ${P.periwinkleD}, ${P.periwinkle})`, border:"none", borderRadius:"10px", padding:"13px", fontSize:"15px", fontWeight:700, fontFamily:font, color:P.white, cursor:loading?"wait":"pointer", marginTop:"4px", boxShadow:loading?"none":"0 2px 12px rgba(69,87,176,0.28)", transition:"all 0.2s" }}>
-              {loading ? "Signing in…" : "Sign In →"}
+              {loading ? "Signing in‚Ä¶" : "Sign In ‚Üí"}
             </button>
           </form>
         )}
@@ -2221,7 +2224,7 @@ function LoginPanel({ onLogin, onClose }) {
               <label style={{ display:"block", fontSize:"12px", fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"7px" }}>Password <span style={{ fontWeight:400, textTransform:"none", letterSpacing:0 }}>(min. 8 characters)</span></label>
               <div style={{ position:"relative" }}>
                 <input type={showPw?"text":"password"} value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onFocus={() => setFocused("password")} onBlur={() => setFocused("")} placeholder="Create a strong password" style={{ ...inputStyle("password"), paddingRight:"42px" }} />
-                <button type="button" onClick={() => setShowPw(s => !s)} style={{ position:"absolute", right:13, top:"50%", transform:"translateY(-50%)", background:"transparent", border:"none", color:"rgba(255,255,255,0.3)", cursor:"pointer", fontSize:"15px", padding:0 }}>{showPw?"🙈":"👁"}</button>
+                <button type="button" onClick={() => setShowPw(s => !s)} style={{ position:"absolute", right:13, top:"50%", transform:"translateY(-50%)", background:"transparent", border:"none", color:"rgba(255,255,255,0.3)", cursor:"pointer", fontSize:"15px", padding:0 }}>{showPw?"üôà":"üëÅ"}</button>
               </div>
               {password.length > 0 && password.length < 8 && (
                 <div style={{ fontSize:"12px", color:"rgba(197,59,59,0.8)", marginTop:"5px" }}>Password too short ({password.length}/8)</div>
@@ -2229,7 +2232,7 @@ function LoginPanel({ onLogin, onClose }) {
             </div>
             <button type="submit" disabled={loading}
               style={{ width:"100%", background:loading?"rgba(0,201,177,0.3)":P.accent, border:"none", borderRadius:"10px", padding:"13px", fontSize:"15px", fontWeight:700, fontFamily:font, color:P.white, cursor:loading?"wait":"pointer", marginTop:"4px", boxShadow:loading?"none":"0 2px 12px rgba(0,201,177,0.3)", transition:"all 0.2s" }}>
-              {loading ? "Creating account…" : "Create Account →"}
+              {loading ? "Creating account‚Ä¶" : "Create Account ‚Üí"}
             </button>
           </form>
         )}
@@ -2243,11 +2246,11 @@ function LoginPanel({ onLogin, onClose }) {
             </div>
             <button type="submit" disabled={loading}
               style={{ width:"100%", background:loading?"rgba(91,109,184,0.5)":`linear-gradient(135deg, ${P.periwinkleD}, ${P.periwinkle})`, border:"none", borderRadius:"10px", padding:"13px", fontSize:"15px", fontWeight:700, fontFamily:font, color:P.white, cursor:loading?"wait":"pointer", boxShadow:loading?"none":"0 2px 12px rgba(69,87,176,0.28)", transition:"all 0.2s" }}>
-              {loading ? "Sending…" : "Send Reset Link →"}
+              {loading ? "Sending‚Ä¶" : "Send Reset Link ‚Üí"}
             </button>
             <button type="button" onClick={() => { setMode("signin"); clearForm(); }}
               style={{ background:"transparent", border:"none", color:"rgba(255,255,255,0.35)", fontSize:"14px", fontWeight:600, cursor:"pointer", fontFamily:font, padding:"4px" }}>
-              ← Back to Sign In
+              ‚Üê Back to Sign In
             </button>
           </form>
         )}
@@ -2273,7 +2276,7 @@ function LoginPanel({ onLogin, onClose }) {
 
       {/* Footer */}
       <div style={{ padding:"16px 28px", borderTop:"1px solid rgba(255,255,255,0.07)", flexShrink:0 }}>
-        <div style={{ fontSize:"12px", color:"rgba(255,255,255,0.18)", textAlign:"center" }}>© 2026 GroupGrid · Built for event professionals</div>
+        <div style={{ fontSize:"12px", color:"rgba(255,255,255,0.18)", textAlign:"center" }}>¬© 2026 GroupGrid ¬∑ Built for event professionals</div>
       </div>
     </div>
   );
@@ -2281,12 +2284,12 @@ function LoginPanel({ onLogin, onClose }) {
 
 
 
-// ── Static Pages ─────────────────────────────────────────────────────────────
+// ‚îÄ‚îÄ Static Pages ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 function PageShell({ title, onBack, children }) {
   return (
     <div style={{ minHeight:"100vh", background:P.offWhite, fontFamily:font }}>
       <div style={{ background:P.navy, padding:"0 32px", height:"52px", display:"flex", alignItems:"center", gap:"16px", boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
-        <button onClick={onBack} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:"8px", padding:"5px 12px", color:"rgba(255,255,255,0.7)", fontSize:"13px", fontFamily:font, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:"6px" }}>← Back</button>
+        <button onClick={onBack} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:"8px", padding:"5px 12px", color:"rgba(255,255,255,0.7)", fontSize:"13px", fontFamily:font, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:"6px" }}>‚Üê Back</button>
         <span style={{ color:P.white, fontSize:"15px", fontWeight:700, fontFamily:font }}>{title}</span>
       </div>
       <div style={{ maxWidth:"760px", margin:"0 auto", padding:"48px 28px" }}>
@@ -2352,25 +2355,25 @@ function TermsPage({ onBack }) {
 
 function AboutPage({ onBack }) {
   const useCases = [
-    { icon:"🎯", label:"Sales Kickoffs" },
-    { icon:"🏢", label:"Corporate Events" },
-    { icon:"🤝", label:"Board Retreats" },
-    { icon:"💼", label:"Advisory Boards" },
-    { icon:"🔵", label:"Executive Roundtables" },
-    { icon:"🎪", label:"Tradeshows" },
-    { icon:"🏥", label:"Healthcare Meetings" },
-    { icon:"🏆", label:"Event Agencies" },
-    { icon:"🎤", label:"Conferences" },
-    { icon:"🤲", label:"Association Meetings" },
-    { icon:"🌐", label:"Global Summits" },
-    { icon:"📋", label:"Field Marketing Events" },
+    { icon:"üéØ", label:"Sales Kickoffs" },
+    { icon:"üè¢", label:"Corporate Events" },
+    { icon:"ü§ù", label:"Board Retreats" },
+    { icon:"üíº", label:"Advisory Boards" },
+    { icon:"üîµ", label:"Executive Roundtables" },
+    { icon:"üé™", label:"Tradeshows" },
+    { icon:"üè•", label:"Healthcare Meetings" },
+    { icon:"üèÜ", label:"Event Agencies" },
+    { icon:"üé§", label:"Conferences" },
+    { icon:"ü§≤", label:"Association Meetings" },
+    { icon:"üåê", label:"Global Summits" },
+    { icon:"üìã", label:"Field Marketing Events" },
   ];
 
   return (
     <div style={{ minHeight:"100vh", background:P.offWhite, fontFamily:font }}>
       {/* Nav */}
       <div style={{ background:P.navy, padding:"0 32px", height:"52px", display:"flex", alignItems:"center", gap:"16px", boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
-        <button onClick={onBack} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:"8px", padding:"5px 12px", color:"rgba(255,255,255,0.7)", fontSize:"13px", fontFamily:font, fontWeight:600, cursor:"pointer" }}>← Back</button>
+        <button onClick={onBack} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:"8px", padding:"5px 12px", color:"rgba(255,255,255,0.7)", fontSize:"13px", fontFamily:font, fontWeight:600, cursor:"pointer" }}>‚Üê Back</button>
         <span style={{ color:P.white, fontSize:"15px", fontWeight:700, fontFamily:font }}>About GroupGrid</span>
       </div>
 
@@ -2397,10 +2400,10 @@ function AboutPage({ onBack }) {
             GroupGrid was created to solve a challenge I lived with for more than 15 years as an event professional: <strong style={{ color:P.navy }}>reconciling who registered for an event against what was actually booked for their travel.</strong> Registration lists, flight manifests, and hotel rosters never quite agree, and finding the gaps before they become day-of problems is slow, manual, and error-prone.
           </p>
           <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.85, margin:"0 0 20px" }}>
-            For years, the only way to manage it reliably was to spend thousands of dollars outsourcing the cross-checking — paying others to do the painstaking work of comparing spreadsheets row by row. It was expensive, it was repetitive, and it was a problem the market had never properly solved.
+            For years, the only way to manage it reliably was to spend thousands of dollars outsourcing the cross-checking ‚Äî paying others to do the painstaking work of comparing spreadsheets row by row. It was expensive, it was repetitive, and it was a problem the market had never properly solved.
           </p>
           <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.85, margin:0 }}>
-            GroupGrid brings that work in-house and makes it fast. Upload your registration list and your travel files, run the check, and see exactly who registered but isn't booked, who's booked but never registered, and whose dates don't match — with enough time to fix it.
+            GroupGrid brings that work in-house and makes it fast. Upload your registration list and your travel files, run the check, and see exactly who registered but isn't booked, who's booked but never registered, and whose dates don't match ‚Äî with enough time to fix it.
           </p>
         </div>
 
@@ -2426,7 +2429,7 @@ function AboutPage({ onBack }) {
         <div style={{ marginBottom:"32px" }}>
           <div style={{ fontSize:"13px", fontWeight:800, color:P.navy, fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"8px" }}>Built for Event Planners Managing 2 to 10,000+ Attendees</div>
           <p style={{ fontSize:"16px", color:P.grey600, fontFamily:font, lineHeight:1.7, margin:"0 0 20px" }}>
-            Wherever you need to make sure attendees arrive on time, have a confirmed hotel room, and won't show up at the wrong airport — GroupGrid has you covered.
+            Wherever you need to make sure attendees arrive on time, have a confirmed hotel room, and won't show up at the wrong airport ‚Äî GroupGrid has you covered.
           </p>
           <div className="gg-landing-usecases" style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:"10px" }}>
             {useCases.map(({ icon, label }) => (
@@ -2443,10 +2446,10 @@ function AboutPage({ onBack }) {
           <div style={{ fontSize:"13px", fontWeight:800, color:P.navy, fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"20px" }}>How It Works</div>
           <div style={{ display:"flex", flexDirection:"column", gap:"18px" }}>
             {[
-              { n:"1", title:"Upload your spreadsheets", body:"Drag in your flight manifest, hotel roster, car transfers, and dietary files — Excel format (.xlsx / .xls), any column names. GroupGrid auto-detects them." },
+              { n:"1", title:"Upload your spreadsheets", body:"Drag in your flight manifest, hotel roster, car transfers, and dietary files ‚Äî Excel format (.xlsx / .xls), any column names. GroupGrid auto-detects them." },
               { n:"2", title:"Run the cross-check", body:"GroupGrid matches every guest across all files by name and email, identifying mismatches, missing records, date gaps, and duplicates." },
-              { n:"3", title:"See exactly what needs fixing", body:"Every flag is surfaced with context — who's affected, what the mismatch is, and how many days off. Resolve issues, add notes, and export a clean report." },
-              { n:"4", title:"Share with your team or hotel", body:"Download an Excel file, generate a shareable HTML report, or draft emails directly to your hotel and travel agency contacts — all from the same screen." },
+              { n:"3", title:"See exactly what needs fixing", body:"Every flag is surfaced with context ‚Äî who's affected, what the mismatch is, and how many days off. Resolve issues, add notes, and export a clean report." },
+              { n:"4", title:"Share with your team or hotel", body:"Download an Excel file, generate a shareable HTML report, or draft emails directly to your hotel and travel agency contacts ‚Äî all from the same screen." },
             ].map(({ n, title, body }) => (
               <div key={n} style={{ display:"flex", gap:"16px", alignItems:"flex-start" }}>
                 <div style={{ width:32, height:32, borderRadius:"50%", background:P.navy, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:"1px" }}>
@@ -2468,7 +2471,7 @@ function AboutPage({ onBack }) {
             <div style={{ fontSize:"15px", fontWeight:800, color:P.teal, fontFamily:font }}>Zero data ever leaves your browser</div>
           </div>
           <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, lineHeight:1.7 }}>
-            Your guest files — names, emails, flight details, hotel records — are processed entirely in your browser and never uploaded to any server. Saved projects are stored on your device. We use Supabase, a trusted third-party provider, only for secure account sign-in. GroupGrid is built to keep sensitive guest data on your device.
+            Your guest files ‚Äî names, emails, flight details, hotel records ‚Äî are processed entirely in your browser and never uploaded to any server. Saved projects are stored on your device. We use Supabase, a trusted third-party provider, only for secure account sign-in. GroupGrid is built to keep sensitive guest data on your device.
           </div>
         </div>
 
@@ -2479,7 +2482,7 @@ function AboutPage({ onBack }) {
             GroupGrid is built by an active member of the event marketing community, including CEMA and PCMA. Have a question or want to connect? Reach out anytime.
           </div>
           <a href="mailto:groupgrid@outlook.com" style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:P.navy, borderRadius:"10px", padding:"10px 22px", fontSize:"14px", fontWeight:700, color:P.white, fontFamily:font, textDecoration:"none" }}>
-            Get in touch →
+            Get in touch ‚Üí
           </a>
         </div>
 
@@ -2497,10 +2500,10 @@ function ContactPage({ onBack }) {
       </div>
       <div className="gg-card-grid-3" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"16px", marginBottom:"36px" }}>
         {[
-          { icon:"✉", label:"General Inquiries", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.periwinkleD, bg:P.grey50 },
-          { icon:"🐛", label:"Bug Reports", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.red, bg:"#FFF5F5" },
-          { icon:"💡", label:"Feature Requests", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.teal, bg:P.accentLight },
-          { icon:"🤝", label:"Partnerships", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.amber, bg:P.amberLight },
+          { icon:"‚úâ", label:"General Inquiries", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.periwinkleD, bg:P.grey50 },
+          { icon:"üêõ", label:"Bug Reports", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.red, bg:"#FFF5F5" },
+          { icon:"üí°", label:"Feature Requests", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.teal, bg:P.accentLight },
+          { icon:"ü§ù", label:"Partnerships", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.amber, bg:P.amberLight },
         ].map(({ icon, label, value, href, color, bg }) => (
           <a key={label} href={href} style={{ display:"flex", alignItems:"center", gap:"14px", background:bg, border:`1.5px solid ${color}22`, borderRadius:"12px", padding:"18px 20px", textDecoration:"none" }}>
             <span style={{ fontSize:"22px" }}>{icon}</span>
@@ -2512,7 +2515,7 @@ function ContactPage({ onBack }) {
         ))}
       </div>
       <Section title="Response times">
-        We aim to respond to all inquiries within 1–2 business days. For urgent event-day issues, include "URGENT" in your subject line and we'll prioritize your message.
+        We aim to respond to all inquiries within 1‚Äì2 business days. For urgent event-day issues, include "URGENT" in your subject line and we'll prioritize your message.
       </Section>
       <Section title="About GroupGrid">
         GroupGrid is built for event and meeting planners who need to make sure everyone who registered for their event actually has the travel they need. It's a simple, fast tool: upload your registration list and travel files, and see every gap in minutes.
@@ -2523,13 +2526,13 @@ function ContactPage({ onBack }) {
 
 function FAQPage({ onBack }) {
   const faqs = [
-    { q:"What does GroupGrid actually do?", a:"GroupGrid takes your event registration list and checks it against your travel files — flights, hotels, and car transfers. It tells you instantly who registered but isn't booked, who's booked but never registered, and whose dates don't match. What used to take days of manual spreadsheet cross-checking takes about a minute." },
-    { q:"What files do I need?", a:"Flight and hotel files are required to run a check. Your registration list is recommended but optional — when you add it, GroupGrid uses it as the source of truth and checks everything against it. You can also add car transfer and dietary files. Everything is standard Excel format (.xlsx or .xls)." },
+    { q:"What does GroupGrid actually do?", a:"GroupGrid takes your event registration list and checks it against your travel files ‚Äî flights, hotels, and car transfers. It tells you instantly who registered but isn't booked, who's booked but never registered, and whose dates don't match. What used to take days of manual spreadsheet cross-checking takes about a minute." },
+    { q:"What files do I need?", a:"Flight and hotel files are required to run a check. Your registration list is recommended but optional ‚Äî when you add it, GroupGrid uses it as the source of truth and checks everything against it. You can also add car transfer and dietary files. Everything is standard Excel format (.xlsx or .xls)." },
     { q:"What if my spreadsheet columns are named differently?", a:"GroupGrid auto-detects common column names. Your \"Arrival Date\" and someone else's \"Arr. Date\" or \"Flight In\" all get recognized automatically. There's no manual mapping or setup required." },
     { q:"What if I don't have email addresses?", a:"GroupGrid matches people by email first for the most accurate results, then falls back to matching by name. Including an email column is best, but it's not required." },
     { q:"Is my data secure?", a:"Your guest files are processed entirely in your browser and are never uploaded to any server. Saved projects are stored on your device. We use Supabase, a trusted third-party provider, only for secure account sign-in. GroupGrid is built to keep sensitive guest data on your device." },
-    { q:"Who is GroupGrid for?", a:"Any event or meeting planner who manages attendee travel — from a 20-person board retreat to a 10,000-person conference. If people are registering and you're booking their flights and hotels, GroupGrid makes sure the two lists match." },
-    { q:"How much does it cost?", a:"$249/month for full access — unlimited events, unlimited guests, every feature. You can try it free with your own files before subscribing — no credit card required." },
+    { q:"Who is GroupGrid for?", a:"Any event or meeting planner who manages attendee travel ‚Äî from a 20-person board retreat to a 10,000-person conference. If people are registering and you're booking their flights and hotels, GroupGrid makes sure the two lists match." },
+    { q:"How much does it cost?", a:"$249/month for full access ‚Äî unlimited events, unlimited guests, every feature. You can try it free with your own files before subscribing ‚Äî no credit card required." },
     { q:"Do I need to install anything?", a:"No. GroupGrid runs in your web browser. There's nothing to download or install." },
   ];
   return (
@@ -2558,10 +2561,10 @@ function PrivacyPage({ onBack }) {
       <div style={{ marginBottom:"40px" }}>
         <h1 style={{ fontSize:"32px", fontWeight:900, color:P.navy, fontFamily:font, margin:"0 0 8px", letterSpacing:"-0.03em" }}>Privacy Policy</h1>
         <p style={{ fontSize:"14px", color:P.grey400, fontFamily:font, margin:"0 0 16px" }}>Last updated: February 2026</p>
-        <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, margin:0 }}>GroupGrid is built with privacy as a core design principle — not an afterthought. Here's exactly what we do and don't do with your data.</p>
+        <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, margin:0 }}>GroupGrid is built with privacy as a core design principle ‚Äî not an afterthought. Here's exactly what we do and don't do with your data.</p>
       </div>
       <Section title="Data we collect">
-        <strong>None.</strong> GroupGrid processes all spreadsheet data entirely within your browser. Your guest names, emails, flight details, hotel records, and any other information in your uploaded files are never transmitted to our servers. We have no access to this data — ever.
+        <strong>None.</strong> GroupGrid processes all spreadsheet data entirely within your browser. Your guest names, emails, flight details, hotel records, and any other information in your uploaded files are never transmitted to our servers. We have no access to this data ‚Äî ever.
       </Section>
       <Section title="Local storage">
         GroupGrid uses your browser's local storage to save session data (event names, notes, resolved flags) between visits. This data lives only on your device and is never synced to any external server. You can clear it at any time by clearing your browser storage or using the app's built-in reset.
@@ -2588,14 +2591,14 @@ function PrivacyPage({ onBack }) {
   );
 }
 
-// ── Landing Page ──────────────────────────────────────────────────────────────
+// ‚îÄ‚îÄ Landing Page ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerms, onFaq }) {
 
   const problems = [
-    { time:"Day 1", label:"You export your registration list", sub:"300 people signed up — names, dates, requests", color:P.accentD, bg:"#E0FAF7" },
-    { time:"Day 3", label:"Flight manifest arrives", sub:"280 names — different format, different spelling", color:P.amber, bg:P.amberLight },
-    { time:"Day 7", label:"Hotel roster comes in separately", sub:"294 rooms — do they all match who registered?", color:P.purple, bg:P.purpleLight },
-    { time:"Day 14", label:"You're still cross-checking", sub:"VLOOKUPs, filters, manual row-by-row scanning…", color:P.red, bg:P.redLight },
+    { time:"Day 1", label:"You export your registration list", sub:"300 people signed up ‚Äî names, dates, requests", color:P.accentD, bg:"#E0FAF7" },
+    { time:"Day 3", label:"Flight manifest arrives", sub:"280 names ‚Äî different format, different spelling", color:P.amber, bg:P.amberLight },
+    { time:"Day 7", label:"Hotel roster comes in separately", sub:"294 rooms ‚Äî do they all match who registered?", color:P.purple, bg:P.purpleLight },
+    { time:"Day 14", label:"You're still cross-checking", sub:"VLOOKUPs, filters, manual row-by-row scanning‚Ä¶", color:P.red, bg:P.redLight },
   ];
 
   const eventTypes = [
@@ -2605,19 +2608,19 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
   ];
 
   const steps = [
-    { n:"01", icon:"📋", title:"Upload your registration list", body:"Start with your master list of who registered — the source of truth. Then add your travel files: flight manifest, hotel roster, car transfers. Excel files (.xlsx or .xls), any column names — GroupGrid figures it out." },
-    { n:"02", icon:"⚡", title:"Run the check", body:"In seconds, GroupGrid matches every registered person against the travel files by email, then name. It finds who registered but isn't booked, who's booked but never registered, and whose dates don't match." },
-    { n:"03", icon:"🎯", title:"See exactly what needs fixing", body:"Each flag shows who's affected and what's wrong — registered with no flight, hotel booked for someone not on the list, check-in dates that don't match what they requested. Resolve, add notes, mark done." },
-    { n:"04", icon:"📤", title:"Communicate & export", body:"Draft emails to your hotel or travel agency, download a clean Excel report, or generate a shareable HTML report — all without leaving GroupGrid." },
+    { n:"01", icon:"üìã", title:"Upload your registration list", body:"Start with your master list of who registered ‚Äî the source of truth. Then add your travel files: flight manifest, hotel roster, car transfers. Excel files (.xlsx or .xls), any column names ‚Äî GroupGrid figures it out." },
+    { n:"02", icon:"‚ö°", title:"Run the check", body:"In seconds, GroupGrid matches every registered person against the travel files by email, then name. It finds who registered but isn't booked, who's booked but never registered, and whose dates don't match." },
+    { n:"03", icon:"üéØ", title:"See exactly what needs fixing", body:"Each flag shows who's affected and what's wrong ‚Äî registered with no flight, hotel booked for someone not on the list, check-in dates that don't match what they requested. Resolve, add notes, mark done." },
+    { n:"04", icon:"üì§", title:"Communicate & export", body:"Draft emails to your hotel or travel agency, download a clean Excel report, or generate a shareable HTML report ‚Äî all without leaving GroupGrid." },
   ];
 
-  // Testimonials removed — placeholder quotes taken down. Add real, attributed quotes here when available.
+  // Testimonials removed ‚Äî placeholder quotes taken down. Add real, attributed quotes here when available.
 
   return (
     <div style={{ minHeight:"100vh", fontFamily:font, background:P.white, WebkitFontSmoothing:"antialiased" }}>
       <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
-      {/* ── Nav ── */}
+      {/* ‚îÄ‚îÄ Nav ‚îÄ‚îÄ */}
       <nav style={{ background:P.navy, height:"64px", padding:"0 40px", display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100, boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
         <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 52" width="200" height="52" style={{display:"block"}}>
@@ -2658,16 +2661,16 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
           <button onClick={onAbout} style={{ background:"none", border:"none", fontSize:"14px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>About</button>
           <button onClick={onFaq} style={{ background:"none", border:"none", fontSize:"14px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>FAQ</button>
           <button onClick={onPricing} style={{ background:"none", border:"none", fontSize:"14px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>Pricing</button>
-          <button onClick={onEnter} style={{ background:P.accent, border:"none", borderRadius:"8px", padding:"8px 20px", fontSize:"14px", fontWeight:700, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 2px 12px rgba(0,201,177,0.35)" }}>Open App →</button>
+          <button onClick={onEnter} style={{ background:P.accent, border:"none", borderRadius:"8px", padding:"8px 20px", fontSize:"14px", fontWeight:700, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 2px 12px rgba(0,201,177,0.35)" }}>Open App ‚Üí</button>
         </div>
       </nav>
 
-      {/* ── Hero ── */}
+      {/* ‚îÄ‚îÄ Hero ‚îÄ‚îÄ */}
       <div style={{ background:`linear-gradient(170deg, ${P.navy} 0%, #0D1E40 60%, #0A1628 100%)`, padding:"96px 40px 80px", position:"relative", overflow:"hidden" }}>
         {/* bg glow orbs */}
         <div style={{ position:"absolute", top:-100, right:-100, width:500, height:500, borderRadius:"50%", background:`radial-gradient(circle, ${P.accent}12, transparent 65%)`, pointerEvents:"none" }} />
         <div style={{ position:"absolute", bottom:-80, left:-60, width:400, height:400, borderRadius:"50%", background:`radial-gradient(circle, ${P.periwinkleD}15, transparent 65%)`, pointerEvents:"none" }} />
-        {/* dot grid — all teal dots, fading to grey toward upper-right */}
+        {/* dot grid ‚Äî all teal dots, fading to grey toward upper-right */}
         <svg style={{ position:"absolute", bottom:"40px", right:"0", pointerEvents:"none", width:"65%", height:"100%", minWidth:"500px" }} viewBox="0 0 1000 600" preserveAspectRatio="xMaxYMax meet" xmlns="http://www.w3.org/2000/svg">
           <defs>
             {/* Fade: bottom-left = full teal, top-right = dim grey */}
@@ -2681,8 +2684,8 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
             </mask>
           </defs>
           <g mask="url(#heroDotMask)">
-            {/* 4 rows × 4 cols — all teal, evenly spaced, bottom-right anchor */}
-            {/* Cols: 280, 520, 760, 1000 — Rows: 20, 207, 393, 580 */}
+            {/* 4 rows √ó 4 cols ‚Äî all teal, evenly spaced, bottom-right anchor */}
+            {/* Cols: 280, 520, 760, 1000 ‚Äî Rows: 20, 207, 393, 580 */}
             {[20, 207, 393, 580].map((cy, row) =>
               [280, 520, 760, 1000].map((cx, col) => (
                 <circle key={`${row}-${col}`} cx={cx} cy={cy} r="18" fill="#00C9B1"/>
@@ -2723,7 +2726,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                       lineHeight: 1,
                       color: status === "check" ? "rgba(255,255,255,0.85)" : "#FF5252",
                       textDecoration: status === "error" ? "none" : "none",
-                    }}>{label}{status === "error" ? " ✗" : ""}</span>
+                    }}>{label}{status === "error" ? " ‚úó" : ""}</span>
                   </div>
                 ))}
               </div>
@@ -2732,36 +2735,36 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               300 people registered.<br/><span style={{ color:P.accent }}>Did all 300 get booked?</span>
             </h1>
             <p style={{ fontSize:"18px", color:"rgba(255,255,255,0.6)", fontFamily:font, lineHeight:1.75, margin:"0 0 12px", maxWidth:"520px" }}>
-              You have one list of people who registered for your event. You have separate spreadsheets from your travel and hotel vendors. Somewhere between them, people fall through — the late registrant with no flight, the hotel booking for someone who never signed up, the check-in date that doesn't match.
+              You have one list of people who registered for your event. You have separate spreadsheets from your travel and hotel vendors. Somewhere between them, people fall through ‚Äî the late registrant with no flight, the hotel booking for someone who never signed up, the check-in date that doesn't match.
             </p>
             <p style={{ fontSize:"18px", color:"rgba(255,255,255,0.85)", fontFamily:font, lineHeight:1.75, margin:"0 0 36px", maxWidth:"520px", fontWeight:600 }}>
-              GroupGrid checks your registration list against every travel file and shows you exactly who's missing what — <span style={{ color:P.accent }}>in minutes, not days.</span>
+              GroupGrid checks your registration list against every travel file and shows you exactly who's missing what ‚Äî <span style={{ color:P.accent }}>in minutes, not days.</span>
             </p>
             <div style={{ display:"flex", gap:"12px", flexWrap:"wrap", alignItems:"center" }}>
               <button onClick={onEnter} style={{ background:`linear-gradient(135deg, ${P.accent}, ${P.accentD})`, border:"none", borderRadius:"12px", padding:"14px 32px", fontSize:"16px", fontWeight:800, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 4px 20px rgba(0,201,177,0.4)", letterSpacing:"-0.02em" }}>
-                Try GroupGrid free →
+                Try GroupGrid free ‚Üí
               </button>
               <button onClick={onPricing} style={{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.15)", borderRadius:"12px", padding:"14px 24px", fontSize:"15px", fontWeight:600, color:"rgba(255,255,255,0.75)", fontFamily:font, cursor:"pointer" }}>
                 See pricing
               </button>
             </div>
-            <p style={{ fontSize:"13px", color:"rgba(255,255,255,0.3)", fontFamily:font, marginTop:"14px" }}>No setup · Upload your spreadsheets and get answers in minutes · Your guest files never leave your browser</p>
+            <p style={{ fontSize:"13px", color:"rgba(255,255,255,0.3)", fontFamily:font, marginTop:"14px" }}>No setup ¬∑ Upload your spreadsheets and get answers in minutes ¬∑ Your guest files never leave your browser</p>
           </div>
 
-          {/* Right — live mismatch demo card */}
+          {/* Right ‚Äî live mismatch demo card */}
           <div className="gg-hero-card" style={{ flexShrink:0, width:"340px", background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:"20px", overflow:"hidden", backdropFilter:"blur(10px)" }}>
             <div style={{ background:"rgba(0,0,0,0.2)", padding:"12px 16px", display:"flex", alignItems:"center", gap:"8px", borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
               <div style={{ display:"flex", gap:"5px" }}>
                 {["#FF5F57","#FFBD2E","#28C840"].map(c => <div key={c} style={{ width:10, height:10, borderRadius:"50%", background:c }} />)}
               </div>
-              <span style={{ fontSize:"12px", color:"rgba(255,255,255,0.35)", fontFamily:font, fontWeight:600 }}>GroupGrid — Annual Sales Summit 2025</span>
+              <span style={{ fontSize:"12px", color:"rgba(255,255,255,0.35)", fontFamily:font, fontWeight:600 }}>GroupGrid ‚Äî Annual Sales Summit 2025</span>
             </div>
             <div style={{ padding:"16px" }}>
-              <div style={{ fontSize:"11px", fontWeight:700, color:"rgba(255,255,255,0.35)", fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"10px" }}>Registration checked · 4 issues · 247 registered</div>
+              <div style={{ fontSize:"11px", fontWeight:700, color:"rgba(255,255,255,0.35)", fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"10px" }}>Registration checked ¬∑ 4 issues ¬∑ 247 registered</div>
               {[
                 { name:"Sarah Solomon", issue:"Registered but no flight booked", type:"error", badge:"No Flight" },
                 { name:"Marcus Williams", issue:"Has a hotel room but never registered", type:"error", badge:"Not Registered" },
-                { name:"Jennifer Park", issue:"Requested check-in Dec 4 · hotel booked Dec 5", type:"warn", badge:"Date Mismatch" },
+                { name:"Jennifer Park", issue:"Requested check-in Dec 4 ¬∑ hotel booked Dec 5", type:"warn", badge:"Date Mismatch" },
                 { name:"David Chen", issue:"Registered but no hotel booked", type:"error", badge:"No Hotel" },
               ].map(({ name, issue, type, badge }) => (
                 <div key={name} style={{ background: type==="error" ? "rgba(192,57,43,0.15)" : "rgba(201,122,10,0.15)", border:`1px solid ${type==="error" ? "rgba(192,57,43,0.3)" : "rgba(201,122,10,0.3)"}`, borderRadius:"10px", padding:"12px 14px", marginBottom:"8px" }}>
@@ -2774,14 +2777,14 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               ))}
               <div style={{ marginTop:"12px", background:"rgba(0,201,177,0.1)", border:"1px solid rgba(0,201,177,0.2)", borderRadius:"8px", padding:"10px 12px", display:"flex", alignItems:"center", gap:"8px" }}>
                 <Check size={14} strokeWidth={2.5} color={P.accent} style={{flexShrink:0}}/>
-                <span style={{ fontSize:"12px", color:"rgba(255,255,255,0.6)", fontFamily:font }}>243 registered guests fully booked · <span style={{ color:P.accent, fontWeight:700 }}>✓ No action needed</span></span>
+                <span style={{ fontSize:"12px", color:"rgba(255,255,255,0.6)", fontFamily:font }}>243 registered guests fully booked ¬∑ <span style={{ color:P.accent, fontWeight:700 }}>‚úì No action needed</span></span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Problem section ── */}
+      {/* ‚îÄ‚îÄ Problem section ‚îÄ‚îÄ */}
       <div style={{ background:"#FAFBFD", padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
         <div style={{ maxWidth:"1000px", margin:"0 auto" }}>
           <div style={{ textAlign:"center", marginBottom:"56px" }}>
@@ -2790,7 +2793,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               The spreadsheet death spiral<br/>before every big event
             </h2>
             <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, maxWidth:"560px", margin:"0 auto" }}>
-              Your registration list and your travel files live in different spreadsheets, in different formats. Making them agree by hand takes hours — and it's easy to miss someone.
+              Your registration list and your travel files live in different spreadsheets, in different formats. Making them agree by hand takes hours ‚Äî and it's easy to miss someone.
             </p>
           </div>
           <div className="gg-timeline-grid" style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"16px", marginBottom:"40px" }}>
@@ -2800,21 +2803,21 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                 <div style={{ fontSize:"11px", fontWeight:800, color, fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"10px" }}>{time}</div>
                 <div style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"6px", lineHeight:1.4 }}>{label}</div>
                 <div style={{ fontSize:"13px", color:P.grey400, fontFamily:font, lineHeight:1.6 }}>{sub}</div>
-                {i < 3 && <div className="gg-timeline-arrow" style={{ position:"absolute", top:"50%", right:"-12px", transform:"translateY(-50%)", fontSize:"16px", color:P.grey200, zIndex:2 }}>→</div>}
+                {i < 3 && <div className="gg-timeline-arrow" style={{ position:"absolute", top:"50%", right:"-12px", transform:"translateY(-50%)", fontSize:"16px", color:P.grey200, zIndex:2 }}>‚Üí</div>}
               </div>
             ))}
           </div>
           <div style={{ background:P.redLight, border:`1.5px solid ${P.red}22`, borderRadius:"14px", padding:"20px 28px", display:"flex", alignItems:"center", gap:"16px" }}>
-            <span style={{ fontSize:"28px", flexShrink:0 }}>😩</span>
+            <span style={{ fontSize:"28px", flexShrink:0 }}>üò©</span>
             <div>
               <div style={{ fontSize:"15px", fontWeight:800, color:P.red, fontFamily:font, marginBottom:"4px" }}>Meanwhile, your event is in 3 days</div>
-              <div style={{ fontSize:"14px", color:P.grey600, fontFamily:font, lineHeight:1.6 }}>You've gone through the lists 6 times. You think they match. But that one person who registered late and never got a flight, the hotel room booked for someone who isn't even on your list, the name spelled two different ways — those are the ones that show up as surprises at check-in.</div>
+              <div style={{ fontSize:"14px", color:P.grey600, fontFamily:font, lineHeight:1.6 }}>You've gone through the lists 6 times. You think they match. But that one person who registered late and never got a flight, the hotel room booked for someone who isn't even on your list, the name spelled two different ways ‚Äî those are the ones that show up as surprises at check-in.</div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Solution ── */}
+      {/* ‚îÄ‚îÄ Solution ‚îÄ‚îÄ */}
       <div style={{ background:P.white, padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
         <div style={{ maxWidth:"1000px", margin:"0 auto" }}>
           <div style={{ textAlign:"center", marginBottom:"56px" }}>
@@ -2823,7 +2826,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               Days of work.<br/><span style={{ color:P.accent }}>Done in minutes.</span>
             </h2>
             <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, maxWidth:"520px", margin:"0 auto" }}>
-              Upload your registration list and your travel files, run the check, see every gap instantly — then communicate fixes directly to your hotel and travel agency without switching tabs.
+              Upload your registration list and your travel files, run the check, see every gap instantly ‚Äî then communicate fixes directly to your hotel and travel agency without switching tabs.
             </p>
           </div>
           <div className="gg-card-grid-3" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"20px" }}>
@@ -2843,7 +2846,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
         </div>
       </div>
 
-      {/* ── What it catches ── */}
+      {/* ‚îÄ‚îÄ What it catches ‚îÄ‚îÄ */}
       <div style={{ background:"#FAFBFD", padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
         <div style={{ maxWidth:"1000px", margin:"0 auto" }}>
           <div style={{ textAlign:"center", marginBottom:"48px" }}>
@@ -2857,12 +2860,12 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
           </div>
           <div className="gg-card-grid-3" style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"16px" }}>
             {[
-              { icon:"✈️", title:"Registered, but no flight", body:"See everyone who signed up for your event but doesn't have a flight booked yet." },
-              { icon:"🏨", title:"Registered, but no hotel", body:"Spot registered attendees who have travel but no hotel room reserved." },
-              { icon:"🚩", title:"Booked, but not registered", body:"Find flights or hotel rooms booked for people who never registered — often the costliest gap to miss." },
-              { icon:"📅", title:"Dates that don't match", body:"Catch when a hotel check-in or flight date doesn't match what the person requested at registration." },
-              { icon:"🚗", title:"Missing transfers", body:"Flag car bookings that don't line up with anyone's flight or registration." },
-              { icon:"👥", title:"Duplicates", body:"The same person registered or booked twice across your files, before it becomes a double charge." },
+              { icon:"‚úàÔ∏è", title:"Registered, but no flight", body:"See everyone who signed up for your event but doesn't have a flight booked yet." },
+              { icon:"üè®", title:"Registered, but no hotel", body:"Spot registered attendees who have travel but no hotel room reserved." },
+              { icon:"üö©", title:"Booked, but not registered", body:"Find flights or hotel rooms booked for people who never registered ‚Äî often the costliest gap to miss." },
+              { icon:"üìÖ", title:"Dates that don't match", body:"Catch when a hotel check-in or flight date doesn't match what the person requested at registration." },
+              { icon:"üöó", title:"Missing transfers", body:"Flag car bookings that don't line up with anyone's flight or registration." },
+              { icon:"üë•", title:"Duplicates", body:"The same person registered or booked twice across your files, before it becomes a double charge." },
             ].map(({ icon, title, body }) => (
               <div key={title} style={{ background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"14px", padding:"24px 22px" }}>
                 <div style={{ fontSize:"24px", marginBottom:"12px" }}>{icon}</div>
@@ -2874,7 +2877,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
         </div>
       </div>
 
-      {/* ── Use cases ── */}
+      {/* ‚îÄ‚îÄ Use cases ‚îÄ‚îÄ */}
       <div style={{ background:P.white, padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
         <div style={{ maxWidth:"1000px", margin:"0 auto", textAlign:"center" }}>
           <div style={{ fontSize:"12px", fontWeight:800, color:P.navy, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>WHO IT'S FOR</div>
@@ -2900,7 +2903,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
         </div>
       </div>
 
-      {/* ── Value band (testimonials to be added once real) ── */}
+      {/* ‚îÄ‚îÄ Value band (testimonials to be added once real) ‚îÄ‚îÄ */}
       <div style={{ background:`linear-gradient(160deg, ${P.navy} 0%, ${P.navyLight} 100%)`, padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
         <div style={{ maxWidth:"880px", margin:"0 auto", textAlign:"center" }}>
           <div style={{ fontSize:"12px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"16px" }}>WHY PLANNERS USE IT</div>
@@ -2909,9 +2912,9 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
           </h2>
           <div className="gg-card-grid-3" style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"20px" }}>
             {[
-              { icon:"⏱️", title:"Minutes, not days", body:"Upload your files and see every gap in minutes — no more row-by-row scanning the week before an event." },
-              { icon:"🎯", title:"Catch what hides", body:"The late registrant with no flight, the room booked for a no-show, the date that's one day off — surfaced automatically." },
-              { icon:"🔒", title:"Your data stays yours", body:"Guest files are processed in your browser and never uploaded. Nothing to worry about with sensitive attendee information." },
+              { icon:"‚è±Ô∏è", title:"Minutes, not days", body:"Upload your files and see every gap in minutes ‚Äî no more row-by-row scanning the week before an event." },
+              { icon:"üéØ", title:"Catch what hides", body:"The late registrant with no flight, the room booked for a no-show, the date that's one day off ‚Äî surfaced automatically." },
+              { icon:"üîí", title:"Your data stays yours", body:"Guest files are processed in your browser and never uploaded. Nothing to worry about with sensitive attendee information." },
             ].map(({ icon, title, body }) => (
               <div key={title} style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:"16px", padding:"28px 24px", textAlign:"left", backdropFilter:"blur(10px)" }}>
                 <div style={{ fontSize:"26px", marginBottom:"12px" }}>{icon}</div>
@@ -2923,7 +2926,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
         </div>
       </div>
 
-      {/* ── Animated Demo ── */}
+      {/* ‚îÄ‚îÄ Animated Demo ‚îÄ‚îÄ */}
       {(() => {
         const [demoPhase, setDemoPhase] = React.useState("idle"); // idle | loading | checking | results
         const [filesLoaded, setFilesLoaded] = React.useState([false,false,false,false,false]);
@@ -2932,13 +2935,13 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
         const [expandedRow, setExpandedRow] = React.useState(null);
 
         const demoGuests = [
-          { key:"sc",  first:"Sarah",   last:"Solomon",   email:"s.solomon@corp.com", status:"error", arrDiff:"—",   depDiff:"—",   issues:["Registered but no flight booked"],
+          { key:"sc",  first:"Sarah",   last:"Solomon",   email:"s.solomon@corp.com", status:"error", arrDiff:"‚Äî",   depDiff:"‚Äî",   issues:["Registered but no flight booked"],
             reg:{ checkIn:"Dec 4", checkOut:"Dec 7" }, flight:null, hotel:{ in:"Dec 4", out:"Dec 7", name:"Marriott Marquis" }, car:null },
-          { key:"mw",  first:"Marcus",  last:"Williams",  email:"m.williams@corp.com", status:"error", arrDiff:"—",   depDiff:"—",   issues:["Has a hotel room but never registered"],
+          { key:"mw",  first:"Marcus",  last:"Williams",  email:"m.williams@corp.com", status:"error", arrDiff:"‚Äî",   depDiff:"‚Äî",   issues:["Has a hotel room but never registered"],
             reg:null, flight:{ arr:"Dec 5", dep:"Dec 8", num:"DL 441" },  hotel:{ in:"Dec 5", out:"Dec 8", name:"Westin St. Francis" }, car:{ pickup:"Dec 5", loc:"LAX" } },
-          { key:"jp",  first:"Jennifer",last:"Park",      email:"j.park@corp.com",     status:"warn",  arrDiff:"+1d", depDiff:"0",   issues:["Requested check-in Dec 4 · hotel booked Dec 5"],
+          { key:"jp",  first:"Jennifer",last:"Park",      email:"j.park@corp.com",     status:"warn",  arrDiff:"+1d", depDiff:"0",   issues:["Requested check-in Dec 4 ¬∑ hotel booked Dec 5"],
             reg:{ checkIn:"Dec 4", checkOut:"Dec 8" }, flight:{ arr:"Dec 5", dep:"Dec 8", num:"AA 109" },  hotel:{ in:"Dec 5", out:"Dec 8", name:"Hilton Union Sq" }, car:{ pickup:"Dec 5", loc:"SFO" } },
-          { key:"dc",  first:"David",   last:"Chen",      email:"d.chen@corp.com",     status:"error", arrDiff:"—",   depDiff:"—",   issues:["Registered but no hotel booked"],
+          { key:"dc",  first:"David",   last:"Chen",      email:"d.chen@corp.com",     status:"error", arrDiff:"‚Äî",   depDiff:"‚Äî",   issues:["Registered but no hotel booked"],
             reg:{ checkIn:"Dec 5", checkOut:"Dec 8" }, flight:{ arr:"Dec 5", dep:"Dec 8", num:"SW 884" },  hotel:null, car:null },
           { key:"ps",  first:"Priya",   last:"Sharma",    email:"p.sharma@corp.com",   status:"ok",    arrDiff:"0",   depDiff:"0",   issues:[],
             reg:{ checkIn:"Dec 4", checkOut:"Dec 7" }, flight:{ arr:"Dec 4", dep:"Dec 7", num:"UA 332" },  hotel:{ in:"Dec 4", out:"Dec 7", name:"Hilton Union Sq" }, car:{ pickup:"Dec 4", loc:"SFO" } },
@@ -2948,14 +2951,14 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
 
         const statusColor = s => s==="error" ? P.red : s==="warn" ? P.amber : P.green;
         const statusBg    = s => s==="error" ? "#FDECEC" : s==="warn" ? "#FEF8EC" : "#F0FDF7";
-        const statusLabel = s => s==="error" ? "⚑ Flag" : s==="warn" ? "⚠ Review" : "✓ OK";
+        const statusLabel = s => s==="error" ? "‚öë Flag" : s==="warn" ? "‚ö† Review" : "‚úì OK";
 
         const fileInfo = [
-          { label:"Registration List", color:"#00A896", icon:"📋", sub:"event_registration.xlsx" },
-          { label:"Flight Manifest", color:"#4F8EF7", icon:"✈️", sub:"flight_manifest_dec.xlsx" },
-          { label:"Hotel Roster",    color:"#F5A623", icon:"🏨", sub:"hotel_roster_marriott.xlsx" },
-          { label:"Car Transfers",   color:"#9B59B6", icon:"🚗", sub:"car_transfers_sfo.xlsx" },
-          { label:"Dietary & Access",color:"#27AE60", icon:"🥗", sub:"dietary_requirements.xlsx" },
+          { label:"Registration List", color:"#00A896", icon:"üìã", sub:"event_registration.xlsx" },
+          { label:"Flight Manifest", color:"#4F8EF7", icon:"‚úàÔ∏è", sub:"flight_manifest_dec.xlsx" },
+          { label:"Hotel Roster",    color:"#F5A623", icon:"üè®", sub:"hotel_roster_marriott.xlsx" },
+          { label:"Car Transfers",   color:"#9B59B6", icon:"üöó", sub:"car_transfers_sfo.xlsx" },
+          { label:"Dietary & Access",color:"#27AE60", icon:"ü•ó", sub:"dietary_requirements.xlsx" },
         ];
 
         const runDemo = () => {
@@ -3003,7 +3006,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                     {["#FF5F57","#FFBD2E","#28C840"].map(c => <div key={c} style={{ width:11, height:11, borderRadius:"50%", background:c }}/>)}
                   </div>
                   <div style={{ flex:1, display:"flex", justifyContent:"center" }}>
-                    <div style={{ background:"rgba(255,255,255,0.08)", borderRadius:"6px", padding:"4px 20px", fontSize:"12px", color:"rgba(255,255,255,0.45)", fontFamily:font }}>groupgrid.io — Annual Sales Summit · Dec 2026</div>
+                    <div style={{ background:"rgba(255,255,255,0.08)", borderRadius:"6px", padding:"4px 20px", fontSize:"12px", color:"rgba(255,255,255,0.45)", fontFamily:font }}>groupgrid.io ‚Äî Annual Sales Summit ¬∑ Dec 2026</div>
                   </div>
                 </div>
 
@@ -3012,10 +3015,10 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                   {/* Mini sidebar */}
                   <div className="gg-demo-sidebar" style={{ width:"160px", flexShrink:0, background:P.navy, padding:"16px 12px", display:"flex", flexDirection:"column", gap:"4px" }}>
                     {[
-                      { icon:"◉", label:"Registered",    count:demoPhase==="results"||demoPhase==="checking"?"247":"—",   active:true },
-                      { icon:"⚑", label:"Action Needed", count:demoPhase==="results"?"4":"—",   color:P.red },
-                      { icon:"✓", label:"Fully Booked",  count:demoPhase==="results"?"243":"—", color:P.accent },
-                      { icon:"○", label:"Not Registered",count:demoPhase==="results"?"1":"—",   color:P.purple },
+                      { icon:"‚óâ", label:"Registered",    count:demoPhase==="results"||demoPhase==="checking"?"247":"‚Äî",   active:true },
+                      { icon:"‚öë", label:"Action Needed", count:demoPhase==="results"?"4":"‚Äî",   color:P.red },
+                      { icon:"‚úì", label:"Fully Booked",  count:demoPhase==="results"?"243":"‚Äî", color:P.accent },
+                      { icon:"‚óã", label:"Not Registered",count:demoPhase==="results"?"1":"‚Äî",   color:P.purple },
                     ].map(({ icon, label, count, active, color }) => (
                       <div key={label} style={{ display:"flex", alignItems:"center", gap:"6px", padding:"5px 8px", borderRadius:"6px", background:active?"rgba(0,201,177,0.15)":"transparent" }}>
                         <span style={{ fontSize:"11px", color:color||"rgba(255,255,255,0.4)", width:12 }}>{icon}</span>
@@ -3027,7 +3030,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                     <div style={{ fontSize:"10px", fontWeight:800, color:"rgba(255,255,255,0.3)", fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"4px" }}>Files</div>
                     {fileInfo.map(({ label, color, icon }, i) => (
                       <div key={label} style={{ display:"flex", alignItems:"center", gap:"6px", padding:"4px 8px" }}>
-                        <span style={{ fontSize:"11px" }}>{filesLoaded[i] ? "✅" : "○"}</span>
+                        <span style={{ fontSize:"11px" }}>{filesLoaded[i] ? "‚úÖ" : "‚óã"}</span>
                         <span style={{ fontSize:"10px", color:filesLoaded[i]?color:"rgba(255,255,255,0.25)", fontFamily:font, fontWeight:filesLoaded[i]?600:400, lineHeight:1.3 }}>{label}</span>
                       </div>
                     ))}
@@ -3041,7 +3044,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                       <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100%", flexDirection:"column", gap:"20px" }}>
                         <button onClick={runDemo} style={{ display:"flex", alignItems:"center", gap:"14px", background:`linear-gradient(135deg, ${P.navy}, #0D1E40)`, border:"none", borderRadius:"16px", padding:"18px 32px", cursor:"pointer", boxShadow:"0 4px 24px rgba(15,29,53,0.2)" }}>
                           <div style={{ width:44, height:44, borderRadius:"50%", background:P.accent, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                            <span style={{ fontSize:"18px", marginLeft:"3px" }}>▶</span>
+                            <span style={{ fontSize:"18px", marginLeft:"3px" }}>‚ñ∂</span>
                           </div>
                           <div style={{ textAlign:"left" }}>
                             <div style={{ fontSize:"16px", fontWeight:800, color:P.white, fontFamily:font }}>Watch the demo</div>
@@ -3058,7 +3061,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                         <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:"8px", marginBottom:"16px" }}>
                           {fileInfo.map(({ label, color, icon }, i) => (
                             <div key={label} style={{ border:`1.5px ${filesLoaded[i]?"solid":"dashed"} ${filesLoaded[i]?color:P.grey200}`, borderRadius:"10px", padding:"10px 8px", textAlign:"center", background:filesLoaded[i]?color+"0D":P.offWhite, transition:"all 0.3s" }}>
-                              <div style={{ fontSize:"18px", marginBottom:"4px" }}>{filesLoaded[i] ? "✅" : icon}</div>
+                              <div style={{ fontSize:"18px", marginBottom:"4px" }}>{filesLoaded[i] ? "‚úÖ" : icon}</div>
                               <div style={{ fontSize:"10px", fontWeight:700, color:filesLoaded[i]?color:P.grey400, fontFamily:font, lineHeight:1.3 }}>{label}</div>
                             </div>
                           ))}
@@ -3069,14 +3072,14 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                           <div style={{ marginBottom:"16px", animation:"ggIn 0.3s ease" }}>
                             <div style={{ display:"flex", justifyContent:"space-between", marginBottom:"5px" }}>
                               <span style={{ fontSize:"12px", fontWeight:700, color:P.navy, fontFamily:font }}>
-                                {checkPct < 100 ? "Checking 247 registrations against travel…" : "✓ Check complete — 4 issues found"}
+                                {checkPct < 100 ? "Checking 247 registrations against travel‚Ä¶" : "‚úì Check complete ‚Äî 4 issues found"}
                               </span>
                               <span style={{ fontSize:"12px", fontWeight:800, color:P.accent, fontFamily:font }}>{checkPct}%</span>
                             </div>
                             <div style={{ height:"6px", background:P.grey100, borderRadius:"20px", overflow:"hidden" }}>
                               <div style={{ height:"100%", width:`${checkPct}%`, background:`linear-gradient(90deg,${P.periwinkleD},${P.accent})`, borderRadius:"20px", transition:"width 0.2s ease" }}/>
                             </div>
-                            {checkPct < 100 && <div style={{ fontSize:"11px", color:P.grey400, fontFamily:font, marginTop:"4px", animation:"ggPulse 1s infinite" }}>Matching names · comparing dates · scanning gaps…</div>}
+                            {checkPct < 100 && <div style={{ fontSize:"11px", color:P.grey400, fontFamily:font, marginTop:"4px", animation:"ggPulse 1s infinite" }}>Matching names ¬∑ comparing dates ¬∑ scanning gaps‚Ä¶</div>}
                           </div>
                         )}
 
@@ -3086,7 +3089,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                           <div style={{ border:`1px solid ${P.grey100}`, borderRadius:"12px", overflow:"hidden", animation:"ggIn 0.3s ease", minWidth:"560px" }}>
                             {/* Table header */}
                             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 120px 70px 70px 70px 70px", background:"#ECEEF6", padding:"8px 14px", gap:"8px" }}>
-                              {["First","Last","Email","Status","Arr.","Dep.","Δ Arr"].map(h => (
+                              {["First","Last","Email","Status","Arr.","Dep.","Œî Arr"].map(h => (
                                 <div key={h} style={{ fontSize:"10px", fontWeight:700, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em" }}>{h}</div>
                               ))}
                             </div>
@@ -3101,8 +3104,8 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                                     <span style={{ fontSize:"13px", fontWeight:700, color:P.navy, fontFamily:font }}>{g.last}</span>
                                     <span style={{ fontSize:"11px", color:P.grey400, fontFamily:font, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{g.email}</span>
                                     <span style={{ fontSize:"10px", fontWeight:800, color:statusColor(g.status), background:statusBg(g.status), padding:"2px 7px", borderRadius:"20px", fontFamily:font, whiteSpace:"nowrap" }}>{statusLabel(g.status)}</span>
-                                    <span style={{ fontSize:"12px", color:P.grey600, fontFamily:font }}>{g.flight?.arr||"⚠"}</span>
-                                    <span style={{ fontSize:"12px", color:P.grey600, fontFamily:font }}>{g.flight?.dep||"⚠"}</span>
+                                    <span style={{ fontSize:"12px", color:P.grey600, fontFamily:font }}>{g.flight?.arr||"‚ö†"}</span>
+                                    <span style={{ fontSize:"12px", color:P.grey600, fontFamily:font }}>{g.flight?.dep||"‚ö†"}</span>
                                     <span style={{ fontSize:"12px", fontWeight:700, fontFamily:font, color:g.arrDiff==="0"?P.green:P.red }}>{g.arrDiff}</span>
                                   </div>
                                   {/* Expanded detail */}
@@ -3112,47 +3115,47 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                                         <div style={{ display:"flex", gap:"8px", marginBottom:"12px", flexWrap:"wrap" }}>
                                           {g.issues.map(iss => (
                                             <div key={iss} style={{ display:"flex", alignItems:"center", gap:"6px", background:"#FDECEC", border:"1px solid #F5C6C6", borderRadius:"8px", padding:"5px 10px" }}>
-                                              <span style={{ fontSize:"12px" }}>⚑</span>
+                                              <span style={{ fontSize:"12px" }}>‚öë</span>
                                               <span style={{ fontSize:"12px", fontWeight:700, color:P.red, fontFamily:font }}>{iss}</span>
                                             </div>
                                           ))}
                                         </div>
                                       )}
                                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1fr", gap:"10px" }}>
-                                        {/* Registration card — the source of truth */}
+                                        {/* Registration card ‚Äî the source of truth */}
                                         <div style={{ background:P.white, border:`1.5px solid ${g.reg?"#00A89633":"#FDECEC"}`, borderRadius:"10px", padding:"12px 14px" }}>
-                                          <div style={{ fontSize:"11px", fontWeight:800, color:"#00A896", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em" }}>📋 Registration</div>
+                                          <div style={{ fontSize:"11px", fontWeight:800, color:"#00A896", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em" }}>üìã Registration</div>
                                           {g.reg ? <>
                                             <div style={{ fontSize:"12px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Requested in: <strong style={{ color:P.navy }}>{g.reg.checkIn}</strong></div>
                                             <div style={{ fontSize:"12px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Requested out: <strong style={{ color:P.navy }}>{g.reg.checkOut}</strong></div>
-                                            <div style={{ fontSize:"12px", color:P.accentD, fontFamily:font, fontWeight:700 }}>✓ Registered</div>
-                                          </> : <div style={{ fontSize:"12px", fontWeight:700, color:P.red, fontFamily:font }}>⚑ Not on registration list</div>}
+                                            <div style={{ fontSize:"12px", color:P.accentD, fontFamily:font, fontWeight:700 }}>‚úì Registered</div>
+                                          </> : <div style={{ fontSize:"12px", fontWeight:700, color:P.red, fontFamily:font }}>‚öë Not on registration list</div>}
                                         </div>
                                         {/* Flight card */}
                                         <div style={{ background:P.white, border:`1.5px solid #4F8EF722`, borderRadius:"10px", padding:"12px 14px" }}>
-                                          <div style={{ fontSize:"11px", fontWeight:800, color:"#4F8EF7", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em" }}>✈ Flight</div>
+                                          <div style={{ fontSize:"11px", fontWeight:800, color:"#4F8EF7", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em" }}>‚úà Flight</div>
                                           {g.flight ? <>
                                             <div style={{ fontSize:"12px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Arrival: <strong style={{ color:P.navy }}>{g.flight.arr}</strong></div>
                                             <div style={{ fontSize:"12px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Departure: <strong style={{ color:P.navy }}>{g.flight.dep}</strong></div>
                                             <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font }}>Flight: {g.flight.num}</div>
-                                          </> : <div style={{ fontSize:"12px", fontWeight:700, color:P.red, fontFamily:font }}>⚑ No flight booked</div>}
+                                          </> : <div style={{ fontSize:"12px", fontWeight:700, color:P.red, fontFamily:font }}>‚öë No flight booked</div>}
                                         </div>
                                         {/* Hotel card */}
                                         <div style={{ background:P.white, border:`1.5px solid ${g.hotel?"#F5A62322":"#FDECEC"}`, borderRadius:"10px", padding:"12px 14px" }}>
-                                          <div style={{ fontSize:"11px", fontWeight:800, color:"#F5A623", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em" }}>🏨 Hotel</div>
+                                          <div style={{ fontSize:"11px", fontWeight:800, color:"#F5A623", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em" }}>üè® Hotel</div>
                                           {g.hotel ? <>
                                             <div style={{ fontSize:"12px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Check-in: <strong style={{ color: g.status!=="ok"&&g.issues[0]?.includes("check-in")?P.red:P.navy }}>{g.hotel.in}</strong></div>
                                             <div style={{ fontSize:"12px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Check-out: <strong style={{ color:P.navy }}>{g.hotel.out}</strong></div>
                                             <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font }}>{g.hotel.name}</div>
-                                          </> : <div style={{ fontSize:"12px", fontWeight:700, color:P.red, fontFamily:font }}>⚑ No hotel booked</div>}
+                                          </> : <div style={{ fontSize:"12px", fontWeight:700, color:P.red, fontFamily:font }}>‚öë No hotel booked</div>}
                                         </div>
                                         {/* Car card */}
                                         <div style={{ background:P.white, border:`1.5px solid #9B59B622`, borderRadius:"10px", padding:"12px 14px" }}>
-                                          <div style={{ fontSize:"11px", fontWeight:800, color:"#9B59B6", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em" }}>🚗 Car Transfer</div>
+                                          <div style={{ fontSize:"11px", fontWeight:800, color:"#9B59B6", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em" }}>üöó Car Transfer</div>
                                           {g.car ? <>
                                             <div style={{ fontSize:"12px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Pickup: <strong style={{ color:P.navy }}>{g.car.pickup}</strong></div>
                                             <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font }}>Location: {g.car.loc}</div>
-                                          </> : <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font }}>— No transfer</div>}
+                                          </> : <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font }}>‚Äî No transfer</div>}
                                         </div>
                                       </div>
                                     </div>
@@ -3167,8 +3170,8 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                         {/* Replay */}
                         {demoPhase === "results" && (
                           <div style={{ display:"flex", justifyContent:"center", gap:"12px", marginTop:"20px", animation:"ggIn 0.4s ease" }}>
-                            <button onClick={runDemo} style={{ background:"none", border:`1.5px solid ${P.grey100}`, borderRadius:"10px", padding:"8px 18px", fontSize:"13px", fontWeight:700, color:P.grey400, fontFamily:font, cursor:"pointer" }}>↺ Replay</button>
-                            <button onClick={onEnter} style={{ background:P.accent, border:"none", borderRadius:"10px", padding:"8px 20px", fontSize:"13px", fontWeight:700, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 2px 10px rgba(0,201,177,0.3)" }}>Try with your files →</button>
+                            <button onClick={runDemo} style={{ background:"none", border:`1.5px solid ${P.grey100}`, borderRadius:"10px", padding:"8px 18px", fontSize:"13px", fontWeight:700, color:P.grey400, fontFamily:font, cursor:"pointer" }}>‚Ü∫ Replay</button>
+                            <button onClick={onEnter} style={{ background:P.accent, border:"none", borderRadius:"10px", padding:"8px 20px", fontSize:"13px", fontWeight:700, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 2px 10px rgba(0,201,177,0.3)" }}>Try with your files ‚Üí</button>
                           </div>
                         )}
                       </>
@@ -3191,24 +3194,24 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
           </p>
           <div style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:"rgba(0,201,177,0.1)", border:"1px solid rgba(0,201,177,0.25)", borderRadius:"20px", padding:"6px 16px", marginBottom:"32px" }}>
             <ShieldCheck size={14} strokeWidth={2} color={P.accent}/>
-            <span style={{ fontSize:"13px", fontWeight:600, color:"rgba(255,255,255,0.7)", fontFamily:font }}>Built by a planner with 15+ years in the field · Your data never leaves your browser</span>
+            <span style={{ fontSize:"13px", fontWeight:600, color:"rgba(255,255,255,0.7)", fontFamily:font }}>Built by a planner with 15+ years in the field ¬∑ Your data never leaves your browser</span>
           </div>
           <div className="gg-cta-btns" style={{ display:"flex", gap:"12px", justifyContent:"center", flexWrap:"wrap" }}>
             <button onClick={onEnter} style={{ background:`linear-gradient(135deg, ${P.accent}, ${P.accentD})`, border:"none", borderRadius:"12px", padding:"16px 40px", fontSize:"17px", fontWeight:800, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 4px 24px rgba(0,201,177,0.4)", letterSpacing:"-0.02em" }}>
-              Try GroupGrid free →
+              Try GroupGrid free ‚Üí
             </button>
             <button onClick={onPricing} style={{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.15)", borderRadius:"12px", padding:"16px 28px", fontSize:"16px", fontWeight:600, color:"rgba(255,255,255,0.75)", fontFamily:font, cursor:"pointer" }}>
               View pricing
             </button>
           </div>
-          <p style={{ fontSize:"13px", color:"rgba(255,255,255,0.25)", fontFamily:font, marginTop:"20px" }}>Full access · 10,000+ records · $249/mo · Cancel any time · No data ever leaves your browser</p>
+          <p style={{ fontSize:"13px", color:"rgba(255,255,255,0.25)", fontFamily:font, marginTop:"20px" }}>Full access ¬∑ 10,000+ records ¬∑ $249/mo ¬∑ Cancel any time ¬∑ No data ever leaves your browser</p>
         </div>
       </div>
 
-      {/* ── Footer ── */}
+      {/* ‚îÄ‚îÄ Footer ‚îÄ‚îÄ */}
       <div style={{ background:P.navy, padding:"28px 40px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:"16px" }}>
         <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
-          <span style={{ fontSize:"13px", color:"rgba(255,255,255,0.3)", fontFamily:font }}>Built for event professionals · © 2026</span>
+          <span style={{ fontSize:"13px", color:"rgba(255,255,255,0.3)", fontFamily:font }}>Built for event professionals ¬∑ ¬© 2026</span>
         </div>
         <div style={{ display:"flex", gap:"20px" }}>
           {[
@@ -3228,7 +3231,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
   );
 }
 
-// ── Pricing Page ──────────────────────────────────────────────────────────────
+// ‚îÄ‚îÄ Pricing Page ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 function PricingPage({ onBack }) {
   const [billing, setBilling] = useState("monthly");
   const annual = billing === "annual";
@@ -3241,7 +3244,7 @@ function PricingPage({ onBack }) {
     <div style={{ minHeight:"100vh", background:P.offWhite, fontFamily:font }}>
       {/* Nav */}
       <div style={{ background:P.navy, padding:"0 32px", height:"52px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
-        <button onClick={onBack} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:"8px", padding:"5px 14px", color:"rgba(255,255,255,0.75)", fontSize:"13px", fontFamily:font, fontWeight:600, cursor:"pointer" }}>← Back to app</button>
+        <button onClick={onBack} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:"8px", padding:"5px 14px", color:"rgba(255,255,255,0.75)", fontSize:"13px", fontFamily:font, fontWeight:600, cursor:"pointer" }}>‚Üê Back to app</button>
         <span style={{ color:P.accent, fontSize:"13px", fontWeight:700, fontFamily:font, letterSpacing:"0.05em" }}>PRICING</span>
       </div>
 
@@ -3255,7 +3258,7 @@ function PricingPage({ onBack }) {
         </p>
         {/* Billing toggle */}
         <div style={{ display:"inline-flex", background:"rgba(255,255,255,0.08)", borderRadius:"12px", padding:"4px", gap:"4px" }}>
-          {[["monthly","Monthly"],["annual","Annual · Save 17%"]].map(([k,l]) => (
+          {[["monthly","Monthly"],["annual","Annual ¬∑ Save 17%"]].map(([k,l]) => (
             <button key={k} onClick={() => setBilling(k)} style={{ padding:"8px 22px", borderRadius:"9px", border:"none", cursor:"pointer", fontFamily:font, fontSize:"14px", fontWeight:700, transition:"all 0.18s", background:billing===k?P.white:"transparent", color:billing===k?P.navy:"rgba(255,255,255,0.55)", boxShadow:billing===k?"0 1px 4px rgba(0,0,0,0.15)":"none" }}>{l}</button>
           ))}
         </div>
@@ -3268,7 +3271,7 @@ function PricingPage({ onBack }) {
           {/* Best Value badge for annual */}
           {annual && (
             <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", background:P.accent, color:P.white, fontSize:"11px", fontWeight:800, fontFamily:font, letterSpacing:"0.07em", padding:"4px 18px", borderRadius:"0 0 10px 10px", textTransform:"uppercase", whiteSpace:"nowrap" }}>
-              Best Value — Save $988/yr
+              Best Value ‚Äî Save $988/yr
             </div>
           )}
 
@@ -3286,23 +3289,23 @@ function PricingPage({ onBack }) {
             </div>
             {annual && (
               <div style={{ fontSize:"14px", color:P.green, fontWeight:700, fontFamily:font, marginBottom:"4px" }}>
-                Equivalent to $167/mo · billed annually
+                Equivalent to $167/mo ¬∑ billed annually
               </div>
             )}
-            <div style={{ fontSize:"14px", color:P.grey400, fontFamily:font, marginBottom:"16px" }}>1 user · unlimited events · all features</div>
+            <div style={{ fontSize:"14px", color:P.grey400, fontFamily:font, marginBottom:"16px" }}>1 user ¬∑ unlimited events ¬∑ all features</div>
 
             {/* Trial callout */}
             <div style={{ background:P.accentLight, border:`1.5px solid ${P.accent}44`, borderRadius:"10px", padding:"12px 16px", marginBottom:"16px", display:"flex", alignItems:"center", gap:"10px" }}>
-              <span style={{ fontSize:"18px", flexShrink:0 }}>🎯</span>
+              <span style={{ fontSize:"18px", flexShrink:0 }}>üéØ</span>
               <div>
                 <div style={{ fontSize:"13px", fontWeight:800, color:P.teal, fontFamily:font }}>Try it free first</div>
-                <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font, lineHeight:1.5 }}>Upload your own files and run a full cross-check — no credit card, no commitment. See exactly how GroupGrid works with your real data before subscribing.</div>
+                <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font, lineHeight:1.5 }}>Upload your own files and run a full cross-check ‚Äî no credit card, no commitment. See exactly how GroupGrid works with your real data before subscribing.</div>
               </div>
             </div>
 
             <a href={annual ? STRIPE_ANNUAL : STRIPE_MONTHLY} target="_blank" rel="noreferrer"
               style={{ display:"block", width:"100%", background:P.accent, border:"none", borderRadius:"12px", padding:"15px", fontSize:"16px", fontWeight:800, fontFamily:font, color:P.white, cursor:"pointer", textAlign:"center", textDecoration:"none", boxShadow:"0 4px 16px rgba(0,201,177,0.35)", letterSpacing:"-0.01em", boxSizing:"border-box" }}>
-              Subscribe now →
+              Subscribe now ‚Üí
             </a>
           </div>
 
@@ -3317,7 +3320,7 @@ function PricingPage({ onBack }) {
               "Shareable HTML reports",
               "Export to Excel",
               "Notes & issue resolution workflow",
-              "Browser-local · zero PII uploaded",
+              "Browser-local ¬∑ zero PII uploaded",
             ].map((f,i) => (
               <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:"10px", marginBottom:"12px" }}>
                 <div style={{ width:18, height:18, borderRadius:"50%", background:P.accentLight, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:"1px" }}>
@@ -3332,9 +3335,9 @@ function PricingPage({ onBack }) {
         {/* Trust / reassurance */}
         <div style={{ marginTop:"28px", display:"flex", flexDirection:"column", gap:"10px" }}>
           {[
-            { icon:<Check size={13} strokeWidth={2.5}/>, text:"Try free — no credit card required" },
+            { icon:<Check size={13} strokeWidth={2.5}/>, text:"Try free ‚Äî no credit card required" },
             { icon:<Lock size={13} strokeWidth={2}/>, text:"Payments processed securely by Stripe" },
-            { icon:<X size={13} strokeWidth={2.5}/>, text:"Cancel any time — no long-term commitment" },
+            { icon:<X size={13} strokeWidth={2.5}/>, text:"Cancel any time ‚Äî no long-term commitment" },
             { icon:<ShieldCheck size={13} strokeWidth={2}/>, text:"Your guest files never leave your browser" },
           ].map(({ icon, text }) => (
             <div key={text} style={{ display:"flex", alignItems:"center", gap:"10px" }}>
@@ -3354,8 +3357,8 @@ function PricingPage({ onBack }) {
   );
 }
 
-// ── Supabase client ───────────────────────────────────────────────────────────
-// Loaded via CDN — no build step required.
+// ‚îÄ‚îÄ Supabase client ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+// Loaded via CDN ‚Äî no build step required.
 // Keys are safe to be public (publishable key + RLS enforces data isolation).
 const SUPABASE_URL = "https://ajabrqcbultkaszsycwh.supabase.co";
 const SUPABASE_KEY = "sb_publishable_yn6mJb93k85y5nrJJReQSA_M6iliVoD";
@@ -3397,7 +3400,7 @@ export default function GroupGridApp() {
       });
       setAuthReady(true);
     };
-    script.onerror = () => setAuthReady(true); // Fail gracefully — app still works without auth
+    script.onerror = () => setAuthReady(true); // Fail gracefully ‚Äî app still works without auth
     document.head.appendChild(script);
     return () => { if (document.head.contains(script)) document.head.removeChild(script); };
   }, []);
@@ -3414,7 +3417,7 @@ export default function GroupGridApp() {
         <div style={{ textAlign:"center" }}>
           <div style={{ width:40, height:40, border:`3px solid rgba(255,255,255,0.1)`, borderTop:`3px solid ${P.accent}`, borderRadius:"50%", animation:"spin 0.8s linear infinite", margin:"0 auto 16px" }} />
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-          <div style={{ color:"rgba(255,255,255,0.4)", fontSize:"14px" }}>Loading GroupGrid…</div>
+          <div style={{ color:"rgba(255,255,255,0.4)", fontSize:"14px" }}>Loading GroupGrid‚Ä¶</div>
         </div>
       </div>
     );
@@ -3423,7 +3426,7 @@ export default function GroupGridApp() {
   return <ErrorBoundary><GroupGrid user={user} onLogin={setUser} onLogout={handleLogout} /></ErrorBoundary>;
 }
 
-// ── Upload Square component (hooks must be at component top level) ──────────
+// ‚îÄ‚îÄ Upload Square component (hooks must be at component top level) ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 function UploadSquare({ label, icon, accent, file, setter, required, sub, compact }) {
   const [drag, setDrag] = useState(false);
   const onDrop = e => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) setter(f); };
@@ -3447,11 +3450,11 @@ function UploadSquare({ label, icon, accent, file, setter, required, sub, compac
           ) : (
             <>
               <div style={{ fontSize:"15px", fontWeight:800, color:P.navy, fontFamily:font, whiteSpace:"nowrap" }}>{label}</div>
-              <div style={{ fontSize:"14px", color:P.navyLight, fontFamily:font }}>{sub}{!required ? " · Optional" : ""}</div>
+              <div style={{ fontSize:"14px", color:P.navyLight, fontFamily:font }}>{sub}{!required ? " ¬∑ Optional" : ""}</div>
             </>
           )}
         </div>
-        {file && <button onClick={e => { e.preventDefault(); setter(null); }} style={{ marginLeft:"auto", background:"transparent", border:"none", color:P.navyLight, fontSize:"14px", cursor:"pointer", lineHeight:1, flexShrink:0 }} title="Remove">✕</button>}
+        {file && <button onClick={e => { e.preventDefault(); setter(null); }} style={{ marginLeft:"auto", background:"transparent", border:"none", color:P.navyLight, fontSize:"14px", cursor:"pointer", lineHeight:1, flexShrink:0 }} title="Remove">‚úï</button>}
       </label>
     );
   }
@@ -3484,7 +3487,7 @@ function UploadSquare({ label, icon, accent, file, setter, required, sub, compac
   );
 }
 
-// ── Two-step Setup screen (Option 1). Step 1 = project details (event name required),
+// ‚îÄ‚îÄ Two-step Setup screen (Option 1). Step 1 = project details (event name required),
 // Step 2 = file uploads (required on top, optional below). Accepts .xlsx/.xls/.csv.
 function SetupTile({ label, sub, icon, accent, file, setter, required, recommended, columns }) {
   const [drag, setDrag] = useState(false);
@@ -3552,15 +3555,15 @@ function SetupScreen({
 
       <div className="gg-setup-cols" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(380px, 1fr))", gap:"14px", alignItems:"start" }}>
       <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px" }}>
-        <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 1 · Project details</div>
+        <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 1 ¬∑ Project details</div>
         <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"14px" }}>Name your event and (optionally) set travel dates and contacts.</div>
         <div style={{ marginBottom:"14px" }}>
           <label style={{ display:"block", fontSize:"13px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Event name <span style={{ color:P.red }}>required</span></label>
           <input value={eventName} onChange={e => setEventName(e.target.value)} placeholder="e.g. Sales Summit 2026"
             style={{ width:"100%", background:P.grey50, border:`1.5px solid ${hasName?P.accent+"88":P.grey100}`, borderRadius:"10px", padding:"11px 13px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
         </div>
-        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", margin:"4px 0 4px" }}>Approved travel dates <span style={{ textTransform:"none", letterSpacing:0, fontWeight:400 }}>· optional</span></div>
-        <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"12px", lineHeight:1.5 }}>Set the dates your event covers. GroupGrid flags anyone whose flight or hotel falls outside this range — e.g. arriving early or leaving late beyond what's approved.</div>
+        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", margin:"4px 0 4px" }}>Approved travel dates <span style={{ textTransform:"none", letterSpacing:0, fontWeight:400 }}>¬∑ optional</span></div>
+        <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"12px", lineHeight:1.5 }}>Set the dates your event covers. GroupGrid flags anyone whose flight or hotel falls outside this range ‚Äî e.g. arriving early or leaving late beyond what's approved.</div>
         <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px", marginBottom:"6px" }}>
           {[
             { label:"Earliest arrival", val:arrivalStart, set:setArrivalStart },
@@ -3575,21 +3578,21 @@ function SetupScreen({
             </div>
           ))}
         </div>
-        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", margin:"8px 0 12px" }}>Contacts <span style={{ textTransform:"none", letterSpacing:0, fontWeight:400 }}>· optional — to email your hotel &amp; travel agency directly</span></div>
+        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", margin:"8px 0 12px" }}>Contacts <span style={{ textTransform:"none", letterSpacing:0, fontWeight:400 }}>¬∑ optional ‚Äî to email your hotel &amp; travel agency directly</span></div>
         <button onClick={() => setContactsOpen(true)}
           style={{ display:"flex", alignItems:"center", gap:"10px", width:"100%", background:hasContacts?P.accent+"12":P.grey50, border:`1.5px ${hasContacts?"solid":"dashed"} ${hasContacts?P.accent+"55":P.grey200}`, borderRadius:"10px", padding:"12px 14px", cursor:"pointer", fontFamily:font, textAlign:"left" }}>
           <Users size={18} strokeWidth={1.5} color={P.accentD}/>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:"14px", fontWeight:500, color:hasContacts?P.accentD:P.grey600, fontFamily:font }}>{hasContacts ? "Contacts added" : "Add hotel & travel agency contacts"}</div>
-            {hasContacts && <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginTop:"1px" }}>{[contacts.hotel?.name, contacts.travel?.name].filter(Boolean).join(" · ")}</div>}
+            {hasContacts && <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginTop:"1px" }}>{[contacts.hotel?.name, contacts.travel?.name].filter(Boolean).join(" ¬∑ ")}</div>}
           </div>
           {hasContacts && <Check size={15} strokeWidth={2.5} color={P.accentD}/>}
         </button>
       </div>
 
       <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", opacity: hasName ? 1 : 0.55, pointerEvents: hasName ? "auto" : "none", transition:"opacity 0.2s" }}>
-        <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 2 · Upload files {!hasName && <span style={{ fontSize:"12px", fontWeight:400, color:P.grey400 }}>· name your event first</span>}</div>
-        <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"14px" }}>Upload whatever you have — registration, flights, hotels, cars, dietary. GroupGrid cross-checks any 2 or more. Excel or CSV. Hover a tile for expected columns.</div>
+        <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 2 ¬∑ Upload files {!hasName && <span style={{ fontSize:"12px", fontWeight:400, color:P.grey400 }}>¬∑ name your event first</span>}</div>
+        <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"14px" }}>Upload whatever you have ‚Äî registration, flights, hotels, cars, dietary. GroupGrid cross-checks any 2 or more. Excel or CSV. Hover a tile for expected columns.</div>
         <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>Upload any 2 or more</div>
         <div className="gg-setup-tiles3" style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"10px", marginBottom:"14px" }}>
           <SetupTile label="Registration List" sub="Best anchor" icon={<Users size={20} strokeWidth={1.5} color="#00A896"/>} accent={P.accentD} file={registrationFile} setter={setRegistrationFile} recommended columns={["First/Last Name (or Name)","Email","Company / Job Title (opt)","Requested Check-In / Out (opt)","Flight / Hotel Request (opt)"]} />
@@ -3648,7 +3651,7 @@ function SetupScreen({
           {error && <span style={{ fontSize:"13px", color:"#FFB3AB", fontFamily:font }}>{error}</span>}
           <button onClick={runCheck} disabled={!canRun}
             style={{ background:canRun?P.accent:"rgba(255,255,255,0.15)", color:canRun?P.white:"rgba(255,255,255,0.4)", border:"none", borderRadius:"10px", padding:"11px 24px", fontSize:"14px", fontWeight:600, fontFamily:font, cursor:canRun?"pointer":"not-allowed", transition:"all 0.18s", whiteSpace:"nowrap" }}>
-            {loading ? "Checking…" : "Run Cross-Check →"}
+            {loading ? "Checking‚Ä¶" : "Run Cross-Check ‚Üí"}
           </button>
         </div>
       </div>
@@ -3703,9 +3706,9 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
   const hasWindow = arrivalStart || arrivalEnd || departureStart || departureEnd;
 
-  // ── Persistent storage via localStorage ──────────────────────────────────────
+  // ‚îÄ‚îÄ Persistent storage via localStorage ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
   // Replaces window.storage (Claude artifact API) with standard browser localStorage.
-  // Same interface throughout: storage.get(key) → { value } | null, storage.set(key, val), storage.delete(key)
+  // Same interface throughout: storage.get(key) ‚Üí { value } | null, storage.set(key, val), storage.delete(key)
   const storage = {
     get: (key) => {
       try {
@@ -3851,17 +3854,17 @@ function GroupGrid({ user, onLogin, onLogout }) {
       const propRows = filtered.filter(r => (r.hotel?.hotel || "").trim().toLowerCase() === pc.property.trim().toLowerCase());
       if (propRows.length === 0) return;
       const rows = propRows.map(r => ({
-        "Guest": r.displayName, "Email": r.email||"—",
+        "Guest": r.displayName, "Email": r.email||"‚Äî",
         "Status": {ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status],
         "Active Issues": r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None",
-        "Hotel": r.hotel?.hotel||"—", "Check-In": fmt(r.hotel?.checkIn), "Check-Out": fmt(r.hotel?.checkOut), "Room/Conf": r.hotel?.room||"—",
-        "Note": r.note||"—",
+        "Hotel": r.hotel?.hotel||"‚Äî", "Check-In": fmt(r.hotel?.checkIn), "Check-Out": fmt(r.hotel?.checkOut), "Room/Conf": r.hotel?.room||"‚Äî",
+        "Note": r.note||"‚Äî",
       }));
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "Rooming List");
       XLSX.writeFile(wb, `groupgrid-${(eventName||"event").replace(/\s+/g,"-")}-${pc.property.replace(/\s+/g,"-")}.xlsx`);
-      const subject = encodeURIComponent(`${eventName||"Event"} — Rooming list for ${pc.property}`);
-      const body = encodeURIComponent(`Dear ${pc.name||"Team"},\n\nAttached is the current rooming list for ${pc.property} (${propRows.length} guests) for ${eventName||"our event"}.\n\nThe Excel file has been downloaded to your device — please attach it before sending.\n\nThank you,\n${contacts.plannerName||"[Your Name]"}`);
+      const subject = encodeURIComponent(`${eventName||"Event"} ‚Äî Rooming list for ${pc.property}`);
+      const body = encodeURIComponent(`Dear ${pc.name||"Team"},\n\nAttached is the current rooming list for ${pc.property} (${propRows.length} guests) for ${eventName||"our event"}.\n\nThe Excel file has been downloaded to your device ‚Äî please attach it before sending.\n\nThank you,\n${contacts.plannerName||"[Your Name]"}`);
       setTimeout(() => window.open(`mailto:${pc.email}?subject=${subject}&body=${body}`, "_blank"), 300 * (idx+1));
       sent++;
     });
@@ -3878,31 +3881,31 @@ function GroupGrid({ user, onLogin, onLogout }) {
     const contact = contacts[contactType];
     if (!contact?.email) { setContactsOpen(true); return; }
     const rows = filtered.map(r => ({
-      "Guest": r.displayName, "Email": r.email||"—",
+      "Guest": r.displayName, "Email": r.email||"‚Äî",
       "Status": {ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status],
       "Active Issues": r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None",
-      "Flight Arrival": fmt(r.flight?.flightArrival), "Hotel Check-In": fmt(r.hotel?.checkIn), "Arrival Δ": r.details?.arrDiff??"N/A",
-      "Flight Departure": fmt(r.flight?.flightDeparture), "Hotel Check-Out": fmt(r.hotel?.checkOut), "Departure Δ": r.details?.depDiff??"N/A",
+      "Flight Arrival": fmt(r.flight?.flightArrival), "Hotel Check-In": fmt(r.hotel?.checkIn), "Arrival Œî": r.details?.arrDiff??"N/A",
+      "Flight Departure": fmt(r.flight?.flightDeparture), "Hotel Check-Out": fmt(r.hotel?.checkOut), "Departure Œî": r.details?.depDiff??"N/A",
       "Car Pickup": fmt(r.car?.pickupDate), "Car Dropoff": fmt(r.car?.dropoffDate),
-      "Hotel": r.hotel?.hotel||"—", "Room/Conf": r.hotel?.room||"—",
-      "Dietary": r.diet?.dietary||"—", "Accessibility": r.diet?.accessibility||"—",
-      "Note": r.note||"—",
+      "Hotel": r.hotel?.hotel||"‚Äî", "Room/Conf": r.hotel?.room||"‚Äî",
+      "Dietary": r.diet?.dietary||"‚Äî", "Accessibility": r.diet?.accessibility||"‚Äî",
+      "Note": r.note||"‚Äî",
     }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "GroupGrid Report");
     const filename = `groupgrid-${(eventName||"report").replace(/\s+/g,"-")}-for-${contact.name||contactType}.xlsx`;
     XLSX.writeFile(wb, filename);
     // Open mailto with the file ready (browsers can't attach files via mailto, so we open email + note)
-    const subject = encodeURIComponent(`${eventName||"Event"} — Guest Report`);
+    const subject = encodeURIComponent(`${eventName||"Event"} ‚Äî Guest Report`);
     const issueCount = filtered.filter(r=>r.status!=="ok").length;
     const body = encodeURIComponent(
-      `Dear ${contact.name||"Team"},\n\nPlease find attached the latest guest report for ${eventName||"our upcoming event"}.\n\nSummary:\n• Total Guests: ${filtered.length}\n• Aligned: ${filtered.filter(r=>r.status==="ok").length}\n• Issues: ${issueCount}\n\nThe Excel report has been downloaded to your device. Please attach it to this email before sending.\n\nThank you,\n[Your Name]`
+      `Dear ${contact.name||"Team"},\n\nPlease find attached the latest guest report for ${eventName||"our upcoming event"}.\n\nSummary:\n‚Ä¢ Total Guests: ${filtered.length}\n‚Ä¢ Aligned: ${filtered.filter(r=>r.status==="ok").length}\n‚Ä¢ Issues: ${issueCount}\n\nThe Excel report has been downloaded to your device. Please attach it to this email before sending.\n\nThank you,\n[Your Name]`
     );
     setTimeout(() => window.open(`mailto:${contact.email}?subject=${subject}&body=${body}`, "_blank"), 300);
   }
 
   function exportReport() {
-    const rows = filtered.map(r => ({ "First Name":r.firstName||r.displayName.split(" ")[0]||"—", "Last Name":r.lastName||r.displayName.split(" ").slice(1).join(" ")||"—", "Full Name":r.displayName, "Email":r.email||"—", "Registered":r.reg?"Yes":(r.registered?"Yes":"No"), "Status":{ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status], "Active Issues":r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None", "Resolved":r.resolved?.join("; ")||"—", "Note":r.note||"—", "Company":r.reg?.company||"—", "Job Title":r.reg?.jobTitle||"—", "Requested Check-In":fmt(r.reg?.regCheckIn), "Requested Check-Out":fmt(r.reg?.regCheckOut), "Dietary":r.diet?.dietary||r.reg?.dietaryRequest||"—", "Accessibility":r.diet?.accessibility||"—", "Flight Arrival":fmt(r.flight?.flightArrival), "Hotel Check-In":fmt(r.hotel?.checkIn), "Arrival Δ":r.details?.arrDiff??"N/A", "Flight Departure":fmt(r.flight?.flightDeparture), "Hotel Check-Out":fmt(r.hotel?.checkOut), "Departure Δ":r.details?.depDiff??"N/A", "Car Pickup":fmt(r.car?.pickupDate), "Car Dropoff":fmt(r.car?.dropoffDate), "Hotel":r.hotel?.hotel||"—", "Room":r.hotel?.room||"—", "Matched By":r.matchedBy }));
+    const rows = filtered.map(r => ({ "First Name":r.firstName||r.displayName.split(" ")[0]||"‚Äî", "Last Name":r.lastName||r.displayName.split(" ").slice(1).join(" ")||"‚Äî", "Full Name":r.displayName, "Email":r.email||"‚Äî", "Registered":r.reg?"Yes":(r.registered?"Yes":"No"), "Status":{ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status], "Active Issues":r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None", "Resolved":r.resolved?.join("; ")||"‚Äî", "Note":r.note||"‚Äî", "Company":r.reg?.company||"‚Äî", "Job Title":r.reg?.jobTitle||"‚Äî", "Requested Check-In":fmt(r.reg?.regCheckIn), "Requested Check-Out":fmt(r.reg?.regCheckOut), "Dietary":r.diet?.dietary||r.reg?.dietaryRequest||"‚Äî", "Accessibility":r.diet?.accessibility||"‚Äî", "Flight Arrival":fmt(r.flight?.flightArrival), "Hotel Check-In":fmt(r.hotel?.checkIn), "Arrival Œî":r.details?.arrDiff??"N/A", "Flight Departure":fmt(r.flight?.flightDeparture), "Hotel Check-Out":fmt(r.hotel?.checkOut), "Departure Œî":r.details?.depDiff??"N/A", "Car Pickup":fmt(r.car?.pickupDate), "Car Dropoff":fmt(r.car?.dropoffDate), "Hotel":r.hotel?.hotel||"‚Äî", "Room":r.hotel?.room||"‚Äî", "Matched By":r.matchedBy }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "GroupGrid");
     XLSX.writeFile(wb, `groupgrid-${(eventName||"report").replace(/\s+/g,"-")}-${new Date().toISOString().slice(0,10)}.xlsx`);
@@ -3966,8 +3969,8 @@ function GroupGrid({ user, onLogin, onLogout }) {
         body = fillTemplate(tmpl.body, record, extra);
       } else {
         // Generic fallback for issues without a specific template (date mismatch, wrong hotel, etc.)
-        const issueList = (record.issues||[]).filter(x=>!(record.resolved||[]).includes(x.text)).map(x => "• " + x.text).join("\n");
-        subject = `${eventName || "Event"} — please review your travel details`;
+        const issueList = (record.issues||[]).filter(x=>!(record.resolved||[]).includes(x.text)).map(x => "‚Ä¢ " + x.text).join("\n");
+        subject = `${eventName || "Event"} ‚Äî please review your travel details`;
         body = `Hi ${record.firstName || record.displayName || "there"},\n\nWhile reviewing arrangements for ${eventName || "our event"}, we found something on your record that needs attention:\n\n${issueList}\n\nCould you take a look and let us know? Thank you.\n\n${contacts?.plannerName || "[Your Name]"}`;
       }
       // Stagger so the browser doesn't block multiple mailto: opens
@@ -3977,7 +3980,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
   function exportSelected() {
     const toExport = selectedRows.size > 0 ? filtered.filter(r => selectedRows.has(r.key)) : filtered;
-    const rows = toExport.map(r => ({ "First Name":r.firstName||r.displayName.split(" ")[0]||"—", "Last Name":r.lastName||r.displayName.split(" ").slice(1).join(" ")||"—", "Full Name":r.displayName, "Email":r.email||"—", "Registered":r.reg?"Yes":(r.registered?"Yes":"No"), "Status":{ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status], "Active Issues":r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None", "Note":r.note||"—", "Company":r.reg?.company||"—", "Job Title":r.reg?.jobTitle||"—", "Requested Check-In":fmt(r.reg?.regCheckIn), "Requested Check-Out":fmt(r.reg?.regCheckOut), "Flight Arrival":fmt(r.flight?.flightArrival), "Flight In":r.flight?.flightIn||"—", "Hotel Check-In":fmt(r.hotel?.checkIn), "Arrival Δ":r.details?.arrDiff??"N/A", "Flight Departure":fmt(r.flight?.flightDeparture), "Flight Out":r.flight?.flightOut||"—", "Hotel Check-Out":fmt(r.hotel?.checkOut), "Departure Δ":r.details?.depDiff??"N/A", "Airport":r.flight?.airport||"—", "Hotel":r.hotel?.hotel||"—", "Room":r.hotel?.room||"—", "Car Pickup":fmt(r.car?.pickupDate), "Car Dropoff":fmt(r.car?.dropoffDate), "Dietary":r.diet?.dietary||r.reg?.dietaryRequest||"—", "Accessibility":r.diet?.accessibility||"—" }));
+    const rows = toExport.map(r => ({ "First Name":r.firstName||r.displayName.split(" ")[0]||"‚Äî", "Last Name":r.lastName||r.displayName.split(" ").slice(1).join(" ")||"‚Äî", "Full Name":r.displayName, "Email":r.email||"‚Äî", "Registered":r.reg?"Yes":(r.registered?"Yes":"No"), "Status":{ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status], "Active Issues":r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None", "Note":r.note||"‚Äî", "Company":r.reg?.company||"‚Äî", "Job Title":r.reg?.jobTitle||"‚Äî", "Requested Check-In":fmt(r.reg?.regCheckIn), "Requested Check-Out":fmt(r.reg?.regCheckOut), "Flight Arrival":fmt(r.flight?.flightArrival), "Flight In":r.flight?.flightIn||"‚Äî", "Hotel Check-In":fmt(r.hotel?.checkIn), "Arrival Œî":r.details?.arrDiff??"N/A", "Flight Departure":fmt(r.flight?.flightDeparture), "Flight Out":r.flight?.flightOut||"‚Äî", "Hotel Check-Out":fmt(r.hotel?.checkOut), "Departure Œî":r.details?.depDiff??"N/A", "Airport":r.flight?.airport||"‚Äî", "Hotel":r.hotel?.hotel||"‚Äî", "Room":r.hotel?.room||"‚Äî", "Car Pickup":fmt(r.car?.pickupDate), "Car Dropoff":fmt(r.car?.dropoffDate), "Dietary":r.diet?.dietary||r.reg?.dietaryRequest||"‚Äî", "Accessibility":r.diet?.accessibility||"‚Äî" }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "GroupGrid");
     const label = selectedRows.size > 0 ? `${selectedRows.size}-selected` : "all";
@@ -4000,7 +4003,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
       mismatch:  results.filter(r => r.issues.some(x => x.type === "mismatch")).length,
     };
 
-    // ── helpers ──
+    // ‚îÄ‚îÄ helpers ‚îÄ‚îÄ
     function sBadge(status) {
       if (status === "ok")   return '<span style="background:#E3F7F0;color:#0D9E6E;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;">Aligned</span>';
       if (status === "warn") return '<span style="background:#FEF2DC;color:#C97A0A;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;">1 Issue</span>';
@@ -4015,7 +4018,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
     function sCell(val) { return val || "\u2014"; }
     function missingCell() { return '<span style="color:#C0392B;font-weight:600;">Missing</span>'; }
 
-    // ── guest rows ──
+    // ‚îÄ‚îÄ guest rows ‚îÄ‚îÄ
     var guestRows = "";
     for (var gi = 0; gi < results.length; gi++) {
       var r = results[gi];
@@ -4047,7 +4050,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
         + "</tr>";
     }
 
-    // ── diet rows ──
+    // ‚îÄ‚îÄ diet rows ‚îÄ‚îÄ
     var dietRows = "";
     var dietGuests = results.filter(function(r) { return r.diet && (r.diet.dietary || r.diet.accessibility || r.diet.specialNotes); });
     for (var di = 0; di < dietGuests.length; di++) {
@@ -4060,7 +4063,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
         + "</tr>";
     }
 
-    // ── summary cards ──
+    // ‚îÄ‚îÄ summary cards ‚îÄ‚îÄ
     var summaryCards = [
       { label:"Total Guests",   val:results.length,                                    color:"#0F1D35", bg:"white" },
       { label:"Fully Aligned",  val:aligned.length,                                    color:"#0D9E6E", bg:"#E3F7F0" },
@@ -4076,7 +4079,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
         + "</div>";
     }
 
-    // ── issue breakdown ──
+    // ‚îÄ‚îÄ issue breakdown ‚îÄ‚îÄ
     var issueBreakdown = "";
     if (flagged.length > 0) {
       var chips = "";
@@ -4087,7 +4090,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
       issueBreakdown = '<div style="background:white;border:1px solid #DDE1EE;border-radius:10px;padding:20px 24px;margin-bottom:24px;"><div style="font-size:15px;font-weight:700;margin-bottom:14px;color:#0F1D35;">Issue Breakdown</div><div style="display:flex;gap:12px;flex-wrap:wrap;">' + chips + "</div></div>";
     }
 
-    // ── contacts block ──
+    // ‚îÄ‚îÄ contacts block ‚îÄ‚îÄ
     var contactsBlock = "";
     if (contacts.hotel.email || contacts.travel.email) {
       var hotelDiv = contacts.hotel.email
@@ -4109,7 +4112,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
       contactsBlock = '<div style="background:white;border:1px solid #DDE1EE;border-radius:10px;padding:20px 24px;margin-bottom:24px;"><div style="font-size:15px;font-weight:700;margin-bottom:14px;color:#0F1D35;">Event Contacts</div><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">' + hotelDiv + travelDiv + "</div></div>";
     }
 
-    // ── diet table ──
+    // ‚îÄ‚îÄ diet table ‚îÄ‚îÄ
     var dietSection = "";
     if (dietRows) {
       dietSection = '<div style="background:white;border:1px solid #DDE1EE;border-radius:10px;overflow:hidden;margin-bottom:24px;">'
@@ -4123,7 +4126,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
         + "</tr></thead><tbody>" + dietRows + "</tbody></table></div></div>";
     }
 
-    // ── travel window line ──
+    // ‚îÄ‚îÄ travel window line ‚îÄ‚îÄ
     var windowLine = (arrivalStart && arrivalEnd)
       ? '<div style="font-size:13px;color:rgba(255,255,255,0.5);margin-top:4px;">Travel window: ' + arrivalStart + " \u2013 " + (departureEnd || arrivalEnd) + "</div>"
       : "";
@@ -4131,7 +4134,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
       ? '<div style="font-size:13px;color:rgba(255,255,255,0.6);margin-top:2px;">Prepared by ' + contacts.plannerName + "</div>"
       : "";
 
-    // ── assemble final HTML ──
+    // ‚îÄ‚îÄ assemble final HTML ‚îÄ‚îÄ
     var html = "<!DOCTYPE html>"
       + '<html lang="en"><head>'
       + '<meta charset="UTF-8"/>'
@@ -4221,7 +4224,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
       <GlobalStyles />
       <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
-      {/* ── Mobile sidebar overlay ── */}
+      {/* ‚îÄ‚îÄ Mobile sidebar overlay ‚îÄ‚îÄ */}
       {isMobile && sidebarOpen && (
         <div className="gg-sidebar-overlay" onClick={() => setSidebarOpen(false)}
           style={{ position:"fixed", top:"52px", left:0, right:0, bottom:0, background:"rgba(15,31,61,0.6)", zIndex:199, backdropFilter:"blur(2px)" }} />
@@ -4258,7 +4261,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
       {contactsOpen && <ContactsModal contacts={contacts} onSave={setContacts} onClose={() => setContactsOpen(false)} />}
       {shareModal && <ShareModal html={shareModal.html} filename={shareModal.filename} onClose={() => setShareModal(null)} />}
 
-      {/* ── Page overlays ── */}
+      {/* ‚îÄ‚îÄ Page overlays ‚îÄ‚îÄ */}
       {page === "landing" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><LandingPage onEnter={() => setPage("app")} onPricing={() => setPage("pricing")} onAbout={() => setPage("about")} onContact={() => setPage("contact")} onPrivacy={() => setPage("privacy")} onTerms={() => setPage("terms")} onFaq={() => setPage("faq")} /></div>}
       {page === "pricing" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><PricingPage onBack={() => setPage("app")} /></div>}
       {page === "about"   && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><AboutPage   onBack={() => setPage("app")} /></div>}
@@ -4270,7 +4273,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
       {/* Header */}
       <div style={{ background:P.navy, padding:`0 ${isMobile ? "14px" : "32px"}`, display:"flex", alignItems:"center", justifyContent:"space-between", height:"52px", boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
         <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
-          {/* Hamburger — mobile only */}
+          {/* Hamburger ‚Äî mobile only */}
           {isMobile && (
             <button onClick={() => setSidebarOpen(o => !o)}
               style={{ background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"8px", width:36, height:36, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:"4px", cursor:"pointer", flexShrink:0, padding:0 }}>
@@ -4310,20 +4313,20 @@ function GroupGrid({ user, onLogin, onLogout }) {
               <text x="62" y="36" fontFamily="'Manrope', sans-serif" fontSize="26" fontWeight="700" letterSpacing="-0.5" fill="white">Group</text>
               <text x="144" y="36" fontFamily="'Manrope', sans-serif" fontSize="26" fontWeight="300" letterSpacing="-0.5" fill="#00C9B1">Grid</text>
             </svg>
-            {!isMobile && <button onClick={() => setPage("landing")} style={{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"7px", padding:"4px 12px", fontSize:"12px", fontWeight:600, color:"rgba(255,255,255,0.45)", fontFamily:font, cursor:"pointer", letterSpacing:"0.03em" }}>← Home</button>}
+            {!isMobile && <button onClick={() => setPage("landing")} style={{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"7px", padding:"4px 12px", fontSize:"12px", fontWeight:600, color:"rgba(255,255,255,0.45)", fontFamily:font, cursor:"pointer", letterSpacing:"0.03em" }}>‚Üê Home</button>}
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
           {/* Autosave indicator */}
           {autoSaveStatus === "saving" && (
             <span style={{ fontSize:"15px", color:"rgba(255,255,255,0.45)", fontFamily:font, display:"flex", alignItems:"center", gap:"5px" }}>
               <span style={{ width:7, height:7, borderRadius:"50%", background:"rgba(255,255,255,0.4)", display:"inline-block", animation:"pulse 1s infinite" }} />
-              Autosaving…
+              Autosaving‚Ä¶
             </span>
           )}
           {autoSaveStatus === "saved" && (
-            <span style={{ fontSize:"15px", color:"rgba(255,255,255,0.55)", fontFamily:font }}>✓ Autosaved</span>
+            <span style={{ fontSize:"15px", color:"rgba(255,255,255,0.55)", fontFamily:font }}>‚úì Autosaved</span>
           )}
-          {autoSaveStatus === "idle" && saveMsg && <span style={{ fontSize:"15px", color:"rgba(255,255,255,0.6)", fontFamily:font }}>✓ {saveMsg}</span>}
+          {autoSaveStatus === "idle" && saveMsg && <span style={{ fontSize:"15px", color:"rgba(255,255,255,0.6)", fontFamily:font }}>‚úì {saveMsg}</span>}
           <div className="gg-header-extras" style={{ display:"flex", alignItems:"center", gap:"8px" }}>
           {results && (
             <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
@@ -4357,7 +4360,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
       <div style={{ display:"flex", flex:1, width:"100%", minHeight:`calc(100vh - ${isMobile && results ? "104px" : "52px"})`, alignItems:"flex-start" }}>
 
-        {/* ── Left Sidebar / Mobile Drawer ── */}
+        {/* ‚îÄ‚îÄ Left Sidebar / Mobile Drawer ‚îÄ‚îÄ */}
         <div className={`gg-sidebar${isMobile && sidebarOpen ? " open" : ""}`}
           style={{ width:224, flexShrink:0, background:P.navy, borderRight:`1px solid rgba(255,255,255,0.07)`, display:"flex", flexDirection:"column", padding:"20px 14px", overflowY:"auto", position: isMobile ? "fixed" : "sticky", top: isMobile ? "52px" : 0, height: isMobile ? "calc(100vh - 52px)" : "calc(100vh)", alignSelf:"flex-start", zIndex: isMobile ? 200 : "auto" }}>
 
@@ -4372,7 +4375,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
           )}
 
 
-          {/* ── Projects section ── */}
+          {/* ‚îÄ‚îÄ Projects section ‚îÄ‚îÄ */}
           <div style={{ marginTop:"18px" }}>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"8px", paddingLeft:"4px" }}>
               <span style={{ fontSize:"15px", fontWeight:700, color:P.white, letterSpacing:"0.03em", textTransform:"uppercase" }}>Projects</span>
@@ -4401,13 +4404,13 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 </div>
                 <div style={{ minWidth:0, flex:1 }}>
                   <div style={{ fontSize:"15px", fontWeight:800, color:P.white, fontFamily:font, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{eventName || "Unsaved Project"}</div>
-                  <div style={{ fontSize:"14px", color:P.accent, fontFamily:font }}>{results ? `${results.length} guests · ${results.filter(r=>r.status!=="ok").length} flags` : "Active"}</div>
+                  <div style={{ fontSize:"14px", color:P.accent, fontFamily:font }}>{results ? `${results.length} guests ¬∑ ${results.filter(r=>r.status!=="ok").length} flags` : "Active"}</div>
                 </div>
                 <span style={{ fontSize:"14px", background:P.accent, color:P.navy, padding:"2px 6px", borderRadius:"20px", fontFamily:font, fontWeight:800, flexShrink:0 }}>Active</span>
               </div>
             )}
 
-            {/* Saved projects — most recent first */}
+            {/* Saved projects ‚Äî most recent first */}
             {savedSessions.length > 0 && (
               <div style={{ marginTop:"4px" }}>
                 {savedSessions.map((s, idx) => {
@@ -4424,14 +4427,14 @@ function GroupGrid({ user, onLogin, onLogout }) {
                       </div>
                       <div style={{ minWidth:0, flex:1 }}>
                         <div style={{ fontSize:"15px", fontWeight:800, color:P.white, fontFamily:font, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.name}</div>
-                        <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.4)", fontFamily:font }}>{s.guestCount} guests · {s.issueCount} flags</div>
+                        <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.4)", fontFamily:font }}>{s.guestCount} guests ¬∑ {s.issueCount} flags</div>
                       </div>
-                      {results && <button onClick={e => { e.stopPropagation(); setCompareSession(s); setShowDiff(true); setActiveTab("grid"); }} style={{ background:"rgba(255,255,255,0.12)", border:`1px solid rgba(255,255,255,0.2)`, borderRadius:"5px", padding:"2px 7px", fontSize:"11px", color:P.white, fontWeight:700, fontFamily:font, cursor:"pointer", marginRight:"4px" }}>↔ Diff</button>}
+                      {results && <button onClick={e => { e.stopPropagation(); setCompareSession(s); setShowDiff(true); setActiveTab("grid"); }} style={{ background:"rgba(255,255,255,0.12)", border:`1px solid rgba(255,255,255,0.2)`, borderRadius:"5px", padding:"2px 7px", fontSize:"11px", color:P.white, fontWeight:700, fontFamily:font, cursor:"pointer", marginRight:"4px" }}>‚Üî Diff</button>}
                       <button onClick={e => { e.stopPropagation(); setSavedSessions(prev => { const next = prev.filter(x => x.id !== s.id); try { storage.set(storageKey, JSON.stringify(next)); } catch(ex) {} return next; }); }}
                         style={{ background:"transparent", border:"none", color:"rgba(255,255,255,0.2)", fontSize:"14px", cursor:"pointer", padding:"2px 4px", flexShrink:0, lineHeight:1, borderRadius:"4px" }}
                         onMouseEnter={e => { e.currentTarget.style.color = P.red; e.currentTarget.style.background = "rgba(192,57,43,0.2)"; }}
                         onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.2)"; e.currentTarget.style.background = "transparent"; }}
-                        title="Remove">✕</button>
+                        title="Remove">‚úï</button>
                     </button>
                   );
                 })}
@@ -4450,7 +4453,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
             )}
           </div>
 
-          {/* Navigation — only shown after results */}
+          {/* Navigation ‚Äî only shown after results */}
           {results && <>
             <div style={{ width:"100%", height:1, background:"rgba(255,255,255,0.08)", margin:"4px 0 14px" }} />
             <div style={{ fontSize:"14px", fontWeight:600, color:"rgba(255,255,255,0.5)", letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"8px", paddingLeft:"2px" }}>Views</div>
@@ -4472,11 +4475,11 @@ function GroupGrid({ user, onLogin, onLogout }) {
             <div style={{ width:"100%", height:1, background:"rgba(255,255,255,0.08)", margin:"14px 0" }} />
             <div style={{ fontSize:"14px", fontWeight:600, color:"rgba(255,255,255,0.5)", letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"8px", paddingLeft:"2px" }}>Filters</div>
             {[
-              { k:"all", icon:"◉", label:"All Guests", count: results.length },
-              { k:"issues", icon:"⚑", label:"Action Needed", count: results.filter(r=>r.status!=="ok").length, color:P.red },
-              { k:"ok", icon:"✓", label:"Aligned", count: results.filter(r=>r.status==="ok").length, color:P.accent },
-              { k:"missing", icon:"○", label:"Missing Records", count: results.filter(r=>r.issues.some(x=>x.type==="missing")).length, color:P.amber },
-              { k:"window", icon:"🗓", label:"Outside Window", count: results.filter(r=>r.issues.some(x=>x.type==="window")).length, color:"#C4A0F0" },
+              { k:"all", icon:"‚óâ", label:"All Guests", count: results.length },
+              { k:"issues", icon:"‚öë", label:"Action Needed", count: results.filter(r=>r.status!=="ok").length, color:P.red },
+              { k:"ok", icon:"‚úì", label:"Aligned", count: results.filter(r=>r.status==="ok").length, color:P.accent },
+              { k:"missing", icon:"‚óã", label:"Missing Records", count: results.filter(r=>r.issues.some(x=>x.type==="missing")).length, color:P.amber },
+              { k:"window", icon:"üóì", label:"Outside Window", count: results.filter(r=>r.issues.some(x=>x.type==="window")).length, color:"#C4A0F0" },
               { k:"duplicate", icon:<AlertCircle size={13} strokeWidth={1.5}/>, label:"Duplicates", count: results.filter(r=>r.issues.some(x=>x.type==="duplicate")).length, color:"#FF8A65" },
             ].map(({ k, icon, label, count, color }) => (
               <button key={k} onClick={() => { setFilter(k); setActiveTab("grid"); if (isMobile) setSidebarOpen(false); }}
@@ -4494,14 +4497,14 @@ function GroupGrid({ user, onLogin, onLogout }) {
             <button onClick={exportReport} style={{ width:"100%", display:"flex", alignItems:"center", gap:"8px", background:"transparent", border:`1.5px solid rgba(255,255,255,0.12)`, borderRadius:"9px", padding:"7px 10px", cursor:"pointer", marginBottom:"6px", fontFamily:font }}
               onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.08)"}
               onMouseLeave={e => e.currentTarget.style.background="transparent"}>
-              <span style={{ fontSize:"15px" }}>⬇</span>
+              <span style={{ fontSize:"15px" }}>‚¨á</span>
               <span style={{ fontSize:"15px", fontWeight:700, color:"rgba(255,255,255,0.75)" }}>Download Excel</span>
             </button>
             {contacts.hotel.email && (
               <button onClick={() => exportToContact("hotel")} style={{ width:"100%", display:"flex", alignItems:"center", gap:"8px", background:"transparent", border:`1.5px solid rgba(255,255,255,0.12)`, borderRadius:"9px", padding:"7px 10px", cursor:"pointer", marginBottom:"6px", fontFamily:font }}
                 onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.08)"}
                 onMouseLeave={e => e.currentTarget.style.background="transparent"}>
-                <span style={{ fontSize:"15px" }}>🏨</span>
+                <span style={{ fontSize:"15px" }}>üè®</span>
                 <span style={{ fontSize:"15px", fontWeight:700, color:"rgba(255,255,255,0.75)", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>Send to {contacts.hotel.name||"Hotel"}</span>
               </button>
             )}
@@ -4509,7 +4512,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
               <button onClick={() => exportToContact("travel")} style={{ width:"100%", display:"flex", alignItems:"center", gap:"8px", background:"transparent", border:`1.5px solid rgba(255,255,255,0.12)`, borderRadius:"9px", padding:"7px 10px", cursor:"pointer", marginBottom:"6px", fontFamily:font }}
                 onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.08)"}
                 onMouseLeave={e => e.currentTarget.style.background="transparent"}>
-                <span style={{ fontSize:"15px" }}>✈</span>
+                <span style={{ fontSize:"15px" }}>‚úà</span>
                 <span style={{ fontSize:"15px", fontWeight:700, color:P.white, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>Send to {contacts.travel.name||"Travel Agency"}</span>
               </button>
             )}
@@ -4522,24 +4525,28 @@ function GroupGrid({ user, onLogin, onLogout }) {
           </>}
         </div>
 
-        {/* ── Main Content ── */}
+        {/* ‚îÄ‚îÄ Main Content ‚îÄ‚îÄ */}
         <div className="gg-main" style={{ flex:1, minWidth:0, padding:isMobile ? "16px 14px" : "24px 28px", overflowY:"auto" }}>
 
-        {/* ── Event Info TOP BAR (results state) — moved off the sidebar so the table gets full width ── */}
+        {/* ‚îÄ‚îÄ Event Info TOP BAR (results state) ‚Äî moved off the sidebar so the table gets full width ‚îÄ‚îÄ */}
         {results && (
-          <div className="gg-eventbar" style={{ display:"flex", alignItems:"center", gap:"12px", flexWrap:"wrap", background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"12px", padding:"10px 14px", marginBottom:"16px" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:"8px", flex:"1 1 220px", minWidth:0 }}>
-              <span style={{ width:3, height:18, background:P.accent, borderRadius:"2px", flexShrink:0 }} />
-              <input value={eventName} onChange={e => setEventName(e.target.value)} placeholder="Name your event"
-                style={{ flex:1, minWidth:0, background:"transparent", border:"none", fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font, outline:"none", padding:"4px 2px" }} />
+          <div className="gg-eventbar" style={{ display:"flex", alignItems:"center", gap:"12px", flexWrap:"wrap", background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"12px", padding:"12px 16px", marginBottom:"16px" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:"11px", flex:"1 1 200px", minWidth:0 }}>
+              <span style={{ width:4, height:34, background:P.accent, borderRadius:"3px", flexShrink:0 }} />
+              <div style={{ display:"flex", flexDirection:"column", minWidth:0, flex:1 }}>
+                <span style={{ fontSize:"11px", fontWeight:600, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"1px" }}>Event</span>
+                <input value={eventName} onChange={e => setEventName(e.target.value)} placeholder="Name your event"
+                  style={{ width:"100%", minWidth:0, background:"transparent", border:"none", fontSize:"22px", fontWeight:600, letterSpacing:"-0.02em", color:P.navy, fontFamily:font, outline:"none", padding:"0", lineHeight:1.15 }} />
+              </div>
             </div>
-            <div style={{ position:"relative" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:"8px", flexShrink:0 }}>
+            <div style={{ position:"relative", display:"flex" }}>
               <button onClick={() => setWindowOpen(!windowOpen)}
-                style={{ display:"inline-flex", alignItems:"center", gap:"7px", background:hasWindow?P.periwinkle+"14":P.grey50, border:`1.5px solid ${hasWindow?P.periwinkle+"55":P.grey100}`, borderRadius:"9px", padding:"8px 13px", fontSize:"13px", fontWeight:500, color:hasWindow?P.periwinkleD:P.grey600, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>
+                style={{ display:"inline-flex", alignItems:"center", gap:"7px", height:"36px", background:hasWindow?P.periwinkle+"14":P.grey50, border:`1.5px solid ${hasWindow?P.periwinkle+"55":P.grey100}`, borderRadius:"9px", padding:"0 13px", fontSize:"13px", fontWeight:500, color:hasWindow?P.periwinkleD:P.grey600, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>
                 {hasWindow ? "Dates set" : "Approved travel dates"} <Calendar size={14} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/>
               </button>
               {windowOpen && (
-                <div style={{ position:"absolute", top:"calc(100% + 6px)", left:0, zIndex:60, width:"260px", background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"12px", padding:"14px", boxShadow:"0 12px 32px rgba(15,29,53,0.16)" }}>
+                <div style={{ position:"absolute", top:"calc(100% + 6px)", right:0, zIndex:60, width:"260px", background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"12px", padding:"14px", boxShadow:"0 12px 32px rgba(15,29,53,0.16)" }}>
                   <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"10px", lineHeight:1.5 }}>Flag guests arriving or departing outside these dates.</div>
                   <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
                     {[
@@ -4563,13 +4570,14 @@ function GroupGrid({ user, onLogin, onLogout }) {
               )}
             </div>
             <button onClick={() => setContactsOpen(true)}
-              style={{ display:"inline-flex", alignItems:"center", gap:"7px", background:(contacts.hotel.email||contacts.travel.email)?P.accent+"14":P.grey50, border:`1.5px solid ${(contacts.hotel.email||contacts.travel.email)?P.accent+"55":P.grey100}`, borderRadius:"9px", padding:"8px 13px", fontSize:"13px", fontWeight:500, color:(contacts.hotel.email||contacts.travel.email)?P.accentD:P.grey600, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>
+              style={{ display:"inline-flex", alignItems:"center", gap:"7px", height:"36px", background:(contacts.hotel.email||contacts.travel.email)?P.accent+"14":P.grey50, border:`1.5px solid ${(contacts.hotel.email||contacts.travel.email)?P.accent+"55":P.grey100}`, borderRadius:"9px", padding:"0 13px", fontSize:"13px", fontWeight:500, color:(contacts.hotel.email||contacts.travel.email)?P.accentD:P.grey600, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>
               {(contacts.hotel.email||contacts.travel.email) ? "Contacts added" : "Contacts"} <Users size={14} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/>
             </button>
+            </div>
           </div>
         )}
 
-        {/* ── Upload hero — full size when no results, compact strip when results exist ── */}
+        {/* ‚îÄ‚îÄ Upload hero ‚Äî full size when no results, compact strip when results exist ‚îÄ‚îÄ */}
         {!results ? (
           <SetupScreen
             eventName={eventName} setEventName={setEventName}
@@ -4598,11 +4606,11 @@ function GroupGrid({ user, onLogin, onLogout }) {
               {!isMobile && <div style={{ width:1, height:32, background:P.grey100, flexShrink:0 }} />}
               <button onClick={runCheck} disabled={!ready || loading}
                 style={{ background:ready&&!loading?P.accent:P.grey100, color:ready&&!loading?P.white:P.grey400, border:"none", borderRadius:"7px", padding:"7px 16px", fontSize:"14px", fontWeight:600, fontFamily:font, cursor:ready&&!loading?"pointer":"not-allowed", transition:"all 0.18s", flexShrink:0, whiteSpace:"nowrap", boxShadow:ready&&!loading?"0 1px 6px rgba(0,201,177,0.3)":"none", gridColumn: isMobile ? "1 / -1" : "auto" }}>
-                {loading ? "Checking…" : "Re-run Check"}
+                {loading ? "Checking‚Ä¶" : "Re-run Check"}
               </button>
             </div>
             {error && <div style={{ fontSize:"13px", color:P.red, fontFamily:font, background:P.redLight, borderRadius:"8px", padding:"5px 10px", marginTop:"8px" }}>{error}</div>}
-            {results && <div style={{ fontSize:"13px", color:P.green, fontFamily:font, fontWeight:600, marginTop:"8px", textAlign: isMobile ? "center" : "right" }}>{results.length} guests · {results.filter(r=>r.status!=="ok").length} flags found</div>}
+            {results && <div style={{ fontSize:"13px", color:P.green, fontFamily:font, fontWeight:600, marginTop:"8px", textAlign: isMobile ? "center" : "right" }}>{results.length} guests ¬∑ {results.filter(r=>r.status!=="ok").length} flags found</div>}
           </div>
         )}
 
@@ -4619,23 +4627,23 @@ function GroupGrid({ user, onLogin, onLogout }) {
                   <div style={{ background:P.white, border:`1.5px solid ${P.periwinkle}44`, borderRadius:"12px", padding:"16px 20px", marginBottom:"16px" }}>
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"12px" }}>
                       <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
-                        <span style={{ fontSize:"15px", fontWeight:800, color:P.navy, fontFamily:font }}>↔ Changes vs "{compareSession.name}"</span>
+                        <span style={{ fontSize:"15px", fontWeight:800, color:P.navy, fontFamily:font }}>‚Üî Changes vs "{compareSession.name}"</span>
                         <span style={{ fontSize:"13px", color:P.grey400, fontFamily:font }}>{new Date(compareSession.date).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</span>
                       </div>
-                      <button onClick={() => { setShowDiff(false); setCompareSession(null); }} style={{ background:"transparent", border:"none", color:P.grey400, cursor:"pointer", fontSize:"18px", lineHeight:1 }}>×</button>
+                      <button onClick={() => { setShowDiff(false); setCompareSession(null); }} style={{ background:"transparent", border:"none", color:P.grey400, cursor:"pointer", fontSize:"18px", lineHeight:1 }}>√ó</button>
                     </div>
                     <div style={{ display:"flex", gap:"12px", flexWrap:"wrap" }}>
                       {[
                         { label:"New guests", val:diff.added.length, color:P.green, bg:P.greenLight, items:diff.added.map(r=>r.displayName) },
                         { label:"Removed", val:diff.removed.length, color:P.red, bg:P.redLight, items:diff.removed.map(r=>r.displayName) },
-                        { label:"Issues changed", val:diff.changed.length, color:P.amber, bg:P.amberLight, items:diff.changed.map(d=>`${d.curr.displayName}: ${d.prev.issues.map(x=>x.text).join(", ")||"none"} → ${d.curr.issues.map(x=>x.text).join(", ")||"none"}`) },
+                        { label:"Issues changed", val:diff.changed.length, color:P.amber, bg:P.amberLight, items:diff.changed.map(d=>`${d.curr.displayName}: ${d.prev.issues.map(x=>x.text).join(", ")||"none"} ‚Üí ${d.curr.issues.map(x=>x.text).join(", ")||"none"}`) },
                         { label:"Unchanged", val:diff.unchanged.length, color:P.grey400, bg:P.grey50, items:[] },
                       ].map(({label,val,color,bg,items}) => (
                         <div key={label} style={{ background:bg, border:`1px solid ${color}33`, borderRadius:"8px", padding:"10px 14px", minWidth:"110px" }}>
                           <div style={{ fontSize:"22px", fontWeight:900, color, fontFamily:font }}>{val}</div>
                           <div style={{ fontSize:"13px", fontWeight:600, color, fontFamily:font }}>{label}</div>
-                          {items.length > 0 && items.length <= 5 && <div style={{ marginTop:"6px", fontSize:"12px", color, fontFamily:font, lineHeight:1.6 }}>{items.map((x,i)=><div key={i} style={{ opacity:0.8 }}>• {x}</div>)}</div>}
-                          {items.length > 5 && <div style={{ marginTop:"6px", fontSize:"12px", color, fontFamily:font, opacity:0.8 }}>• {items[0]}<br/>• {items[1]}<br/>+{items.length-2} more</div>}
+                          {items.length > 0 && items.length <= 5 && <div style={{ marginTop:"6px", fontSize:"12px", color, fontFamily:font, lineHeight:1.6 }}>{items.map((x,i)=><div key={i} style={{ opacity:0.8 }}>‚Ä¢ {x}</div>)}</div>}
+                          {items.length > 5 && <div style={{ marginTop:"6px", fontSize:"12px", color, fontFamily:font, opacity:0.8 }}>‚Ä¢ {items[0]}<br/>‚Ä¢ {items[1]}<br/>+{items.length-2} more</div>}
                         </div>
                       ))}
                     </div>
@@ -4658,7 +4666,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
             <div style={{ background:P.white, borderRadius:"10px", padding:"22px", boxShadow:"0 1px 2px rgba(15,29,53,0.05)", border:`1px solid ${P.grey100}` }}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"20px" }}>
                 <div>
-                  <h2 style={{ fontFamily:font, fontSize:"18px", fontWeight:900, color:P.navy, margin:"0 0 3px" }}>{eventName||"Event"} — Summary</h2>
+                  <h2 style={{ fontFamily:font, fontSize:"18px", fontWeight:900, color:P.navy, margin:"0 0 3px" }}>{eventName||"Event"} ‚Äî Summary</h2>
                   <div style={{ fontSize:"14px", color:P.navyLight, fontFamily:font }}>{new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}</div>
                 </div>
                 <div style={{ display:"flex", gap:"8px", alignItems:"center", flexWrap:"wrap" }}>
@@ -4685,12 +4693,12 @@ function GroupGrid({ user, onLogin, onLogout }) {
               </div>
               {counts.error > 0 && (
                 <div>
-                  <div style={{ fontWeight:800, fontSize:"15px", color:P.red, fontFamily:font, marginBottom:"8px" }}>⚑ Guests Requiring Action</div>
+                  <div style={{ fontWeight:800, fontSize:"15px", color:P.red, fontFamily:font, marginBottom:"8px" }}>‚öë Guests Requiring Action</div>
                   {results.filter(r=>r.status==="error").map((r,i) => (
                     <div key={i} style={{ background:P.redLight, borderRadius:"10px", padding:"10px 14px", display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"6px" }}>
                       <div>
                         <div style={{ fontWeight:700, fontSize:"14px", color:P.navy, fontFamily:font }}>{r.firstName} {r.lastName}</div>
-                        <div style={{ fontSize:"15px", color:P.red, fontFamily:font, marginTop:"2px" }}>{r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join(" · ")}</div>
+                        <div style={{ fontSize:"15px", color:P.red, fontFamily:font, marginTop:"2px" }}>{r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join(" ¬∑ ")}</div>
                       </div>
                       <Btn onClick={() => setEmailModal(r)} small outline color={P.red}>Draft <Mail size={12} strokeWidth={2} style={{verticalAlign:"-2px"}}/></Btn>
                     </div>
@@ -4711,12 +4719,12 @@ function GroupGrid({ user, onLogin, onLogout }) {
             <div style={{ display:"flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", gap:"10px", marginBottom:"12px" }}>
               {/* Search */}
               <div style={{ position:"relative", flex:1 }}>
-                <input placeholder="Search by name or email…" value={search} onChange={e => setSearch(e.target.value)}
+                <input placeholder="Search by name or email‚Ä¶" value={search} onChange={e => setSearch(e.target.value)}
                   style={{ width:"100%", background:P.white, border:`1.5px solid ${P.grey200}`, borderRadius:"10px", padding:"10px 12px 10px 34px", color:P.navy, fontSize:"15px", fontFamily:font, outline:"none", boxSizing:"border-box" }} />
-                <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:P.navyLight, fontSize:"14px", pointerEvents:"none" }}>🔍</span>
-                {search && <button onClick={() => setSearch("")} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"transparent", border:"none", color:P.navyLight, fontSize:"15px", cursor:"pointer" }}>✕</button>}
+                <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:P.navyLight, fontSize:"14px", pointerEvents:"none" }}>üîç</span>
+                {search && <button onClick={() => setSearch("")} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"transparent", border:"none", color:P.navyLight, fontSize:"15px", cursor:"pointer" }}>‚úï</button>}
               </div>
-              {/* Filter pills — hidden on mobile (use sidebar) */}
+              {/* Filter pills ‚Äî hidden on mobile (use sidebar) */}
               {!isMobile && (
                 <div style={{ display:"flex", gap:"5px", flexWrap:"wrap" }}>
                   {[
@@ -4734,14 +4742,14 @@ function GroupGrid({ user, onLogin, onLogout }) {
                   ))}
                 </div>
               )}
-              {/* Sort — full width row on mobile */}
+              {/* Sort ‚Äî full width row on mobile */}
               <div style={{ display:"flex", gap:"8px", alignItems:"center" }}>
               <select value={sortBy||""} onChange={e => { setSortBy(e.target.value||null); setSortDir("asc"); }}
                 style={{ background:P.white, border:`1.5px solid ${P.grey200}`, borderRadius:"8px", padding:"8px 10px", fontSize:"14px", fontWeight:700, fontFamily:font, color:P.navy, cursor:"pointer", outline:"none", flex: isMobile ? 1 : "none" }}>
-                <option value="">Sort by…</option>
-                <option value="lastName">Last Name A→Z</option>
-                <option value="firstName">First Name A→Z</option>
-                <option value="email">Email A→Z</option>
+                <option value="">Sort by‚Ä¶</option>
+                <option value="lastName">Last Name A‚ÜíZ</option>
+                <option value="firstName">First Name A‚ÜíZ</option>
+                <option value="email">Email A‚ÜíZ</option>
                 <option value="status">Status</option>
                 <option value="arrival">Arrival Date</option>
                 <option value="checkin">Check-In</option>
@@ -4752,7 +4760,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
               {sortBy && (
                 <button onClick={() => setSortDir(d => d==="asc"?"desc":"asc")}
                   style={{ background:P.navy, border:"none", borderRadius:"8px", padding:"8px 10px", fontSize:"14px", fontWeight:700, fontFamily:font, color:P.white, cursor:"pointer" }}>
-                  {sortDir === "asc" ? "↑ Asc" : "↓ Desc"}
+                  {sortDir === "asc" ? "‚Üë Asc" : "‚Üì Desc"}
                 </button>
               )}
               <span style={{ fontSize:"14px", color:P.navyLight, fontFamily:font, whiteSpace:"nowrap" }}>{displayRows.length} guests</span>
@@ -4764,20 +4772,20 @@ function GroupGrid({ user, onLogin, onLogout }) {
               {/* Select all */}
               <label style={{ display:"flex", alignItems:"center", gap:"7px", cursor:"pointer", flexShrink:0 }}>
                 <div onClick={toggleSelectAll} style={{ width:18, height:18, borderRadius:"5px", border:`2px solid ${allSelected?P.accent:someSelected?P.accent:P.grey300}`, background:allSelected?P.accent:someSelected?P.accent+"33":P.white, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0, transition:"all 0.15s" }}>
-                  {allSelected && <span style={{ color:P.white, fontSize:"15px", fontWeight:900, lineHeight:1 }}>✓</span>}
-                  {!allSelected && someSelected && <span style={{ color:P.periwinkleD, fontSize:"14px", fontWeight:900, lineHeight:1 }}>—</span>}
+                  {allSelected && <span style={{ color:P.white, fontSize:"15px", fontWeight:900, lineHeight:1 }}>‚úì</span>}
+                  {!allSelected && someSelected && <span style={{ color:P.periwinkleD, fontSize:"14px", fontWeight:900, lineHeight:1 }}>‚Äî</span>}
                 </div>
                 <span style={{ fontSize:"13px", fontWeight:700, color:P.navy, fontFamily:font, whiteSpace:"nowrap" }}>
                   {someSelected ? `${selCount} selected` : `Select all`}
                 </span>
               </label>
               <div style={{ width:1, height:20, background:P.grey100, flexShrink:0 }} />
-              {/* Excel export — PRIMARY */}
+              {/* Excel export ‚Äî PRIMARY */}
               <button onClick={exportSelected}
                 style={{ display:"flex", alignItems:"center", gap:"5px", background:P.accent, border:"none", borderRadius:"7px", padding:"5px 13px", fontSize:"13px", fontWeight:700, fontFamily:font, color:P.white, cursor:"pointer", transition:"all 0.15s", whiteSpace:"nowrap", flexShrink:0, boxShadow:"0 1px 6px rgba(0,201,177,0.3)" }}>
                 {someSelected ? `Export ${selCount} to Excel` : "Export to Excel"} <FileSpreadsheet size={13} strokeWidth={1.8} style={{verticalAlign:"-2px",marginLeft:"4px"}}/>
               </button>
-              {/* Email selected — send messages without leaving the cross-check tab */}
+              {/* Email selected ‚Äî send messages without leaving the cross-check tab */}
               {someSelected && (() => {
                 const emailable = displayRows.filter(r => selectedRows.has(r.key) && r.email && (r.issues||[]).filter(x=>!(r.resolved||[]).includes(x.text)).length > 0);
                 return (
@@ -4788,7 +4796,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                   </button>
                 );
               })()}
-              {/* Share HTML Report — SECONDARY */}
+              {/* Share HTML Report ‚Äî SECONDARY */}
               <button onClick={generateShareableReport}
                 style={{ display:"flex", alignItems:"center", gap:"5px", background:P.offWhite, border:`1.5px solid ${P.grey200}`, borderRadius:"7px", padding:"5px 12px", fontSize:"13px", fontWeight:600, fontFamily:font, color:P.grey600, cursor:"pointer", flexShrink:0, whiteSpace:"nowrap" }}>
                 Share HTML Report <Send size={12} strokeWidth={1.5} style={{verticalAlign:"-2px",marginLeft:"4px"}}/>
@@ -4832,12 +4840,12 @@ function GroupGrid({ user, onLogin, onLogout }) {
               return (
             <div style={{ background:P.white, borderRadius:"10px", boxShadow:"0 1px 2px rgba(15,29,53,0.06), 0 4px 12px rgba(15,29,53,0.05)", border:`1px solid ${P.grey100}`, overflow:"hidden" }}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", borderBottom:`1px solid ${P.grey100}`, background:P.grey50 }}>
-                <span style={{ fontSize:"12px", color:P.grey400, fontFamily:font }}>Scroll to see all columns →</span>
+                <span style={{ fontSize:"12px", color:P.grey400, fontFamily:font }}>Scroll to see all columns ‚Üí</span>
                 <div style={{ display:"flex", gap:"6px" }}>
                   <button onClick={() => { if (tableScrollRef.current) tableScrollRef.current.scrollBy({ left:-320, behavior:"smooth" }); }}
-                    style={{ width:"30px", height:"28px", borderRadius:"7px", border:`1px solid ${P.grey200}`, background:P.white, color:P.grey600, cursor:"pointer", fontSize:"14px", display:"flex", alignItems:"center", justifyContent:"center" }} title="Scroll left">‹</button>
+                    style={{ width:"30px", height:"28px", borderRadius:"7px", border:`1px solid ${P.grey200}`, background:P.white, color:P.grey600, cursor:"pointer", fontSize:"14px", display:"flex", alignItems:"center", justifyContent:"center" }} title="Scroll left">‚Äπ</button>
                   <button onClick={() => { if (tableScrollRef.current) tableScrollRef.current.scrollBy({ left:320, behavior:"smooth" }); }}
-                    style={{ width:"30px", height:"28px", borderRadius:"7px", border:`1px solid ${P.grey200}`, background:P.white, color:P.grey600, cursor:"pointer", fontSize:"14px", display:"flex", alignItems:"center", justifyContent:"center" }} title="Scroll right">›</button>
+                    style={{ width:"30px", height:"28px", borderRadius:"7px", border:`1px solid ${P.grey200}`, background:P.white, color:P.grey600, cursor:"pointer", fontSize:"14px", display:"flex", alignItems:"center", justifyContent:"center" }} title="Scroll right">‚Ä∫</button>
                 </div>
               </div>
               <div className="gg-table-wrap" ref={tableScrollRef} onScroll={e => setTableScrollTop(e.currentTarget.scrollTop)}
@@ -4848,8 +4856,8 @@ function GroupGrid({ user, onLogin, onLogout }) {
                       {/* Checkbox column */}
                       <th style={{ padding:"10px 8px 10px 14px", width:"32px" }}>
                         <div onClick={toggleSelectAll} style={{ width:16, height:16, borderRadius:"4px", border:`2px solid ${allSelected?"white":someSelected?"rgba(255,255,255,0.6)":"rgba(255,255,255,0.3)"}`, background:allSelected?"white":someSelected?"rgba(255,255,255,0.2)":"transparent", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", transition:"all 0.15s" }}>
-                          {allSelected && <span style={{ color:P.navy, fontSize:"15px", fontWeight:900, lineHeight:1 }}>✓</span>}
-                          {!allSelected && someSelected && <span style={{ color:"white", fontSize:"8px", fontWeight:900, lineHeight:1 }}>—</span>}
+                          {allSelected && <span style={{ color:P.navy, fontSize:"15px", fontWeight:900, lineHeight:1 }}>‚úì</span>}
+                          {!allSelected && someSelected && <span style={{ color:"white", fontSize:"8px", fontWeight:900, lineHeight:1 }}>‚Äî</span>}
                         </div>
                       </th>
                       {[
@@ -4859,19 +4867,19 @@ function GroupGrid({ user, onLogin, onLogout }) {
                         { l:"Status",    col:"status" },
                         { l:"Arrival",   col:"arrival" },
                         { l:"Check-In",  col:"checkin" },
-                        { l:"Δ",         col:null },
+                        { l:"Œî",         col:null },
                         { l:"Departure", col:"departure" },
                         { l:"Check-Out", col:"checkout" },
-                        { l:"Δ",         col:null },
+                        { l:"Œî",         col:null },
                         ...(hasHotelNames?[{l:"Hotel",col:"hotel"}]:[]),
-                        ...(hasCars?[{l:"Pickup",col:null},{l:"Dropoff",col:null},{l:"Δ",col:null}]:[]),
+                        ...(hasCars?[{l:"Pickup",col:null},{l:"Dropoff",col:null},{l:"Œî",col:null}]:[]),
                         ...(hasDiet?[{l:"Dietary",col:null}]:[]),
                         { l:"Flags",     col:"flags" },
                         { l:"Note",      col:"note" },
                       ].map((h, i) => (
                         <th key={i} onClick={h.col ? () => toggleSort(h.col) : undefined}
                           style={{ padding:"10px 12px", textAlign:"left", fontSize:"14px", fontWeight:800, color: sortBy===h.col?"white":"rgba(255,255,255,0.55)", letterSpacing:"0.1em", textTransform:"uppercase", width:h.w, whiteSpace:"nowrap", fontFamily:font, cursor:h.col?"pointer":"default", userSelect:"none", transition:"color 0.15s" }}>
-                          {h.l}{sortBy===h.col ? (sortDir==="asc"?" ↑":" ↓") : h.col ? " ↕" : ""}
+                          {h.l}{sortBy===h.col ? (sortDir==="asc"?" ‚Üë":" ‚Üì") : h.col ? " ‚Üï" : ""}
                         </th>
                       ))}
                     </tr>
@@ -4895,7 +4903,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                             {/* Row checkbox */}
                             <td style={{ padding:"10px 8px 10px 14px" }} onClick={e => { e.stopPropagation(); toggleSelectRow(r.key); }}>
                               <div style={{ width:16, height:16, borderRadius:"4px", border:`2px solid ${isSel?P.accent:P.grey200}`, background:isSel?P.accent:P.white, display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.15s" }}>
-                                {isSel && <span style={{ color:P.white, fontSize:"15px", fontWeight:900, lineHeight:1 }}>✓</span>}
+                                {isSel && <span style={{ color:P.white, fontSize:"15px", fontWeight:900, lineHeight:1 }}>‚úì</span>}
                               </div>
                             </td>
                             {/* First Name */}
@@ -4908,22 +4916,22 @@ function GroupGrid({ user, onLogin, onLogout }) {
                             </td>
                             {/* Last Name */}
                             <td style={{ padding:"10px 12px", fontWeight:700, color:P.navy, fontSize:"14px", fontFamily:font }} onClick={() => setExpanded(isExp ? null : r.key)}>
-                              {r.lastName || r.displayName.split(" ").slice(1).join(" ") || "—"}
+                              {r.lastName || r.displayName.split(" ").slice(1).join(" ") || "‚Äî"}
                             </td>
                             {/* Email */}
                             <td style={{ padding:"10px 12px", fontSize:"15px", color:r.email?P.grey600:P.grey200, fontFamily:font }} onClick={() => setExpanded(isExp ? null : r.key)}>
-                              {r.email || "—"}
+                              {r.email || "‚Äî"}
                             </td>
                             <td style={{ padding:"10px 12px" }}><StatusChip status={r.status} /></td>
-                            <td style={{ padding:"10px 12px", color:r.flight?P.grey600:P.red, fontSize:"15px", fontFamily:font, fontWeight:r.flight?500:700 }}>{r.flight ? fmt(r.flight.flightArrival) : "⚠ Missing"}</td>
-                            <td style={{ padding:"10px 12px", color:r.hotel?P.grey600:P.red, fontSize:"15px", fontFamily:font, fontWeight:r.hotel?500:700 }}>{r.hotel ? fmt(r.hotel.checkIn) : "⚠ Missing"}</td>
+                            <td style={{ padding:"10px 12px", color:r.flight?P.grey600:P.red, fontSize:"15px", fontFamily:font, fontWeight:r.flight?500:700 }}>{r.flight ? fmt(r.flight.flightArrival) : "‚ö† Missing"}</td>
+                            <td style={{ padding:"10px 12px", color:r.hotel?P.grey600:P.red, fontSize:"15px", fontFamily:font, fontWeight:r.hotel?500:700 }}>{r.hotel ? fmt(r.hotel.checkIn) : "‚ö† Missing"}</td>
                             <td style={{ padding:"10px 12px", textAlign:"center" }}><Delta val={r.details?.arrDiff} /></td>
-                            <td style={{ padding:"10px 12px", color:r.flight?P.grey600:P.red, fontSize:"15px", fontFamily:font, fontWeight:r.flight?500:700 }}>{r.flight ? fmt(r.flight.flightDeparture) : "⚠ Missing"}</td>
-                            <td style={{ padding:"10px 12px", color:r.hotel?P.grey600:P.red, fontSize:"15px", fontFamily:font, fontWeight:r.hotel?500:700 }}>{r.hotel ? fmt(r.hotel.checkOut) : "⚠ Missing"}</td>
+                            <td style={{ padding:"10px 12px", color:r.flight?P.grey600:P.red, fontSize:"15px", fontFamily:font, fontWeight:r.flight?500:700 }}>{r.flight ? fmt(r.flight.flightDeparture) : "‚ö† Missing"}</td>
+                            <td style={{ padding:"10px 12px", color:r.hotel?P.grey600:P.red, fontSize:"15px", fontFamily:font, fontWeight:r.hotel?500:700 }}>{r.hotel ? fmt(r.hotel.checkOut) : "‚ö† Missing"}</td>
                             <td style={{ padding:"10px 12px", textAlign:"center" }}><Delta val={r.details?.depDiff} /></td>
                             {hasHotelNames && (() => {
                               const wrongHotel = (r.issues||[]).some(x => x.text && x.text.includes("but assigned to"));
-                              return <td style={{ padding:"10px 12px", color:wrongHotel?P.red:P.navy, fontSize:"15px", fontFamily:font, fontWeight:wrongHotel?600:500, whiteSpace:"nowrap" }}>{r.hotel?.hotel ? (wrongHotel ? "⚠ "+r.hotel.hotel : r.hotel.hotel) : "—"}</td>;
+                              return <td style={{ padding:"10px 12px", color:wrongHotel?P.red:P.navy, fontSize:"15px", fontFamily:font, fontWeight:wrongHotel?600:500, whiteSpace:"nowrap" }}>{r.hotel?.hotel ? (wrongHotel ? "‚ö† "+r.hotel.hotel : r.hotel.hotel) : "‚Äî"}</td>;
                             })()}
                             {hasCars && <>
                               <td style={{ padding:"10px 12px", color:P.navy, fontSize:"15px", fontFamily:font }}>{fmt(r.car?.pickupDate)}</td>
@@ -4931,20 +4939,20 @@ function GroupGrid({ user, onLogin, onLogout }) {
                               <td style={{ padding:"10px 12px", textAlign:"center" }}><Delta val={r.details?.pickupDiff} /></td>
                             </>}
                             {hasDiet && <td style={{ padding:"10px 12px" }}>
-                              {r.diet?.dietary ? <span style={{ background:P.tealLight, color:P.teal, fontSize:"15px", fontWeight:700, padding:"2px 8px", borderRadius:"20px", fontFamily:font }}>{r.diet.dietary.slice(0,16)}{r.diet.dietary.length>16?"…":""}</span> : <span style={{ color:P.grey400 }}>—</span>}
+                              {r.diet?.dietary ? <span style={{ background:P.tealLight, color:P.teal, fontSize:"15px", fontWeight:700, padding:"2px 8px", borderRadius:"20px", fontFamily:font }}>{r.diet.dietary.slice(0,16)}{r.diet.dietary.length>16?"‚Ä¶":""}</span> : <span style={{ color:P.grey400 }}>‚Äî</span>}
                             </td>}
                             <td style={{ padding:"10px 12px" }}>
                               {activeIssues.length === 0
-                                ? <span style={{ color:P.grey200, fontSize:"15px" }}>—</span>
+                                ? <span style={{ color:P.grey200, fontSize:"15px" }}>‚Äî</span>
                                 : <div style={{ display:"flex", flexDirection:"column", gap:"2px" }}>
-                                    {activeIssues.some(x=>x.type==="missing") && <span style={{ color:P.amber, fontSize:"15px", fontWeight:700, fontFamily:font }}>○ missing</span>}
-                                    {activeIssues.some(x=>x.type==="window") && <span style={{ color:P.purple, fontSize:"15px", fontWeight:700, fontFamily:font }}>🗓 window</span>}
-                                    {activeIssues.some(x=>x.type==="mismatch") && <span style={{ color:P.red, fontSize:"15px", fontWeight:700, fontFamily:font }}>⚑ mismatch</span>}
-                                    {activeIssues.some(x=>x.type==="duplicate") && <span style={{ color:"#E65100", fontSize:"15px", fontWeight:700, fontFamily:font }}>⚠ dupe</span>}
+                                    {activeIssues.some(x=>x.type==="missing") && <span style={{ color:P.amber, fontSize:"15px", fontWeight:700, fontFamily:font }}>‚óã missing</span>}
+                                    {activeIssues.some(x=>x.type==="window") && <span style={{ color:P.purple, fontSize:"15px", fontWeight:700, fontFamily:font }}>üóì window</span>}
+                                    {activeIssues.some(x=>x.type==="mismatch") && <span style={{ color:P.red, fontSize:"15px", fontWeight:700, fontFamily:font }}>‚öë mismatch</span>}
+                                    {activeIssues.some(x=>x.type==="duplicate") && <span style={{ color:"#E65100", fontSize:"15px", fontWeight:700, fontFamily:font }}>‚ö† dupe</span>}
                                   </div>}
                             </td>
                             <td style={{ padding:"10px 12px" }}>
-                              {r.note ? <span style={{ color:P.navy, fontSize:"15px", fontFamily:font, maxWidth:"90px", display:"block", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={r.note}>📝 {r.note}</span> : <span style={{ color:P.grey200, fontSize:"15px" }}>—</span>}
+                              {r.note ? <span style={{ color:P.navy, fontSize:"15px", fontFamily:font, maxWidth:"90px", display:"block", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={r.note}>üìù {r.note}</span> : <span style={{ color:P.grey200, fontSize:"15px" }}>‚Äî</span>}
                             </td>
                           </tr>
                           {isExp && (
@@ -4955,14 +4963,14 @@ function GroupGrid({ user, onLogin, onLogout }) {
                                     <Btn onClick={() => setEmailModal(r)} small color={P.accent}>Draft Email <Mail size={12} strokeWidth={2} style={{verticalAlign:"-2px"}}/></Btn>
                                     <div style={{ flex:1, display:"flex", alignItems:"center", gap:"8px" }}>
                                       <span style={{ fontSize:"15px", fontWeight:700, color:P.navyLight, fontFamily:font, flexShrink:0 }}>Note</span>
-                                      <input value={r.note||""} onChange={e => updateMeta(r,{note:e.target.value})} placeholder={user ? `Planner note — saved to ${user.name}'s account` : "Planner note — saved locally (sign in to sync)"} onClick={e => e.stopPropagation()}
+                                      <input value={r.note||""} onChange={e => updateMeta(r,{note:e.target.value})} placeholder={user ? `Planner note ‚Äî saved to ${user.name}'s account` : "Planner note ‚Äî saved locally (sign in to sync)"} onClick={e => e.stopPropagation()}
                                         style={{ flex:1, background:P.white, border:`1.5px solid ${r.note ? P.periwinkle+"66" : P.grey200}`, borderRadius:"9px", padding:"5px 12px", fontSize:"14px", fontFamily:font, color:P.navy, outline:"none" }} />
                                       {r.note && <span style={{ fontSize:"14px", color:P.green, fontFamily:font, fontWeight:700, flexShrink:0 }}>{user ? "synced" : "saved"}</span>}
                                     </div>
-                                    <span style={{ fontSize:"15px", color:P.navyLight, fontFamily:font }}>{r.matchedBy==="email"?"✉ email match":"👤 name match"}</span>
+                                    <span style={{ fontSize:"15px", color:P.navyLight, fontFamily:font }}>{r.matchedBy==="email"?"‚úâ email match":"üë§ name match"}</span>
                                   </div>
                                   <div className="gg-detail-grid" style={{ display:"grid", gridTemplateColumns:hasDiet?"1fr 1fr 1fr 1fr 1fr":"1fr 1fr 1fr 1fr", gap:"10px" }}>
-                                    <Card title="✈ Flight" color={P.periwinkleD}>
+                                    <Card title="‚úà Flight" color={P.periwinkleD}>
                                       {r.flight ? <>
                                         <DR label="Arrival" val={fmt(r.flight.flightArrival)} />
                                         <DR label="Departure" val={fmt(r.flight.flightDeparture)} />
@@ -4970,7 +4978,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                                         {r.flight.flightOut && <DR label="Outbound #" val={r.flight.flightOut} accent />}
                                         {r.flight.airport && <DR label="Airport" val={r.flight.airport} />}
                                         {r.flight.email && <DR label="Email" val={r.flight.email} />}
-                                      </> : <div style={{ background:P.amberLight, borderRadius:"8px", padding:"8px 10px", color:P.amber, fontSize:"15px", fontWeight:700, fontFamily:font }}>○ Not in flight manifest</div>}
+                                      </> : <div style={{ background:P.amberLight, borderRadius:"8px", padding:"8px 10px", color:P.amber, fontSize:"15px", fontWeight:700, fontFamily:font }}>‚óã Not in flight manifest</div>}
                                     </Card>
                                     <Card title="Hotel" color={P.navy}>
                                       {r.hotel ? <>
@@ -4979,7 +4987,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                                         <DR label="Check-Out" val={fmt(r.hotel.checkOut)} />
                                         {r.hotel.room && <DR label="Room/Conf" val={r.hotel.room} accent />}
                                         {r.hotel.email && <DR label="Email" val={r.hotel.email} />}
-                                      </> : <div style={{ background:P.amberLight, borderRadius:"8px", padding:"8px 10px", color:P.amber, fontSize:"15px", fontWeight:700, fontFamily:font }}>○ Not in hotel roster</div>}
+                                      </> : <div style={{ background:P.amberLight, borderRadius:"8px", padding:"8px 10px", color:P.amber, fontSize:"15px", fontWeight:700, fontFamily:font }}>‚óã Not in hotel roster</div>}
                                     </Card>
                                     <Card title="Car Transfers" color={P.grey600}>
                                       {r.car ? <>
@@ -4991,7 +4999,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                                       </> : <div style={{ color:P.grey200, fontSize:"15px", fontStyle:"italic", fontFamily:font }}>No transfer on file</div>}
                                     </Card>
                                     {hasDiet && (
-                                      <Card title="🥗 Dietary & Access" color={P.teal}>
+                                      <Card title="ü•ó Dietary & Access" color={P.teal}>
                                         {r.diet ? <>
                                           {r.diet.dietary && <DR label="Dietary" val={r.diet.dietary} />}
                                           {r.diet.accessibility && <DR label="Access" val={r.diet.accessibility} />}
@@ -4999,14 +5007,14 @@ function GroupGrid({ user, onLogin, onLogout }) {
                                         </> : <div style={{ color:P.grey200, fontSize:"15px", fontStyle:"italic", fontFamily:font }}>No dietary info on file</div>}
                                       </Card>
                                     )}
-                                    <Card title="⚑ Flags" color={P.red}>
+                                    <Card title="‚öë Flags" color={P.red}>
                                       <div style={{ marginBottom:"8px" }}>
                                         <span style={{ fontSize:"15px", fontWeight:700, fontFamily:font, padding:"2px 8px", borderRadius:"20px", background:r.matchedBy==="email"?P.greenLight:P.amberLight, color:r.matchedBy==="email"?P.green:P.amber }}>
-                                          {r.matchedBy==="email"?"✉ email match":"👤 name match"}
+                                          {r.matchedBy==="email"?"‚úâ email match":"üë§ name match"}
                                         </span>
                                       </div>
                                       {r.issues.length === 0
-                                        ? <div style={{ color:P.green, fontSize:"14px", fontWeight:700, fontFamily:font }}>✓ All clear</div>
+                                        ? <div style={{ color:P.green, fontSize:"14px", fontWeight:700, fontFamily:font }}>‚úì All clear</div>
                                         : r.issues.map((issue, j) => <IssueTag key={j} issue={issue} resolved={r.resolved} onResolve={txt => toggleResolve(r, txt)} />)}
                                       {r.resolved?.length > 0 && <div style={{ fontSize:"15px", color:P.navyLight, fontFamily:font, marginTop:"4px" }}>{r.resolved.length} resolved</div>}
                                     </Card>
@@ -5023,12 +5031,12 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 </table>
               </div>
               <div style={{ padding:"8px 14px", background:P.offWhite, borderTop:`1px solid ${P.grey100}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                <span style={{ fontSize:"15px", color:P.navyLight, fontFamily:font, fontWeight:600 }}>Showing {displayRows.length} of {results.length} guests{selCount > 0 ? ` · ${selCount} selected` : ""}</span>
+                <span style={{ fontSize:"15px", color:P.navyLight, fontFamily:font, fontWeight:600 }}>Showing {displayRows.length} of {results.length} guests{selCount > 0 ? ` ¬∑ ${selCount} selected` : ""}</span>
                 <div style={{ display:"flex", gap:"10px", fontSize:"15px", fontFamily:font, fontWeight:700 }}>
-                  <span style={{ color:P.amber }}>○ missing</span>
-                  <span style={{ color:P.red }}>⚑ mismatch</span>
-                  <span style={{ color:P.purple }}>🗓 window</span>
-                  <span style={{ color:"#E65100" }}>⚠ dupe</span>
+                  <span style={{ color:P.amber }}>‚óã missing</span>
+                  <span style={{ color:P.red }}>‚öë mismatch</span>
+                  <span style={{ color:P.purple }}>üóì window</span>
+                  <span style={{ color:"#E65100" }}>‚ö† dupe</span>
                 </div>
               </div>
             </div>
@@ -5077,7 +5085,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
               <text x="62" y="36" fontFamily="'Manrope', sans-serif" fontSize="26" fontWeight="700" letterSpacing="-0.5" fill="#0F1F3D">Group</text>
               <text x="144" y="36" fontFamily="'Manrope', sans-serif" fontSize="26" fontWeight="300" letterSpacing="-0.5" fill="#00A896">Grid</text>
             </svg>
-            <span style={{ fontSize:"13px", color:P.grey400, fontFamily:font }}>Built for event professionals · © 2026</span>
+            <span style={{ fontSize:"13px", color:P.grey400, fontFamily:font }}>Built for event professionals ¬∑ ¬© 2026</span>
           </div>
           <div style={{ display:"flex", gap:"20px" }}>
             {[
@@ -5107,7 +5115,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
         </div>
       </div>
 
-      {/* ── Mobile bottom nav — only shown when results are loaded ── */}
+      {/* ‚îÄ‚îÄ Mobile bottom nav ‚Äî only shown when results are loaded ‚îÄ‚îÄ */}
       {results && (
         <div className="gg-bottom-nav"
           style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:150, background:P.navy, borderTop:`1px solid rgba(255,255,255,0.1)`, padding:"8px 0 max(8px, env(safe-area-inset-bottom))", display:"flex", alignItems:"center", justifyContent:"space-around" }}>
