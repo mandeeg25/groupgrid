@@ -98,6 +98,7 @@ const MOBILE_CSS = `
     .gg-setup-tiles3 { grid-template-columns: 1fr !important; }
     .gg-setup-tiles2 { grid-template-columns: 1fr !important; }
     .gg-step-line { display: none !important; }
+    .gg-mktnav-tabs { display: none !important; }
     .gg-setup-cols { grid-template-columns: 1fr !important; }
     .gg-eventbar { flex-direction: column !important; align-items: stretch !important; }
     .gg-eventbar > div { width: 100% !important; }
@@ -2341,19 +2342,21 @@ function MarketingNav({ nav }) {
     { key:"contact", label:"Contact", go: nav?.onContact },
   ];
   return (
-    <div style={{ position:"sticky", top:0, zIndex:50, background:P.navy, padding:"0 24px", height:"56px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
-      <button onClick={nav?.onHome} style={{ display:"flex", alignItems:"center", gap:"8px", background:"none", border:"none", cursor:"pointer", padding:0 }}>
+    <div style={{ position:"sticky", top:0, zIndex:50, background:P.navy, padding:"0 16px", minHeight:"56px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:"8px", boxShadow:"0 1px 0 rgba(255,255,255,0.06)", flexWrap:"nowrap" }}>
+      <button onClick={nav?.onHome} style={{ display:"flex", alignItems:"center", gap:"8px", background:"none", border:"none", cursor:"pointer", padding:0, flexShrink:0 }}>
         <span style={{ width:22, height:22, borderRadius:"6px", background:P.accent, display:"inline-flex", alignItems:"center", justifyContent:"center", color:P.navy, fontSize:"13px", fontWeight:800, fontFamily:font }}>G</span>
         <span style={{ color:P.white, fontSize:"16px", fontWeight:700, fontFamily:font, letterSpacing:"-0.01em" }}>GroupGrid</span>
       </button>
-      <div style={{ display:"flex", alignItems:"center", gap:"4px" }}>
+      <div style={{ display:"flex", alignItems:"center", gap:"4px", flexShrink:0 }}>
+        <div className="gg-mktnav-tabs" style={{ display:"flex", alignItems:"center", gap:"4px" }}>
         {tabs.map(t => {
           const active = nav?.current === t.key;
           return (
-            <button key={t.key} onClick={t.go} style={{ background: active ? "rgba(0,201,177,0.15)" : "transparent", border:"none", borderRadius:"7px", padding:"6px 12px", color: active ? P.accent : "rgba(255,255,255,0.7)", fontSize:"13px", fontWeight: active ? 700 : 500, fontFamily:font, cursor:"pointer" }}>{t.label}</button>
+            <button key={t.key} onClick={t.go} style={{ background: active ? "rgba(0,201,177,0.15)" : "transparent", border:"none", borderRadius:"7px", padding:"6px 12px", color: active ? P.accent : "rgba(255,255,255,0.7)", fontSize:"13px", fontWeight: active ? 700 : 500, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>{t.label}</button>
           );
         })}
-        <button onClick={nav?.onApp} style={{ marginLeft:"8px", background:P.accent, border:"none", borderRadius:"8px", padding:"8px 16px", fontSize:"13px", fontWeight:700, color:P.white, fontFamily:font, cursor:"pointer" }}>Open App →</button>
+        </div>
+        <button onClick={nav?.onApp} style={{ marginLeft:"4px", background:P.accent, border:"none", borderRadius:"8px", padding:"8px 14px", fontSize:"13px", fontWeight:700, color:P.white, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 }}>Open App →</button>
       </div>
     </div>
   );
@@ -4339,7 +4342,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
       {(() => {
         const nav = { onHome:() => setPage("landing"), onPricing:() => setPage("pricing"), onAbout:() => setPage("about"), onFaq:() => setPage("faq"), onContact:() => setPage("contact"), onPrivacy:() => setPage("privacy"), onTerms:() => setPage("terms"), onApp:enterApp, current:page };
         return (<>
-      {page === "landing" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><LandingPage onEnter={enterApp} onPricing={() => setPage("pricing")} onAbout={() => setPage("about")} onContact={() => setPage("contact")} onPrivacy={() => setPage("privacy")} onTerms={() => setPage("terms")} onFaq={() => setPage("faq")} /></div>}
+      {(page === "landing" || (!user && page === "app")) && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><LandingPage onEnter={enterApp} onPricing={() => setPage("pricing")} onAbout={() => setPage("about")} onContact={() => setPage("contact")} onPrivacy={() => setPage("privacy")} onTerms={() => setPage("terms")} onFaq={() => setPage("faq")} /></div>}
       {page === "pricing" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><PricingPage onBack={() => setPage("landing")} nav={nav} /></div>}
       {page === "about"   && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><AboutPage   onBack={() => setPage("landing")} nav={nav} /></div>}
       {page === "faq"     && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><FAQPage     onBack={() => setPage("landing")} nav={nav} /></div>}
@@ -4349,6 +4352,8 @@ function GroupGrid({ user, onLogin, onLogout }) {
         </>);
       })()}
 
+      {/* App shell — only rendered for signed-in users. Logged-out visitors see marketing pages above. */}
+      {user && (<>
       {/* Header */}
       <div style={{ background:P.navy, padding:`0 ${isMobile ? "14px" : "32px"}`, display:"flex", alignItems:"center", justifyContent:"space-between", height:"52px", boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
         <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
@@ -5241,6 +5246,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
           </button>
         </div>
       )}
+      </>)}
     </div>
   );
 }
