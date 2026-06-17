@@ -143,6 +143,27 @@ function parseDate(val) {
   const d = new Date(val); return isNaN(d) ? null : d;
 }
 function fmt(date) { if (!date) return "—"; return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); }
+// When results are restored from localStorage (JSON), Date objects come back as strings.
+// Rehydrate every date field back into a real Date so .toLocaleDateString()/.getTime() work.
+function rehydrateDate(v) {
+  if (!v) return v;
+  if (v instanceof Date) return v;
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? null : d;
+}
+function rehydrateResults(results) {
+  if (!Array.isArray(results)) return results;
+  return results.map(r => {
+    const out = { ...r };
+    if (out.flight) out.flight = { ...out.flight, flightArrival: rehydrateDate(out.flight.flightArrival), flightDeparture: rehydrateDate(out.flight.flightDeparture) };
+    if (out.hotel)  out.hotel  = { ...out.hotel,  checkIn: rehydrateDate(out.hotel.checkIn), checkOut: rehydrateDate(out.hotel.checkOut) };
+    if (out.car)    out.car    = { ...out.car,    pickupDate: rehydrateDate(out.car.pickupDate), dropoffDate: rehydrateDate(out.car.dropoffDate) };
+    if (out.reg)    out.reg    = { ...out.reg,    regCheckIn: rehydrateDate(out.reg.regCheckIn), regCheckOut: rehydrateDate(out.reg.regCheckOut) };
+    if (out.regCheckIn)  out.regCheckIn  = rehydrateDate(out.regCheckIn);
+    if (out.regCheckOut) out.regCheckOut = rehydrateDate(out.regCheckOut);
+    return out;
+  });
+}
 function stripTime(d) { if (!d) return null; const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
 function diffDays(a, b) { if (!a || !b) return null; return Math.round((stripTime(a) - stripTime(b)) / 86400000); }
 function findCol(headers, candidates) {
@@ -1905,7 +1926,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
 
               {/* ── Queue Items ── */}
               {queue.map((item, idx) => {
-                const tmpl = templates[item.templateId];
+                const tmpl = templates[item.templateId] || { color: P.periwinkleD, icon: "✉", label: "Action needed" };
                 const isActive = reviewIdx === idx;
                 const isChecked = checkedIds.has(item.id);
                 return (
@@ -4439,7 +4460,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                         setMeta(s.meta||{}); setEventName(s.eventName||"");
                         setArrivalStart(s.arrivalStart||""); setArrivalEnd(s.arrivalEnd||"");
                         setDepartureStart(s.departureStart||""); setDepartureEnd(s.departureEnd||"");
-                        if (s.results && s.results.length) { setResults(s.results); setActiveTab("grid"); setFilter("all"); setExpanded(null); }
+                        if (s.results && s.results.length) { setResults(rehydrateResults(s.results)); setActiveTab("grid"); setFilter("all"); setExpanded(null); }
                         else { setResults(null); setSaveMsg("This project was saved before full data was stored — re-upload its files to view it."); setTimeout(()=>setSaveMsg(""), 5000); }
                         if (isMobile) setSidebarOpen(false);
                       }}
