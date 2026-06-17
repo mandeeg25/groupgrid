@@ -3834,10 +3834,18 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
   function saveSession() {
     if (!results) return;
-    const session = { id:Date.now(), name:eventName||`Session ${new Date().toLocaleDateString()}`, date:new Date().toISOString(), meta, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, guestCount:results.length, issueCount:results.filter(r=>r.status!=="ok").length };
+    const session = { id:Date.now(), name:eventName||`Session ${new Date().toLocaleDateString()}`, date:new Date().toISOString(), meta, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, guestCount:results.length, issueCount:results.filter(r=>r.status!=="ok").length, results };
     const next = [session, ...savedSessions.filter(s => s.name !== session.name)].slice(0, 50);
     setSavedSessions(next);
-    try { storage.set(storageKey, JSON.stringify(next)); } catch(e) {}
+    try {
+      storage.set(storageKey, JSON.stringify(next));
+    } catch(e) {
+      // localStorage quota exceeded — retry without the heavy results arrays on older sessions
+      try {
+        const trimmed = next.map((s, i) => i === 0 ? s : { ...s, results: undefined });
+        storage.set(storageKey, JSON.stringify(trimmed));
+      } catch(e2) {}
+    }
     isDirty.current = false;
     setAutoSaveStatus("idle");
     setSaveMsg(user ? "Saved to this device" : "Saved to this device");
@@ -4067,7 +4075,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
     var summaryCards = [
       { label:"Total Guests",   val:results.length,                                    color:"#0F1D35", bg:"white" },
       { label:"Fully Aligned",  val:aligned.length,                                    color:"#0D9E6E", bg:"#E3F7F0" },
-      { label:"Action Needed",  val:flagged.filter(function(r){return r.status==="error";}).length, color:"#C0392B", bg:"#FDECEC" },
+      { label:"Action Needed",  val:flagged.length, color:"#C0392B", bg:"#FDECEC" },
       { label:"Alignment Rate", val:Math.round(aligned.length / results.length * 100) + "%", color:"#00A896", bg:"#E0FAF7" },
     ];
     var cardsHtml = "";
@@ -4211,7 +4219,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
     return true;
   });
 
-  const counts = results ? { total:results.length, ok:results.filter(r=>r.status==="ok").length, warn:results.filter(r=>r.status==="warn").length, error:results.filter(r=>r.status==="error").length, missing:results.filter(r=>r.issues.some(x=>x.type==="missing")).length, window:results.filter(r=>r.issues.some(x=>x.type==="window")).length, duplicate:results.filter(r=>r.issues.some(x=>x.type==="duplicate")).length, unregistered:results.filter(r=>r.issues.some(x=>x.type==="unregistered")).length, dietary:results.filter(r=>r.diet?.dietary||r.diet?.accessibility).length } : null;
+  const counts = results ? { total:results.length, ok:results.filter(r=>r.status==="ok").length, flagged:results.filter(r=>r.status!=="ok").length, warn:results.filter(r=>r.status==="warn").length, error:results.filter(r=>r.status==="error").length, missing:results.filter(r=>r.issues.some(x=>x.type==="missing")).length, window:results.filter(r=>r.issues.some(x=>x.type==="window")).length, mismatch:results.filter(r=>r.issues.some(x=>x.type==="mismatch")).length, duplicate:results.filter(r=>r.issues.some(x=>x.type==="duplicate")).length, unregistered:results.filter(r=>r.issues.some(x=>x.type==="unregistered")).length, dietary:results.filter(r=>r.diet?.dietary||r.diet?.accessibility).length } : null;
 
   const hasCars = results?.some(r => r.car);
   const hasDiet = results?.some(r => r.diet);
@@ -4419,7 +4427,14 @@ function GroupGrid({ user, onLogin, onLogout }) {
                   const color = `hsl(${(idx * 67 + 200) % 360},55%,42%)`;
                   return (
                     <button key={s.id}
-                      onClick={() => { setMeta(s.meta||{}); setEventName(s.eventName||""); setArrivalStart(s.arrivalStart||""); setArrivalEnd(s.arrivalEnd||""); setDepartureStart(s.departureStart||""); setDepartureEnd(s.departureEnd||""); }}
+                      onClick={() => {
+                        setMeta(s.meta||{}); setEventName(s.eventName||"");
+                        setArrivalStart(s.arrivalStart||""); setArrivalEnd(s.arrivalEnd||"");
+                        setDepartureStart(s.departureStart||""); setDepartureEnd(s.departureEnd||"");
+                        if (s.results && s.results.length) { setResults(s.results); setActiveTab("grid"); setFilter("all"); setExpanded(null); }
+                        else { setResults(null); setSaveMsg("This project was saved before full data was stored — re-upload its files to view it."); setTimeout(()=>setSaveMsg(""), 5000); }
+                        if (isMobile) setSidebarOpen(false);
+                      }}
                       style={{ width:"100%", display:"flex", alignItems:"center", gap:"8px", background:isActive?"rgba(255,255,255,0.1)":"transparent", border:`1.5px solid ${isActive?"rgba(255,255,255,0.15)":"transparent"}`, borderRadius:"10px", padding:"7px 8px", cursor:"pointer", marginBottom:"2px", fontFamily:font, transition:"all 0.12s", textAlign:"left" }}
                       onMouseEnter={e => !isActive && (e.currentTarget.style.background="rgba(255,255,255,0.07)")}
                       onMouseLeave={e => !isActive && (e.currentTarget.style.background="transparent")}>
@@ -4691,7 +4706,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 </div>
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"10px", marginBottom:"20px" }}>
-                {[{label:"Total Guests",val:counts.total,color:P.navy,icon:<Users size={14} strokeWidth={1.5}/>},{label:"Fully Aligned",val:counts.ok,color:P.green,icon:<Check size={14} strokeWidth={2}/>},{label:"Action Needed",val:counts.error,color:P.red,icon:<AlertTriangle size={14} strokeWidth={1.5}/>},{label:"Alignment Rate",val:(counts.total>0?Math.round(counts.ok/counts.total*100):0)+"%",color:P.periwinkleD,icon:<BarChart2 size={14} strokeWidth={1.5}/>}].map(({label,val,color,icon}) => (
+                {[{label:"Total Guests",val:counts.total,color:P.navy,icon:<Users size={14} strokeWidth={1.5}/>},{label:"Fully Aligned",val:counts.ok,color:P.green,icon:<Check size={14} strokeWidth={2}/>},{label:"Action Needed",val:counts.flagged,color:P.red,icon:<AlertTriangle size={14} strokeWidth={1.5}/>},{label:"Alignment Rate",val:(counts.total>0?Math.round(counts.ok/counts.total*100):0)+"%",color:P.periwinkleD,icon:<BarChart2 size={14} strokeWidth={1.5}/>}].map(({label,val,color,icon}) => (
                   <div key={label} style={{ background:P.offWhite, borderRadius:"12px", padding:"14px 16px" }}>
                     <div style={{ fontSize:"20px", fontWeight:900, color, fontFamily:font }}>{icon} {val}</div>
                     <div style={{ fontSize:"14px", color:P.navy, fontWeight:600, marginTop:"4px", fontFamily:font }}>{label}</div>
@@ -4706,10 +4721,10 @@ function GroupGrid({ user, onLogin, onLogout }) {
                   </div>
                 ))}
               </div>
-              {counts.error > 0 && (
+              {counts.flagged > 0 && (
                 <div>
                   <div style={{ fontWeight:800, fontSize:"15px", color:P.red, fontFamily:font, marginBottom:"8px" }}>⚑ Guests Requiring Action</div>
-                  {results.filter(r=>r.status==="error").map((r,i) => (
+                  {results.filter(r=>r.status!=="ok").map((r,i) => (
                     <div key={i} style={{ background:P.redLight, borderRadius:"10px", padding:"10px 14px", display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"6px" }}>
                       <div>
                         <div style={{ fontWeight:700, fontSize:"14px", color:P.navy, fontFamily:font }}>{r.firstName} {r.lastName}</div>
