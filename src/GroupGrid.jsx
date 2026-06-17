@@ -3770,10 +3770,18 @@ function GroupGrid({ user, onLogin, onLogout }) {
           guestCount: results.length,
           issueCount: results.filter(r => r.status !== "ok").length,
           autoSaved: true,
+          results,
         };
         setSavedSessions(prev => {
           const next = [session, ...prev.filter(s => s.name !== session.name)].slice(0, 50);
-          try { storage.set(storageKey, JSON.stringify(next)); } catch(e) {}
+          try {
+            storage.set(storageKey, JSON.stringify(next));
+          } catch(e) {
+            try {
+              const trimmed = next.map((s, i) => i === 0 ? s : { ...s, results: undefined });
+              storage.set(storageKey, JSON.stringify(trimmed));
+            } catch(e2) {}
+          }
           return next;
         });
         isDirty.current = false;
