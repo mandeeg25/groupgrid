@@ -2377,7 +2377,7 @@ function TermsPage({ onBack, nav }) {
         You may use GroupGrid only for lawful purposes and in accordance with these Terms. You agree not to: (a) use the Service to process data you do not have authorization to access; (b) attempt to reverse-engineer or compromise the Service; (c) use the Service in any manner that violates applicable laws or regulations, including data protection laws.
       </Section>
       <Section title="4. Your Data & Privacy">
-        Because GroupGrid processes all data locally in your browser, we do not have access to your guest data. You are solely responsible for ensuring you have appropriate authorization to process any personal data you upload into the Service, and for complying with applicable data protection regulations including GDPR and CCPA.
+        We do not have access to your guest data. You are solely responsible for ensuring you have appropriate authorization to process any personal data you upload into the Service, and for complying with applicable data protection regulations including GDPR and CCPA. See our Privacy Policy for details on how data is handled.
       </Section>
       <Section title="5. Intellectual Property">
         GroupGrid and its original content, features, and functionality are owned by GroupGrid and are protected by international copyright, trademark, and other intellectual property laws. You may not copy, modify, distribute, or create derivative works of the Service without our prior written consent.
@@ -2616,7 +2616,7 @@ function PrivacyPage({ onBack, nav }) {
         <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, margin:0 }}>GroupGrid is built with privacy as a core design principle — not an afterthought. Here's exactly what we do and don't do with your data.</p>
       </div>
       <Section title="Data we collect">
-        <strong>None.</strong> GroupGrid processes all spreadsheet data entirely within your browser. Your guest names, emails, flight details, hotel records, and any other information in your uploaded files are never transmitted to our servers. We have no access to this data — ever.
+        <strong>We never collect your guest data.</strong> GroupGrid processes all spreadsheet data entirely within your browser. Your guest names, emails, flight details, hotel records, and any other information in your uploaded files are never transmitted to our servers — we have no access to this data, ever. The only personal data we hold is your account information (your email address) and the projects you choose to save, both handled through Supabase, our third-party infrastructure provider.
       </Section>
       <Section title="Saved projects & storage">
         When you are signed out, GroupGrid uses your browser's local storage to save session data (event names, notes, resolved flags) on your device. When you are signed in, your saved projects are stored securely through Supabase, our third-party infrastructure provider, so you can access them across sessions. In all cases, your guest spreadsheet files are read and processed in your browser and are never uploaded to our servers. You can clear local data at any time by clearing your browser storage or using the app's built-in reset.
@@ -2628,13 +2628,13 @@ function PrivacyPage({ onBack, nav }) {
         To sign in, we collect your email address and a password, which are handled securely through Supabase, our third-party authentication and infrastructure provider. Passwords are stored in encrypted form by Supabase; we do not store them ourselves. Your saved projects are stored with Supabase so you can access them across sessions. We never sell, rent, or share your personal information with third parties.
       </Section>
       <Section title="GDPR & CCPA">
-        Your guest spreadsheet files are processed in your browser and are not collected by us. The personal data we do hold is limited to your account information (email) and your saved projects, handled through Supabase. You have the right to access, export, and permanently delete your account-associated data upon request.
+        The personal data we hold is limited to your account information (email) and your saved projects, handled through Supabase. You have the right to access, export, and permanently delete your account-associated data upon request.
       </Section>
       <Section title="Third-party services">
-        The current version of GroupGrid uses no third-party services that receive your data. External fonts (Manrope via Google Fonts) are loaded from Google's CDN, which is subject to Google's standard font API privacy policy.
+        GroupGrid uses Supabase, a trusted third-party provider, for account authentication and to store your saved projects. Your guest spreadsheet files are never sent to Supabase or any other service — they are processed only in your browser. External fonts (Manrope via Google Fonts) are loaded from Google's CDN, which is subject to Google's standard font API privacy policy. We use no advertising or analytics services.
       </Section>
       <Section title="Changes to this policy">
-        We will notify users of any material changes to this policy via in-app notification and email (once accounts are available). Continued use after notification constitutes acceptance of the updated policy.
+        We will notify users of any material changes to this policy via in-app notification and email. Continued use after notification constitutes acceptance of the updated policy.
       </Section>
       <Section title="Contact">
         Questions about privacy? Email us at <a href="mailto:groupgrid@outlook.com" style={{ color:P.periwinkleD, fontWeight:600 }}>groupgrid@outlook.com</a>.
@@ -2800,7 +2800,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                 See pricing
               </button>
             </div>
-            <p style={{ fontSize:"13px", color:"rgba(255,255,255,0.3)", fontFamily:font, marginTop:"14px" }}>No setup · Upload your spreadsheets and get answers in minutes · Your guest files never leave your browser</p>
+            <p style={{ fontSize:"13px", color:"rgba(255,255,255,0.3)", fontFamily:font, marginTop:"14px" }}>No setup · Upload your spreadsheets and get answers in minutes</p>
           </div>
 
           {/* Right — live mismatch demo card */}
@@ -2944,14 +2944,6 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               <span key={tag} style={{ background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"20px", padding:"8px 18px", fontSize:"14px", fontWeight:600, color:P.navy, fontFamily:font, boxShadow:"0 1px 4px rgba(15,29,53,0.06)" }}>{tag}</span>
             ))}
           </div>
-          {/* Privacy callout */}
-          <div style={{ background:P.navy, borderRadius:"16px", padding:"28px 36px", display:"flex", alignItems:"center", gap:"32px", flexWrap:"wrap", justifyContent:"center", textAlign:"left" }}>
-            <ShieldCheck size={36} strokeWidth={1.5} color={P.accent} style={{flexShrink:0}}/>
-            <div style={{ flex:1, minWidth:"260px" }}>
-              <div style={{ fontSize:"16px", fontWeight:800, color:P.white, fontFamily:font, marginBottom:"6px" }}>Your guest files never leave your browser</div>
-              <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.5)", fontFamily:font, lineHeight:1.65 }}>Your guest spreadsheets are processed locally in your browser and are never uploaded to our servers. Account sign-in and saved projects are handled securely through Supabase, a trusted third-party provider. The sensitive guest data itself stays in your browser.</div>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -2966,7 +2958,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
             {[
               { icon:"⏱️", title:"Minutes, not days", body:"Upload your files and see every gap in minutes — no more row-by-row scanning the week before an event." },
               { icon:"🎯", title:"Catch what hides", body:"The late registrant with no flight, the room booked for a no-show, the date that's one day off — surfaced automatically." },
-              { icon:"🔒", title:"Your data stays yours", body:"Guest files are processed in your browser and never uploaded. Nothing to worry about with sensitive attendee information." },
+              { icon:"✉️", title:"Fix it in one place", body:"Email your hotel and travel agency about every flagged guest right from the results — no switching tabs or rebuilding lists." },
             ].map(({ icon, title, body }) => (
               <div key={title} style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:"16px", padding:"28px 24px", textAlign:"left", backdropFilter:"blur(10px)" }}>
                 <div style={{ fontSize:"26px", marginBottom:"12px" }}>{icon}</div>
@@ -3246,7 +3238,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
           </p>
           <div style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:"rgba(0,201,177,0.1)", border:"1px solid rgba(0,201,177,0.25)", borderRadius:"20px", padding:"6px 16px", marginBottom:"32px" }}>
             <ShieldCheck size={14} strokeWidth={2} color={P.accent}/>
-            <span style={{ fontSize:"13px", fontWeight:600, color:"rgba(255,255,255,0.7)", fontFamily:font }}>Built by a planner with 15+ years in the field · Your data never leaves your browser</span>
+            <span style={{ fontSize:"13px", fontWeight:600, color:"rgba(255,255,255,0.7)", fontFamily:font }}>Built by a planner with 15+ years in the field</span>
           </div>
           <div className="gg-cta-btns" style={{ display:"flex", gap:"12px", justifyContent:"center", flexWrap:"wrap" }}>
             <button onClick={onEnter} style={{ background:`linear-gradient(135deg, ${P.accent}, ${P.accentD})`, border:"none", borderRadius:"12px", padding:"16px 40px", fontSize:"17px", fontWeight:800, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 4px 24px rgba(0,201,177,0.4)", letterSpacing:"-0.02em" }}>
@@ -3256,7 +3248,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               View pricing
             </button>
           </div>
-          <p style={{ fontSize:"13px", color:"rgba(255,255,255,0.25)", fontFamily:font, marginTop:"20px" }}>Full access · 10,000+ records · $249/mo · Cancel any time · No data ever leaves your browser</p>
+          <p style={{ fontSize:"13px", color:"rgba(255,255,255,0.25)", fontFamily:font, marginTop:"20px" }}>Full access · 10,000+ records · $249/mo · Cancel any time</p>
         </div>
       </div>
 
@@ -5211,7 +5203,6 @@ function GroupGrid({ user, onLogin, onLogout }) {
         <div style={{ display:"flex", alignItems:"center", gap:"6px", flexWrap:"wrap" }}>
           {[
             { icon:<Lock size={10} strokeWidth={2}/>,       label:"Files stay in your browser", bg:"#FFF7ED", border:"#FB923C", color:"#C2410C" },
-            { icon:<Ban size={10} strokeWidth={2}/>,        label:"Guest files not uploaded",   bg:"#FFF0F6", border:"#F472B6", color:"#BE185D" },
             { icon:<ShieldCheck size={10} strokeWidth={2}/>, label:"Encrypted accounts",        bg:"#F0FDF4", border:"#4ADE80", color:"#15803D" },
             { icon:<Check size={11} strokeWidth={2.5}/>,    label:"Secure by design",          bg:"#EFF6FF", border:"#60A5FA", color:"#1D4ED8" },
           ].map(({ icon, label, bg, border, color }) => (
