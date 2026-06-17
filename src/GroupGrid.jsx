@@ -2306,13 +2306,15 @@ function LoginPanel({ onLogin, onClose }) {
 
 
 // ── Static Pages ─────────────────────────────────────────────────────────────
-function PageShell({ title, onBack, children }) {
+function PageShell({ title, onBack, nav, children }) {
   return (
     <div style={{ minHeight:"100vh", background:P.offWhite, fontFamily:font }}>
+      {nav ? <MarketingNav nav={nav} /> : (
       <div style={{ background:P.navy, padding:"0 32px", height:"52px", display:"flex", alignItems:"center", gap:"16px", boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
         <button onClick={onBack} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:"8px", padding:"5px 12px", color:"rgba(255,255,255,0.7)", fontSize:"13px", fontFamily:font, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:"6px" }}>← Back</button>
         <span style={{ color:P.white, fontSize:"15px", fontWeight:700, fontFamily:font }}>{title}</span>
       </div>
+      )}
       <div style={{ maxWidth:"760px", margin:"0 auto", padding:"48px 28px" }}>
         {children}
       </div>
@@ -2329,9 +2331,37 @@ function Section({ title, children }) {
   );
 }
 
-function TermsPage({ onBack }) {
+function MarketingNav({ nav }) {
+  // Persistent marketing header: logo returns home, tabs navigate, current tab highlighted, Open App on the right.
+  const tabs = [
+    { key:"landing", label:"Home",    go: nav?.onHome },
+    { key:"pricing", label:"Pricing", go: nav?.onPricing },
+    { key:"about",   label:"About",   go: nav?.onAbout },
+    { key:"faq",     label:"FAQ",     go: nav?.onFaq },
+    { key:"contact", label:"Contact", go: nav?.onContact },
+  ];
   return (
-    <PageShell title="Terms of Service" onBack={onBack}>
+    <div style={{ position:"sticky", top:0, zIndex:50, background:P.navy, padding:"0 24px", height:"56px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
+      <button onClick={nav?.onHome} style={{ display:"flex", alignItems:"center", gap:"8px", background:"none", border:"none", cursor:"pointer", padding:0 }}>
+        <span style={{ width:22, height:22, borderRadius:"6px", background:P.accent, display:"inline-flex", alignItems:"center", justifyContent:"center", color:P.navy, fontSize:"13px", fontWeight:800, fontFamily:font }}>G</span>
+        <span style={{ color:P.white, fontSize:"16px", fontWeight:700, fontFamily:font, letterSpacing:"-0.01em" }}>GroupGrid</span>
+      </button>
+      <div style={{ display:"flex", alignItems:"center", gap:"4px" }}>
+        {tabs.map(t => {
+          const active = nav?.current === t.key;
+          return (
+            <button key={t.key} onClick={t.go} style={{ background: active ? "rgba(0,201,177,0.15)" : "transparent", border:"none", borderRadius:"7px", padding:"6px 12px", color: active ? P.accent : "rgba(255,255,255,0.7)", fontSize:"13px", fontWeight: active ? 700 : 500, fontFamily:font, cursor:"pointer" }}>{t.label}</button>
+          );
+        })}
+        <button onClick={nav?.onApp} style={{ marginLeft:"8px", background:P.accent, border:"none", borderRadius:"8px", padding:"8px 16px", fontSize:"13px", fontWeight:700, color:P.white, fontFamily:font, cursor:"pointer" }}>Open App →</button>
+      </div>
+    </div>
+  );
+}
+
+function TermsPage({ onBack, nav }) {
+  return (
+    <PageShell title="Terms of Service" onBack={onBack} nav={nav}>
       <div style={{ marginBottom:"40px" }}>
         <h1 style={{ fontSize:"32px", fontWeight:900, color:P.navy, fontFamily:font, margin:"0 0 8px", letterSpacing:"-0.03em" }}>Terms of Service</h1>
         <p style={{ fontSize:"14px", color:P.grey400, fontFamily:font, margin:"0 0 16px" }}>Last updated: February 2026</p>
@@ -2374,7 +2404,7 @@ function TermsPage({ onBack }) {
   );
 }
 
-function AboutPage({ onBack }) {
+function AboutPage({ onBack, nav }) {
   const useCases = [
     { icon:"🎯", label:"Sales Kickoffs" },
     { icon:"🏢", label:"Corporate Events" },
@@ -2392,11 +2422,12 @@ function AboutPage({ onBack }) {
 
   return (
     <div style={{ minHeight:"100vh", background:P.offWhite, fontFamily:font }}>
-      {/* Nav */}
+      {nav ? <MarketingNav nav={nav} /> : (
       <div style={{ background:P.navy, padding:"0 32px", height:"52px", display:"flex", alignItems:"center", gap:"16px", boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
         <button onClick={onBack} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:"8px", padding:"5px 12px", color:"rgba(255,255,255,0.7)", fontSize:"13px", fontFamily:font, fontWeight:600, cursor:"pointer" }}>← Back</button>
         <span style={{ color:P.white, fontSize:"15px", fontWeight:700, fontFamily:font }}>About GroupGrid</span>
       </div>
+      )}
 
       {/* Hero */}
       <div style={{ background:`linear-gradient(160deg, ${P.navy} 0%, ${P.navyLight} 100%)`, padding:"64px 28px 56px", textAlign:"center" }}>
@@ -2467,7 +2498,7 @@ function AboutPage({ onBack }) {
           <div style={{ fontSize:"13px", fontWeight:800, color:P.navy, fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"20px" }}>How It Works</div>
           <div style={{ display:"flex", flexDirection:"column", gap:"18px" }}>
             {[
-              { n:"1", title:"Upload your spreadsheets", body:"Drag in your flight manifest, hotel roster, car transfers, and dietary files — Excel format (.xlsx / .xls), any column names. GroupGrid auto-detects them." },
+              { n:"1", title:"Upload your spreadsheets", body:"Drag in your flight manifest, hotel roster, car transfers, and dietary files — Excel or CSV (.xlsx, .xls, .csv), any column names. GroupGrid auto-detects them." },
               { n:"2", title:"Run the cross-check", body:"GroupGrid matches every guest across all files by name and email, identifying mismatches, missing records, date gaps, and duplicates." },
               { n:"3", title:"See exactly what needs fixing", body:"Every flag is surfaced with context — who's affected, what the mismatch is, and how many days off. Resolve issues, add notes, and export a clean report." },
               { n:"4", title:"Share with your team or hotel", body:"Download an Excel file, generate a shareable HTML report, or draft emails directly to your hotel and travel agency contacts — all from the same screen." },
@@ -2489,10 +2520,10 @@ function AboutPage({ onBack }) {
         <div style={{ background:P.accentLight, border:`1.5px solid ${P.accent}44`, borderRadius:"14px", padding:"24px 28px", marginBottom:"32px" }}>
           <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"8px" }}>
             <ShieldCheck size={18} strokeWidth={2} color={P.teal}/>
-            <div style={{ fontSize:"15px", fontWeight:800, color:P.teal, fontFamily:font }}>Zero data ever leaves your browser</div>
+            <div style={{ fontSize:"15px", fontWeight:800, color:P.teal, fontFamily:font }}>Your guest files never leave your browser</div>
           </div>
           <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, lineHeight:1.7 }}>
-            Your guest files — names, emails, flight details, hotel records — are processed entirely in your browser and never uploaded to any server. Saved projects are stored on your device. We use Supabase, a trusted third-party provider, only for secure account sign-in. GroupGrid is built to keep sensitive guest data on your device.
+            Your guest files — names, emails, flight details, hotel records — are read and processed entirely in your browser and are never uploaded to our servers. Account sign-in and your saved projects are handled securely through Supabase, a trusted third-party provider. The sensitive guest spreadsheet data itself stays in your browser.
           </div>
         </div>
 
@@ -2512,9 +2543,9 @@ function AboutPage({ onBack }) {
   );
 }
 
-function ContactPage({ onBack }) {
+function ContactPage({ onBack, nav }) {
   return (
-    <PageShell title="Contact Us" onBack={onBack}>
+    <PageShell title="Contact Us" onBack={onBack} nav={nav}>
       <div style={{ marginBottom:"40px" }}>
         <h1 style={{ fontSize:"32px", fontWeight:900, color:P.navy, fontFamily:font, margin:"0 0 12px", letterSpacing:"-0.03em" }}>Get in touch.</h1>
         <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, margin:0 }}>Have a question, found a bug, or want to share feedback? We'd love to hear from you.</p>
@@ -2545,19 +2576,19 @@ function ContactPage({ onBack }) {
   );
 }
 
-function FAQPage({ onBack }) {
+function FAQPage({ onBack, nav }) {
   const faqs = [
     { q:"What does GroupGrid actually do?", a:"GroupGrid takes your event registration list and checks it against your travel files — flights, hotels, and car transfers. It tells you instantly who registered but isn't booked, who's booked but never registered, and whose dates don't match. What used to take days of manual spreadsheet cross-checking takes about a minute." },
-    { q:"What files do I need?", a:"Flight and hotel files are required to run a check. Your registration list is recommended but optional — when you add it, GroupGrid uses it as the source of truth and checks everything against it. You can also add car transfer and dietary files. Everything is standard Excel format (.xlsx or .xls)." },
+    { q:"What files do I need?", a:"You need any two or more files to run a check — for example a registration list plus a hotel roster, or a flight manifest plus a hotel roster. Your registration list is recommended: when you add it, GroupGrid uses it as the source of truth and checks everything against it. You can also add car transfer and dietary files. Everything is standard Excel (.xlsx, .xls) or CSV format." },
     { q:"What if my spreadsheet columns are named differently?", a:"GroupGrid auto-detects common column names. Your \"Arrival Date\" and someone else's \"Arr. Date\" or \"Flight In\" all get recognized automatically. There's no manual mapping or setup required." },
     { q:"What if I don't have email addresses?", a:"GroupGrid matches people by email first for the most accurate results, then falls back to matching by name. Including an email column is best, but it's not required." },
-    { q:"Is my data secure?", a:"Your guest files are processed entirely in your browser and are never uploaded to any server. Saved projects are stored on your device. We use Supabase, a trusted third-party provider, only for secure account sign-in. GroupGrid is built to keep sensitive guest data on your device." },
+    { q:"Is my data secure?", a:"Your guest files are read and processed entirely in your browser and are never uploaded to our servers. Account sign-in and your saved projects are handled securely through Supabase, a trusted third-party provider. The sensitive guest spreadsheet data itself stays in your browser." },
     { q:"Who is GroupGrid for?", a:"Any event or meeting planner who manages attendee travel — from a 20-person board retreat to a 10,000-person conference. If people are registering and you're booking their flights and hotels, GroupGrid makes sure the two lists match." },
-    { q:"How much does it cost?", a:"$249/month for full access — unlimited events, unlimited guests, every feature. You can try it free with your own files before subscribing — no credit card required." },
+    { q:"How much does it cost?", a:"$249/month for full access — unlimited events, unlimited guests, every feature. Create an account to get started." },
     { q:"Do I need to install anything?", a:"No. GroupGrid runs in your web browser. There's nothing to download or install." },
   ];
   return (
-    <PageShell title="FAQ" onBack={onBack}>
+    <PageShell title="FAQ" onBack={onBack} nav={nav}>
       <div style={{ marginBottom:"32px" }}>
         <h1 style={{ fontSize:"32px", fontWeight:900, color:P.navy, fontFamily:font, margin:"0 0 8px", letterSpacing:"-0.03em" }}>Frequently asked questions</h1>
         <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, margin:0 }}>Everything you need to know about how GroupGrid works.</p>
@@ -2576,9 +2607,9 @@ function FAQPage({ onBack }) {
   );
 }
 
-function PrivacyPage({ onBack }) {
+function PrivacyPage({ onBack, nav }) {
   return (
-    <PageShell title="Privacy Policy" onBack={onBack}>
+    <PageShell title="Privacy Policy" onBack={onBack} nav={nav}>
       <div style={{ marginBottom:"40px" }}>
         <h1 style={{ fontSize:"32px", fontWeight:900, color:P.navy, fontFamily:font, margin:"0 0 8px", letterSpacing:"-0.03em" }}>Privacy Policy</h1>
         <p style={{ fontSize:"14px", color:P.grey400, fontFamily:font, margin:"0 0 16px" }}>Last updated: February 2026</p>
@@ -2587,17 +2618,17 @@ function PrivacyPage({ onBack }) {
       <Section title="Data we collect">
         <strong>None.</strong> GroupGrid processes all spreadsheet data entirely within your browser. Your guest names, emails, flight details, hotel records, and any other information in your uploaded files are never transmitted to our servers. We have no access to this data — ever.
       </Section>
-      <Section title="Local storage">
-        GroupGrid uses your browser's local storage to save session data (event names, notes, resolved flags) between visits. This data lives only on your device and is never synced to any external server. You can clear it at any time by clearing your browser storage or using the app's built-in reset.
+      <Section title="Saved projects & storage">
+        When you are signed out, GroupGrid uses your browser's local storage to save session data (event names, notes, resolved flags) on your device. When you are signed in, your saved projects are stored securely through Supabase, our third-party infrastructure provider, so you can access them across sessions. In all cases, your guest spreadsheet files are read and processed in your browser and are never uploaded to our servers. You can clear local data at any time by clearing your browser storage or using the app's built-in reset.
       </Section>
       <Section title="Cookies">
         GroupGrid does not use tracking cookies, advertising cookies, or any third-party analytics. We do not use Google Analytics, Meta Pixel, or similar tools.
       </Section>
-      <Section title="Account data (future)">
-        When account functionality is introduced, we will collect only your email address and encrypted password. We will never sell, rent, or share your personal information with third parties. Any account data will be stored securely with industry-standard encryption.
+      <Section title="Account data">
+        To sign in, we collect your email address and a password, which are handled securely through Supabase, our third-party authentication and infrastructure provider. Passwords are stored in encrypted form by Supabase; we do not store them ourselves. Your saved projects are stored with Supabase so you can access them across sessions. We never sell, rent, or share your personal information with third parties.
       </Section>
       <Section title="GDPR & CCPA">
-        Because we collect no personal data in the current version of GroupGrid, there is nothing to request, export, or delete. If you create an account in future, you will have full rights to access, export, and permanently delete all account-associated data upon request.
+        Your guest spreadsheet files are processed in your browser and are not collected by us. The personal data we do hold is limited to your account information (email) and your saved projects, handled through Supabase. You have the right to access, export, and permanently delete your account-associated data upon request.
       </Section>
       <Section title="Third-party services">
         The current version of GroupGrid uses no third-party services that receive your data. External fonts (Manrope via Google Fonts) are loaded from Google's CDN, which is subject to Google's standard font API privacy policy.
@@ -2629,7 +2660,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
   ];
 
   const steps = [
-    { n:"01", icon:"📋", title:"Upload your registration list", body:"Start with your master list of who registered — the source of truth. Then add your travel files: flight manifest, hotel roster, car transfers. Excel files (.xlsx or .xls), any column names — GroupGrid figures it out." },
+    { n:"01", icon:"📋", title:"Upload your registration list", body:"Start with your master list of who registered — the source of truth. Then add your travel files: flight manifest, hotel roster, car transfers. Excel or CSV (.xlsx, .xls, .csv), any column names — GroupGrid figures it out." },
     { n:"02", icon:"⚡", title:"Run the check", body:"In seconds, GroupGrid matches every registered person against the travel files by email, then name. It finds who registered but isn't booked, who's booked but never registered, and whose dates don't match." },
     { n:"03", icon:"🎯", title:"See exactly what needs fixing", body:"Each flag shows who's affected and what's wrong — registered with no flight, hotel booked for someone not on the list, check-in dates that don't match what they requested. Resolve, add notes, mark done." },
     { n:"04", icon:"📤", title:"Communicate & export", body:"Draft emails to your hotel or travel agency, download a clean Excel report, or generate a shareable HTML report — all without leaving GroupGrid." },
@@ -2918,7 +2949,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
             <ShieldCheck size={36} strokeWidth={1.5} color={P.accent} style={{flexShrink:0}}/>
             <div style={{ flex:1, minWidth:"260px" }}>
               <div style={{ fontSize:"16px", fontWeight:800, color:P.white, fontFamily:font, marginBottom:"6px" }}>Your guest files never leave your browser</div>
-              <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.5)", fontFamily:font, lineHeight:1.65 }}>Your spreadsheets are processed locally on your device and are never uploaded. Saved projects stay on your device. We use Supabase only for secure account sign-in. Built to keep sensitive guest data on your device.</div>
+              <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.5)", fontFamily:font, lineHeight:1.65 }}>Your guest spreadsheets are processed locally in your browser and are never uploaded to our servers. Account sign-in and saved projects are handled securely through Supabase, a trusted third-party provider. The sensitive guest data itself stays in your browser.</div>
             </div>
           </div>
         </div>
@@ -3253,7 +3284,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
 }
 
 // ── Pricing Page ──────────────────────────────────────────────────────────────
-function PricingPage({ onBack }) {
+function PricingPage({ onBack, nav }) {
   const [billing, setBilling] = useState("monthly");
   const annual = billing === "annual";
 
@@ -3263,11 +3294,12 @@ function PricingPage({ onBack }) {
 
   return (
     <div style={{ minHeight:"100vh", background:P.offWhite, fontFamily:font }}>
-      {/* Nav */}
+      {nav ? <MarketingNav nav={nav} /> : (
       <div style={{ background:P.navy, padding:"0 32px", height:"52px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
         <button onClick={onBack} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:"8px", padding:"5px 14px", color:"rgba(255,255,255,0.75)", fontSize:"13px", fontFamily:font, fontWeight:600, cursor:"pointer" }}>← Back to app</button>
         <span style={{ color:P.accent, fontSize:"13px", fontWeight:700, fontFamily:font, letterSpacing:"0.05em" }}>PRICING</span>
       </div>
+      )}
 
       {/* Hero */}
       <div style={{ background:`linear-gradient(160deg, ${P.navy} 0%, ${P.navyLight} 100%)`, padding:"64px 28px 56px", textAlign:"center" }}>
@@ -3275,7 +3307,7 @@ function PricingPage({ onBack }) {
           Simple pricing.<br/><span style={{ color:P.accent }}>No surprises.</span>
         </h1>
         <p style={{ fontSize:"17px", color:"rgba(255,255,255,0.55)", fontFamily:font, margin:"0 0 32px", lineHeight:1.6 }}>
-          One plan. All features. Try free with your real data.
+          One plan. All features. One simple price.
         </p>
         {/* Billing toggle */}
         <div style={{ display:"inline-flex", background:"rgba(255,255,255,0.08)", borderRadius:"12px", padding:"4px", gap:"4px" }}>
@@ -3315,19 +3347,19 @@ function PricingPage({ onBack }) {
             )}
             <div style={{ fontSize:"14px", color:P.grey400, fontFamily:font, marginBottom:"16px" }}>1 user · unlimited events · all features</div>
 
-            {/* Trial callout */}
+            {/* Access callout */}
             <div style={{ background:P.accentLight, border:`1.5px solid ${P.accent}44`, borderRadius:"10px", padding:"12px 16px", marginBottom:"16px", display:"flex", alignItems:"center", gap:"10px" }}>
               <span style={{ fontSize:"18px", flexShrink:0 }}>🎯</span>
               <div>
-                <div style={{ fontSize:"13px", fontWeight:800, color:P.teal, fontFamily:font }}>Try it free first</div>
-                <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font, lineHeight:1.5 }}>Upload your own files and run a full cross-check — no credit card, no commitment. See exactly how GroupGrid works with your real data before subscribing.</div>
+                <div style={{ fontSize:"13px", fontWeight:800, color:P.teal, fontFamily:font }}>One plan, everything included</div>
+                <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font, lineHeight:1.5 }}>Create an account to get started. Unlimited events, unlimited guests, and every feature — one simple monthly price.</div>
               </div>
             </div>
 
-            <a href={annual ? STRIPE_ANNUAL : STRIPE_MONTHLY} target="_blank" rel="noreferrer"
+            <button onClick={nav?.onApp}
               style={{ display:"block", width:"100%", background:P.accent, border:"none", borderRadius:"12px", padding:"15px", fontSize:"16px", fontWeight:800, fontFamily:font, color:P.white, cursor:"pointer", textAlign:"center", textDecoration:"none", boxShadow:"0 4px 16px rgba(0,201,177,0.35)", letterSpacing:"-0.01em", boxSizing:"border-box" }}>
-              Subscribe now →
-            </a>
+              Get started →
+            </button>
           </div>
 
           {/* Feature list */}
@@ -3356,7 +3388,7 @@ function PricingPage({ onBack }) {
         {/* Trust / reassurance */}
         <div style={{ marginTop:"28px", display:"flex", flexDirection:"column", gap:"10px" }}>
           {[
-            { icon:<Check size={13} strokeWidth={2.5}/>, text:"Try free — no credit card required" },
+            { icon:<Check size={13} strokeWidth={2.5}/>, text:"One flat monthly price — no per-event fees" },
             { icon:<Lock size={13} strokeWidth={2}/>, text:"Payments processed securely by Stripe" },
             { icon:<X size={13} strokeWidth={2.5}/>, text:"Cancel any time — no long-term commitment" },
             { icon:<ShieldCheck size={13} strokeWidth={2}/>, text:"Your guest files never leave your browser" },
@@ -4281,7 +4313,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
       {emailModal && <EmailModal record={emailModal} eventName={eventName} contacts={contacts} onClose={() => setEmailModal(null)} />}
       {loginOpen && (
-        <div style={{ position:"fixed", inset:0, zIndex:2000, display:"flex", alignItems:"center", justifyContent:"flex-end" }}>
+        <div style={{ position:"fixed", inset:0, zIndex:4000, display:"flex", alignItems:"center", justifyContent:"flex-end" }}>
           <div onClick={() => setLoginOpen(false)} style={{ position:"absolute", inset:0, background:"rgba(27,42,74,0.5)", backdropFilter:"blur(4px)" }} />
           <div style={{ position:"relative", zIndex:1, width:"100%", maxWidth:"420px", height:"100%", background:P.navy, boxShadow:"-20px 0 60px rgba(0,0,0,0.4)", display:"flex", flexDirection:"column", overflowY:"auto" }}>
             <LoginPanel onLogin={u => {
@@ -4312,13 +4344,18 @@ function GroupGrid({ user, onLogin, onLogout }) {
       {shareModal && <ShareModal html={shareModal.html} filename={shareModal.filename} onClose={() => setShareModal(null)} />}
 
       {/* ── Page overlays ── */}
+      {(() => {
+        const nav = { onHome:() => setPage("landing"), onPricing:() => setPage("pricing"), onAbout:() => setPage("about"), onFaq:() => setPage("faq"), onContact:() => setPage("contact"), onPrivacy:() => setPage("privacy"), onTerms:() => setPage("terms"), onApp:enterApp, current:page };
+        return (<>
       {page === "landing" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><LandingPage onEnter={enterApp} onPricing={() => setPage("pricing")} onAbout={() => setPage("about")} onContact={() => setPage("contact")} onPrivacy={() => setPage("privacy")} onTerms={() => setPage("terms")} onFaq={() => setPage("faq")} /></div>}
-      {page === "pricing" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><PricingPage onBack={enterApp} /></div>}
-      {page === "about"   && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><AboutPage   onBack={enterApp} /></div>}
-      {page === "faq"     && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><FAQPage     onBack={enterApp} /></div>}
-      {page === "contact" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><ContactPage onBack={enterApp} /></div>}
-      {page === "privacy" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><PrivacyPage onBack={enterApp} /></div>}
-      {page === "terms"   && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><TermsPage   onBack={enterApp} /></div>}
+      {page === "pricing" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><PricingPage onBack={() => setPage("landing")} nav={nav} /></div>}
+      {page === "about"   && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><AboutPage   onBack={() => setPage("landing")} nav={nav} /></div>}
+      {page === "faq"     && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><FAQPage     onBack={() => setPage("landing")} nav={nav} /></div>}
+      {page === "contact" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><ContactPage onBack={() => setPage("landing")} nav={nav} /></div>}
+      {page === "privacy" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><PrivacyPage onBack={() => setPage("landing")} nav={nav} /></div>}
+      {page === "terms"   && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><TermsPage   onBack={() => setPage("landing")} nav={nav} /></div>}
+        </>);
+      })()}
 
       {/* Header */}
       <div style={{ background:P.navy, padding:`0 ${isMobile ? "14px" : "32px"}`, display:"flex", alignItems:"center", justifyContent:"space-between", height:"52px", boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
