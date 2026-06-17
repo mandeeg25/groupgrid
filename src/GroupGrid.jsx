@@ -3721,6 +3721,17 @@ function GroupGrid({ user, onLogin, onLogout }) {
   const [contacts, setContacts] = useState({ hotel:{name:"",email:"",phone:"",property:""}, travel:{name:"",email:"",phone:"",agency:""}, hotels:[], plannerName:"" });
   const [contactsOpen, setContactsOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+  // Auth gate: the app (cross-check tool) requires login. Marketing pages stay public.
+  // If logged in, enter the app; otherwise open the login modal and stay on the current marketing page.
+  function enterApp() {
+    if (user) { setPage("app"); }
+    else { setLoginOpen(true); }
+  }
+  // Safety guard: if a logged-out user ends up on the app view (e.g. after logout, or a stale state),
+  // bounce them back to the public landing page and prompt login. The app requires authentication.
+  useEffect(() => {
+    if (!user && page === "app") { setPage("landing"); setLoginOpen(true); }
+  }, [user, page]);
   const [sortBy, setSortBy] = useState(null);       // null | "name" | "status" | "arrival" | "checkin" | "departure" | "checkout"
   const [sortDir, setSortDir] = useState("asc");    // "asc" | "desc"
   const [selectedRows, setSelectedRows] = useState(new Set()); // set of record keys
@@ -4292,6 +4303,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 } catch(e) {}
                 onLogin(u);
                 setLoginOpen(false);
+                setPage("app");
               }} onClose={() => setLoginOpen(false)} />
           </div>
         </div>
@@ -4300,13 +4312,13 @@ function GroupGrid({ user, onLogin, onLogout }) {
       {shareModal && <ShareModal html={shareModal.html} filename={shareModal.filename} onClose={() => setShareModal(null)} />}
 
       {/* ── Page overlays ── */}
-      {page === "landing" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><LandingPage onEnter={() => setPage("app")} onPricing={() => setPage("pricing")} onAbout={() => setPage("about")} onContact={() => setPage("contact")} onPrivacy={() => setPage("privacy")} onTerms={() => setPage("terms")} onFaq={() => setPage("faq")} /></div>}
-      {page === "pricing" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><PricingPage onBack={() => setPage("app")} /></div>}
-      {page === "about"   && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><AboutPage   onBack={() => setPage("app")} /></div>}
-      {page === "faq"     && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><FAQPage     onBack={() => setPage("app")} /></div>}
-      {page === "contact" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><ContactPage onBack={() => setPage("app")} /></div>}
-      {page === "privacy" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><PrivacyPage onBack={() => setPage("app")} /></div>}
-      {page === "terms"   && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><TermsPage   onBack={() => setPage("app")} /></div>}
+      {page === "landing" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><LandingPage onEnter={enterApp} onPricing={() => setPage("pricing")} onAbout={() => setPage("about")} onContact={() => setPage("contact")} onPrivacy={() => setPage("privacy")} onTerms={() => setPage("terms")} onFaq={() => setPage("faq")} /></div>}
+      {page === "pricing" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><PricingPage onBack={enterApp} /></div>}
+      {page === "about"   && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><AboutPage   onBack={enterApp} /></div>}
+      {page === "faq"     && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><FAQPage     onBack={enterApp} /></div>}
+      {page === "contact" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><ContactPage onBack={enterApp} /></div>}
+      {page === "privacy" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><PrivacyPage onBack={enterApp} /></div>}
+      {page === "terms"   && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><TermsPage   onBack={enterApp} /></div>}
 
       {/* Header */}
       <div style={{ background:P.navy, padding:`0 ${isMobile ? "14px" : "32px"}`, display:"flex", alignItems:"center", justifyContent:"space-between", height:"52px", boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
