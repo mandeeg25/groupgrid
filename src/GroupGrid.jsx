@@ -138,11 +138,31 @@ const FEATURES = {
 };
 
 function parseDate(val) {
-  if (!val) return null;
-  if (val instanceof Date && !isNaN(val)) return val;
-  if (typeof val === "number") { const d = new Date(Math.round((val - 25569) * 86400 * 1000)); return isNaN(d) ? null : d; }
-  const d = new Date(val); return isNaN(d) ? null : d;
+  if (val === null || val === undefined || val === "") return null;
+  // Already a Date object
+  if (val instanceof Date && !isNaN(val)) return atNoon(val.getFullYear(), val.getMonth(), val.getDate());
+  // Excel serial number. Whole part = date; fractional part = time of day. We only want the calendar day.
+  if (typeof val === "number") {
+    const d = new Date(Math.round((Math.floor(val) - 25569) * 86400 * 1000)); // floor() drops the time fraction
+    if (isNaN(d)) return null;
+    // Excel serials are UTC-based; read UTC components so the day doesn't shift by timezone.
+    return atNoon(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  }
+  const s = String(val).trim();
+  if (!s) return null;
+  // Pull the DATE part out of a combined "date + time" string so a late-night time can't roll the day over.
+  // Handles: "2026-06-18", "2026-06-18 23:45", "2026-06-18T23:45:00Z", "6/18/2026 11:45 PM", "06/18/2026"
+  let m = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);            // ISO-ish: YYYY-MM-DD (optionally followed by time)
+  if (m) return atNoon(+m[1], +m[2] - 1, +m[3]);
+  m = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/);              // US-ish: M/D/YYYY (optionally followed by time)
+  if (m) { let y = +m[3]; if (y < 100) y += 2000; return atNoon(y, +m[1] - 1, +m[2]); }
+  // Fallback: let the browser try, then normalize to noon-local on the day it landed on.
+  const d = new Date(s);
+  if (isNaN(d)) return null;
+  return atNoon(d.getFullYear(), d.getMonth(), d.getDate());
 }
+// Build a date at noon local time. Noon avoids any midnight/timezone edge from ever shifting the calendar day.
+function atNoon(y, mo, day) { const d = new Date(y, mo, day, 12, 0, 0, 0); return isNaN(d) ? null : d; }
 function fmt(date) { if (!date) return "—"; return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); }
 // When results are restored from localStorage (JSON), Date objects come back as strings.
 // Rehydrate every date field back into a real Date so .toLocaleDateString()/.getTime() work.
@@ -497,6 +517,7 @@ function ContactsModal({ contacts, onSave, onClose }) {
   const fields = [
     { key:"hotel", label:"Hotel Contact", color:P.navy, fields:[{f:"name",ph:"Contact name"},{f:"email",ph:"hotel@property.com"},{f:"phone",ph:"+1 (212) 555-0100"},{f:"property",ph:"Property / hotel name"}] },
     { key:"travel", label:"Travel Agency Contact", color:P.periwinkleD, fields:[{f:"name",ph:"Contact name"},{f:"email",ph:"agent@travelco.com"},{f:"phone",ph:"+1 (212) 555-0200"},{f:"agency",ph:"Agency name"}] },
+    { key:"car", label:"Car / Transfer Contact", color:P.accentD, fields:[{f:"name",ph:"Contact name"},{f:"email",ph:"transfers@vendor.com"},{f:"phone",ph:"+1 (212) 555-0300"},{f:"vendor",ph:"Transfer vendor name"}] },
   ];  return (
     <div style={{ position:"fixed", inset:0, background:"rgba(27,42,74,0.55)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:"20px" }}>
       <div className="gg-modal" style={{ background:P.white, borderRadius:"22px", width:"100%", maxWidth:"620px", maxHeight:"90vh", overflow:"auto", boxShadow:"0 20px 60px rgba(27,42,74,0.3)" }}>
@@ -3579,7 +3600,7 @@ function SetupScreen({
 }) {
   const hasName = !!(eventName && eventName.trim());
   const canRun = hasName && ready && !loading;
-  const hasContacts = contacts && (contacts.hotel?.email || contacts.travel?.email);
+  const hasContacts = contacts && (contacts.hotel?.email || contacts.travel?.email || contacts.car?.email);
   return (
     <div style={{ maxWidth:"1080px", margin:"0 auto", width:"100%" }}>
       <h1 style={{ fontSize:"clamp(20px,3vw,24px)", fontWeight:600, color:P.navy, fontFamily:font, letterSpacing:"-0.02em", margin:"0 0 4px" }}>New project</h1>
@@ -3632,7 +3653,7 @@ function SetupScreen({
           <Users size={18} strokeWidth={1.5} color={P.accentD}/>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:"14px", fontWeight:500, color:hasContacts?P.accentD:P.grey600, fontFamily:font }}>{hasContacts ? "Contacts added" : "Add hotel & travel agency contacts"}</div>
-            {hasContacts && <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginTop:"1px" }}>{[contacts.hotel?.name, contacts.travel?.name].filter(Boolean).join(" · ")}</div>}
+            {hasContacts && <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginTop:"1px" }}>{[contacts.hotel?.name, contacts.travel?.name, contacts.car?.name].filter(Boolean).join(" · ")}</div>}
           </div>
           {hasContacts && <Check size={15} strokeWidth={2.5} color={P.accentD}/>}
         </button>
@@ -3745,7 +3766,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
   const TABLE_EXPANDED_HEIGHT = 320;
   const TABLE_VISIBLE_ROWS = 16; // rows visible at once (~600px container)
   const [savedSessions, setSavedSessions] = useState([]);
-  const [contacts, setContacts] = useState({ hotel:{name:"",email:"",phone:"",property:""}, travel:{name:"",email:"",phone:"",agency:""}, hotels:[], plannerName:"" });
+  const [contacts, setContacts] = useState({ hotel:{name:"",email:"",phone:"",property:""}, travel:{name:"",email:"",phone:"",agency:""}, car:{name:"",email:"",phone:"",vendor:""}, hotels:[], plannerName:"" });
   const [contactsOpen, setContactsOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   // Auth gate: the app (cross-check tool) requires login. Marketing pages stay public.
@@ -4469,7 +4490,12 @@ function GroupGrid({ user, onLogin, onLogout }) {
             </div>
 
             {/* New project button */}
-            <button onClick={() => { setResults(null); setFlightFile(null); setHotelFile(null); setCarFile(null); setDietaryFile(null); setRegistrationFile(null); setEventName(""); setMeta({}); setFilter("all"); setSearch(""); setExpanded(null); setActiveTab("grid"); }}
+            <button onClick={() => {
+                // Notes and resolved flags live with the project. Starting fresh clears them,
+                // so warn if there's unsaved work first \u2014 the user can Save, then reopen to get notes back.
+                const hasWork = results && (Object.keys(meta||{}).length > 0 || eventName);
+                if (hasWork && !window.confirm("Start a new project? Your current notes and resolved flags will be cleared from this screen. To keep them, click Cancel, then use Save Now first \u2014 you can reopen this project anytime to get them back.")) return;
+                setResults(null); setFlightFile(null); setHotelFile(null); setCarFile(null); setDietaryFile(null); setRegistrationFile(null); setEventName(""); setMeta({}); setFilter("all"); setSearch(""); setExpanded(null); setActiveTab("grid"); }}
               style={{ width:"100%", display:"flex", alignItems:"center", gap:"8px", background:"rgba(255,255,255,0.07)", border:`1px dashed rgba(255,255,255,0.18)`, borderRadius:"8px", padding:"7px 10px", cursor:"pointer", marginBottom:"6px", fontFamily:font, transition:"all 0.15s", textAlign:"left" }}
               onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.12)"}
               onMouseLeave={e => e.currentTarget.style.background="rgba(255,255,255,0.07)"}>
