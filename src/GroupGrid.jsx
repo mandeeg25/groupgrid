@@ -58,7 +58,7 @@ const P = {
 const font = "'Manrope', sans-serif";
 const fontDisplay = "'Poppins', sans-serif";
 // Build version — bump this whenever code is deployed so you can confirm at a glance which build is live.
-const APP_VERSION = "v4.8 · Jun 2026";
+const APP_VERSION = "v5.0 · Jun 2026";
 // Feature flag: hide the Dietary/Access feature from the UI for now while focusing on
 // registration, flights, hotels, and cars. The parsing/engine code stays intact —
 // flip this to true to bring the dietary upload, column, and detail back everywhere.
@@ -877,7 +877,7 @@ function EmailModal({ record, eventName, contacts, onClose }) {
       if (issue.text === "Missing from flight manifest")
         return `  Flight details:        Not currently on file\n  Your hotel check-in:   ${checkIn || "—"}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}\n\n  We do not have your flight details on file. Could you share your inbound and outbound flight numbers and dates?`;
       if (issue.text === "Missing from car transfers")
-        return `  Your flight arrives:   ${flightArrival || "—"}${airport ? " (" + airport + ")" : ""}${flightIn ? " — Flight " + flightIn : ""}\n  Ground transfer:       Not currently on file\n  Hotel:                 ${hotel}\n\n  We do not have a ground transfer arranged for you. Would you like us to arrange transportation from ${airport || "the airport"} to ${hotel}?`;
+        return `  Your flight arrives:   ${flightArrival || "—"}${airport ? " (" + airport + ")" : ""}${flightIn ? " — Flight " + flightIn : ""}\n  Ground transfer:       Not currently on file${hotel && hotel !== "the hotel" ? "\n  Hotel:                 " + hotel : ""}\n\n  We do not have a ground transfer arranged for you. Would you like us to arrange transportation from ${airport || "the airport"} to ${hotel && hotel !== "the hotel" ? hotel : "your hotel"}?`;
       if (issue.type === "window")
         return `  Your arrival:          ${flightArrival || "—"}\n  Your departure:        ${flightDeparture || "—"}\n\n  Your travel dates appear to fall outside the approved event travel window. Could you confirm these dates are correct, or let us know if any changes are needed?`;
       return `  ${issue.text}`;
@@ -1129,38 +1129,21 @@ const DEFAULT_TEMPLATES = {
     subject: "{{eventName}} [Arrival]: Could you confirm your travel details?",
     body: `Hi {{guestName}},
 
-We are so excited to have you joining us for {{eventName}} — it is going to be a wonderful event and we truly cannot wait to see you there!
+We are reviewing travel for {{eventName}} and spotted a timing gap to confirm with you:
 
-We are doing a careful review of all guest travel details to make sure everything lines up perfectly, and we noticed something we wanted to flag with you right away:
+──────────────────────
+Flight arrives: {{flightArrival}} into {{airport}} (Flight {{flightIn}})
+Hotel check-in: {{checkIn}} at {{hotel}}
 
-┌────────────────────────┐
-    Here is what needs your attention:
+Your flight lands the day before your hotel check-in.
+──────────────────────
 
-    Your flight arrives into {{airport}} on {{flightArrival}}
-         Flight: {{flightIn}}
+What we need: reply to let us know one of these.
 
-    Your hotel check-in at {{hotel}} is {{checkIn}}
+  My arrival night is covered, no change needed.
+  Please add an extra night at {{hotel}} for me.
 
-  Your flight lands the day before your hotel check-in date.
-└────────────────────────┘
-
-We just want to make sure you have somewhere comfortable to stay that first night, {{guestName}}!
-
-Could you take a quick look and let us know one of the following?
-
-    I have accommodations arranged for my arrival night — no changes needed!
-    I would like to add an extra night at {{hotel}} — please help me sort this out.
-
-Either answer is completely fine — we just want to make sure you are taken care of from the moment you land at {{airport}}. If you need us to reach out to {{hotel}} on your behalf, we are more than happy to do that for you!
-
-Here is your full travel summary for {{eventName}} as we have it:
-
-    Arrival:          {{flightArrival}} into {{airport}} — Flight {{flightIn}}
-    Hotel check-in:  {{checkIn}} at {{hotel}}
-    Hotel check-out: {{checkOut}}
-    Departure:        {{flightDeparture}} — Flight {{flightOut}}
-
-Thank you so much for helping us make sure every detail is just right for your trip to {{eventName}}!
+Happy to contact {{hotel}} for you if that is easier.
 
 Warmly,
 {{plannerName}}
@@ -1175,38 +1158,21 @@ Warmly,
     subject: "{{eventName}} [Departure]: Could you confirm your travel details?",
     body: `Hi {{guestName}},
 
-We are so excited to have you joining us for {{eventName}} — it is going to be a wonderful event and we truly cannot wait to see you there!
+We are reviewing travel for {{eventName}} and spotted a timing gap to confirm:
 
-We are doing a careful review of all guest travel details to make sure everything lines up perfectly, and we noticed something we wanted to flag with you right away:
+──────────────────────
+Hotel check-out: {{checkOut}} at {{hotel}}
+Flight departs: {{flightDeparture}} from {{airport}} (Flight {{flightOut}})
 
-┌────────────────────────┐
-    Here is what needs your attention:
+Your hotel checks out before your flight departs.
+──────────────────────
 
-    Your hotel check-out at {{hotel}} is {{checkOut}}
+What we need: reply to let us know one of these.
 
-    Your flight departs {{airport}} on {{flightDeparture}}
-         Flight: {{flightOut}}
+  My departure night is covered, no change needed.
+  Please extend my stay at {{hotel}} by one night.
 
-  Your hotel checks out the day before your flight departs.
-└────────────────────────┘
-
-We just want to make sure you have somewhere comfortable to stay that last night, {{guestName}}!
-
-Could you take a quick look and let us know one of the following?
-
-    I have accommodations arranged for my departure night — no changes needed!
-    I would like to extend my stay at {{hotel}} by one night — please help me sort this out.
-
-Either answer is completely fine — we just want to make sure you are comfortable right up until your flight home from {{airport}}. If you need us to reach out to {{hotel}} on your behalf, we are absolutely happy to do that for you!
-
-Here is your full travel summary for {{eventName}} as we have it:
-
-    Arrival:          {{flightArrival}} into {{airport}} — Flight {{flightIn}}
-    Hotel check-in:  {{checkIn}} at {{hotel}}
-    Hotel check-out: {{checkOut}}
-    Departure:        {{flightDeparture}} from {{airport}} — Flight {{flightOut}}
-
-Thank you so much for helping us make sure every detail is just right for your trip to {{eventName}}!
+Happy to contact {{hotel}} for you if that is easier.
 
 Warmly,
 {{plannerName}}
@@ -1221,29 +1187,17 @@ Warmly,
     subject: "{{eventName}} [Hotel]: Could you confirm your travel details?",
     body: `Hi {{guestName}},
 
-We are so looking forward to welcoming you to {{eventName}} — it is going to be a fantastic event and we are thrilled you will be joining us!
+We are reviewing travel for {{eventName}} and we do not have a hotel booking on file for you:
 
-We are reviewing travel details for all of our guests to make sure no one has any gaps, and we noticed something important we wanted to flag with you right away:
+──────────────────────
+Flight arrives: {{flightArrival}} into {{airport}} (Flight {{flightIn}})
+Hotel booking: Not on file
+──────────────────────
 
-┌────────────────────────┐
-    Here is what needs your attention:
+We do not want you arriving without a room. What we need: reply with one of these.
 
-    Your flight arrives into {{airport}} on {{flightArrival}}
-         Flight: {{flightIn}}
-
-    Hotel booking: Not currently on file
-
-  We do not have a hotel booking on file for you for {{eventName}}.
-└────────────────────────┘
-
-We would hate for you to arrive at {{airport}} on {{flightArrival}} without confirmed accommodations, {{guestName}} — so we wanted to reach out right away!
-
-Could you help us out with a quick reply?
-
-    I have already booked my own hotel — here is my confirmation: ___________
-    I would love help booking a room — please arrange one for me!
-
-There is truly no wrong answer — we just want to make sure you have a wonderful, comfortable stay during {{eventName}}. Please reach out with any questions at all and we will get this sorted for you immediately!
+  I booked my own hotel. Confirmation: ___________
+  Please book a room for me.
 
 Warmly,
 {{plannerName}}
@@ -1258,33 +1212,14 @@ Warmly,
     subject: "{{eventName}} [Flight]: Could you confirm your travel details?",
     body: `Hi {{guestName}},
 
-We are so thrilled you will be joining us for {{eventName}} — it is going to be such a wonderful event and we genuinely cannot wait to see you there!
+Your room at {{hotel}} is confirmed for {{eventName}}, but we do not have your flight details yet:
 
-We are reviewing travel details for all of our guests to make sure everything is perfectly coordinated, and we noticed something we wanted to flag with you:
+──────────────────────
+Flight: Not on file
+Hotel check-in: {{checkIn}} at {{hotel}}
+──────────────────────
 
-┌────────────────────────┐
-    Here is what needs your attention:
-
-    Flight details: Not currently on file
-
-    Your hotel: {{hotel}}
-    Check-in date: {{checkIn}}
-    Check-out date: {{checkOut}}
-
-  We have your hotel confirmed but no flight information on file.
-└────────────────────────┘
-
-Your room at {{hotel}} is all confirmed and ready for you, {{guestName}} — we just need your flight details to complete your travel profile! Having your flight information helps us coordinate your ground transfer, make sure someone is there to greet you when you land, and catch anything that might need attention before you travel.
-
-When you get a moment, could you send us the following?
-
-    Inbound flight number and arrival date
-    Outbound flight number and departure date
-    Arriving airport
-
-If you are making your own way to {{hotel}} without flying, just let us know and we will update your record — no problem at all!
-
-Thank you so much, and please do not hesitate to reach out with any questions. We cannot wait to see you at {{eventName}}!
+What we need: reply with your inbound and outbound flight numbers, dates, and arrival airport. If you are not flying, just let us know and we will update your record.
 
 Warmly,
 {{plannerName}}
@@ -1299,32 +1234,19 @@ Warmly,
     subject: "{{eventName}} [Transfer]: Could you confirm your travel details?",
     body: `Hi {{guestName}},
 
-We hope you are getting excited for {{eventName}} — we certainly are, and we truly cannot wait to see you!
+We are arranging ground transfers for {{eventName}} and do not have one on file for you:
 
-We are finalizing ground transportation for all of our guests, and we noticed something we wanted to check with you on:
+──────────────────────
+Flight arrives: {{flightArrival}} into {{airport}} (Flight {{flightIn}})
+Transfer: Not on file
+──────────────────────
 
-┌────────────────────────┐
-    Here is what needs your attention:
+What we need: reply with your preference.
 
-    Your flight arrives into {{airport}} on {{flightArrival}}
-         Flight: {{flightIn}}
+  Yes, please arrange a transfer from {{airport}} to {{hotel}}.
+  No thanks, I have my own transportation.
 
-    Transfer to hotel: Not currently on file
-    Your hotel: {{hotel}}
-
-  We do not have a transfer arranged for you from {{airport}} to {{hotel}}.
-└────────────────────────┘
-
-We want to make absolutely sure you have a smooth, stress-free arrival at {{hotel}}, {{guestName}} — so we wanted to check in right away!
-
-Could you let us know your preference?
-
-    Yes please — I would love a transfer from {{airport}} to {{hotel}}!
-    No thank you — I have my own transportation arranged.
-
-We want to make sure you arrive at {{hotel}} feeling relaxed and completely ready to enjoy every moment of {{eventName}}. Just reply with your preference and we will take care of everything from there!
-
-With warm regards,
+Warmly,
 {{plannerName}}
 {{eventName}} Planning Team`,
   },
@@ -1337,25 +1259,19 @@ With warm regards,
     subject: "{{eventName}} [Car Transfer]: Could you confirm your travel details?",
     body: `Hi {{guestName}},
 
-We are getting everything ready for {{eventName}} and want to make sure your arrival and departure go smoothly!
+We are reviewing ground transfers for {{eventName}} and your transfer times do not line up with your flights:
 
-While reviewing ground transportation, we noticed your car transfer timing does not quite line up with your flights:
+──────────────────────
+Flight arrives: {{flightArrival}}
+Car pickup: {{carPickup}}
 
-┌────────────────────────┐
-    Here is what needs your attention:
+Flight departs: {{flightDeparture}}
+Car dropoff: {{carDropoff}}
+──────────────────────
 
-    Your flight arrives:   {{flightArrival}}
-    Your car pickup:       {{carPickup}}
+What we need: reply to confirm these times are right, or tell us what to adjust.
 
-    Your flight departs:   {{flightDeparture}}
-    Your car dropoff:      {{carDropoff}}
-└────────────────────────┘
-
-We want to make sure you are never left waiting at the airport, and never miss a ride to your departing flight. Could you confirm whether your transfer times are correct, or let us know if they need adjusting?
-
-Just reply and we will take care of the rest.
-
-With warm regards,
+Warmly,
 {{plannerName}}
 {{eventName}} Planning Team`,
   },
@@ -1368,25 +1284,18 @@ With warm regards,
     subject: "{{eventName}} [Registration]: Could you confirm your travel details?",
     body: `Hi {{guestName}},
 
-We are looking forward to {{eventName}} and noticed you have travel arranged with us — wonderful!
+We can see travel arranged for you for {{eventName}}, but you are not yet on our registration list:
 
-There is just one thing we are missing on our end:
+──────────────────────
+We have booked for you:
+{{bookedTravel}}
 
-┌────────────────────────┐
-    Here is what needs your attention:
+Registration: Not on file
+──────────────────────
 
-    We have travel booked for you:
-    Flight arrival:   {{flightArrival}}
-    Hotel:            {{hotel}}
+What we need: complete your registration for {{eventName}}. It takes a minute and confirms your spot. If you believe you already registered, just reply and we will check.
 
-    But we do not yet have your event registration on file.
-└────────────────────────┘
-
-So we can finalize your details and make sure nothing slips through, could you please complete your registration for {{eventName}}? It only takes a moment, and it helps us confirm everything is set for your trip.
-
-If you believe you already registered, just reply and we will look into it right away.
-
-With warm regards,
+Warmly,
 {{plannerName}}
 {{eventName}} Planning Team`,
   },
@@ -1399,24 +1308,17 @@ With warm regards,
     subject: "{{eventName}} [Airport]: Could you confirm your travel details?",
     body: `Hi {{guestName}},
 
-We are looking forward to seeing you at {{eventName}}!
+We are reviewing travel for {{eventName}} and noticed your arrival airport:
 
-While reviewing travel for all of our guests, we noticed something we wanted to check with you:
+──────────────────────
+Flight arrives: {{airport}} on {{flightArrival}} (Flight {{flightIn}})
 
-┌────────────────────────┐
-    Here is what needs your attention:
+This is not an airport we are coordinating arrivals around.
+──────────────────────
 
-    Your flight arrives into: {{airport}} on {{flightArrival}}
-         Flight: {{flightIn}}
+This may be intentional. What we need: reply to confirm your airport is correct, or let us know if you would like help adjusting it.
 
-    This is not one of the airports we are coordinating ground transportation and arrivals around.
-└────────────────────────┘
-
-This may be completely intentional — perhaps it works better for your schedule! If so, no problem at all, just reply to let us know.
-
-If it was booked in error, or if you would like help adjusting it, we are happy to assist. Could you confirm your arrival airport when you have a moment?
-
-With warm regards,
+Warmly,
 {{plannerName}}
 {{eventName}} Planning Team`,
   },
@@ -1429,31 +1331,15 @@ With warm regards,
     subject: "{{eventName}} [Travel Dates]: Could you confirm your travel details?",
     body: `Hi {{guestName}},
 
-We are so glad you will be joining us for {{eventName}} — we want to make sure every detail of your trip is perfectly arranged and that you have the most wonderful experience!
+We are reviewing travel for {{eventName}} and your dates fall outside the event travel window:
 
-While reviewing travel details for all of our guests, we noticed something we wanted to bring to your attention right away:
+──────────────────────
+Flight arrives: {{flightArrival}} into {{airport}}
+Flight departs: {{flightDeparture}} from {{airport}}
+Event window: {{eventStart}} to {{eventEnd}}
+──────────────────────
 
-┌────────────────────────┐
-    Here is what needs your attention:
-
-    Your flight arrives into {{airport}} on {{flightArrival}}
-    Your flight departs {{airport}} on {{flightDeparture}}
-
-    {{eventName}} travel window: {{eventStart}} – {{eventEnd}}
-
-  Your travel dates fall outside the standard event travel window.
-└────────────────────────┘
-
-This might be completely intentional, {{guestName}} — perhaps you are extending your trip to explore, which sounds wonderful! If that is the case, no action is needed at all — just reply to let us know you are all set and we will note it in your travel record.
-
-If you think your dates may have been entered incorrectly or you would like to revisit your booking, we are more than happy to help sort it out together. No question is too small!
-
-Here is your full travel summary for {{eventName}} as we have it:
-
-    Arrival:          {{flightArrival}} into {{airport}} — Flight {{flightIn}}
-    Hotel check-in:  {{checkIn}} at {{hotel}}
-    Hotel check-out: {{checkOut}}
-    Departure:        {{flightDeparture}} from {{airport}} — Flight {{flightOut}}
+This may be intentional. What we need: reply to confirm your dates are correct, or tell us if they need a change.
 
 Warmly,
 {{plannerName}}
@@ -1468,33 +1354,20 @@ Warmly,
     subject: "{{eventName}} [Travel Review]: Could you confirm your travel details?",
     body: `Hi {{guestName}},
 
-We are getting SO excited for {{eventName}} and we hope you are too — we truly cannot wait to see you there!
+A quick travel check for {{eventName}}. Here is what we have on file:
 
-As we get closer to {{eventName}}, we are doing a final check to make sure every guest's travel details are perfectly in order. We would love for you to take just 30 seconds to review what we have on file and confirm everything looks right!
+──────────────────────
+Arrival: {{flightArrival}} into {{airport}} (Flight {{flightIn}})
+Hotel: {{checkIn}} to {{checkOut}} at {{hotel}}
+Departure: {{flightDeparture}} from {{airport}} (Flight {{flightOut}})
+──────────────────────
 
-Here is your complete travel summary for {{eventName}}:
+What we need: reply to confirm it is correct, or tell us what to change.
 
-┌────────────────────────┐
-    Arrival flight:     {{flightArrival}} into {{airport}}
-                          Flight {{flightIn}}
+  Looks good, I am all set.
+  Please update: ___________
 
-    Hotel check-in:    {{checkIn}} at {{hotel}}
-    Hotel check-out:   {{checkOut}}
-
-    Departure flight:  {{flightDeparture}} from {{airport}}
-                          Flight {{flightOut}}
-└────────────────────────┘
-
-Does everything look right, {{guestName}}?
-
-    Yes, everything looks perfect — I am all set!
-    Something needs to be updated — here is what to change: ___________
-
-If everything is correct, you do not need to do a single thing — just sit back, relax, and get ready for a fantastic time at {{eventName}}! If anything needs adjusting, please reply and we will take care of it immediately. No change is too small and no question is too silly — we are here for you!
-
-See you very soon at {{eventName}}!
-
-With excitement,
+Warmly,
 {{plannerName}}
 {{eventName}} Planning Team`,
   },
@@ -1514,6 +1387,22 @@ function fillTemplate(template, record, extra = {}) {
     "{{checkIn}}": fmt(record.hotel?.checkIn) || "—",
     "{{checkOut}}": fmt(record.hotel?.checkOut) || "—",
     "{{hotel}}": record.hotel?.hotel || "the hotel",
+    "{{bookedTravel}}": (() => {
+      const lines = [];
+      if (record.flight) {
+        const arr = fmt(record.flight.flightArrival);
+        const tail = record.flight.flightIn ? ` (Flight ${record.flight.flightIn})` : "";
+        lines.push(`Flight arrival: ${arr || "on file"}${tail}`);
+      }
+      if (record.hotel) {
+        lines.push(`Hotel: ${record.hotel.hotel || "booking on file"}`);
+      }
+      if (record.car) {
+        lines.push(`Car transfer: ${fmt(record.car.pickupDate) || "on file"}`);
+      }
+      if (!lines.length) lines.push("Travel details on file");
+      return lines.join("\n");
+    })(),
     "{{hotelContact}}": extra.hotelName || "Hotel Team",
     "{{travelContact}}": extra.travelName || "Travel Team",
     "{{carContact}}": extra.carName || "Transfer Team",
@@ -1575,63 +1464,57 @@ const TEMPLATE_AUDIENCE = {
 const VENDOR_BODY = {
   hotel: `Dear {{hotelContact}},
 
-I hope you are well. I am reaching out about the reservation for {{guestFullName}}{{guestEmailParen}} for {{eventName}}.
+I am writing about {{guestFullName}}{{guestEmailParen}} for {{eventName}}. While reviewing guest records we found an issue to confirm:
 
-While reviewing our guests' travel records, we found something we would appreciate your help with:
+──────────────────────
+Guest: {{guestFullName}}
+Flight arrival: {{flightArrival}}{{flightInTail}}
+Hotel check-in: {{checkIn}} at {{hotel}}
+Hotel check-out: {{checkOut}}
+Flight departure: {{flightDeparture}}{{flightOutTail}}
 
-┌────────────────────────┐
-    Guest: {{guestFullName}}
-    Flight arrival:    {{flightArrival}}{{flightInTail}}
-    Hotel check-in:    {{checkIn}} at {{hotel}}
-    Hotel check-out:   {{checkOut}}
-    Flight departure:  {{flightDeparture}}{{flightOutTail}}
+Issue: {{issueSummary}}
+──────────────────────
 
-    Issue: {{issueSummary}}
-└────────────────────────┘
-
-Could you please review and confirm the correct booking details at your earliest convenience? Thank you so much for your help making sure {{guestFullName}}'s stay is set.
+Could you confirm the correct booking details at your earliest convenience? Thank you.
 
 Warm regards,
 {{plannerName}}
 {{eventName}} Planning Team`,
   travel: `Dear {{travelContact}},
 
-I hope you are doing well. I am reaching out about the travel itinerary for {{guestFullName}}{{guestEmailParen}} for {{eventName}}.
+I am writing about the itinerary for {{guestFullName}}{{guestEmailParen}} for {{eventName}}. While reviewing guest records we found something to confirm:
 
-While reviewing our guests' travel records, we found something we would appreciate your help to confirm or correct:
+──────────────────────
+Guest: {{guestFullName}}
+Inbound: {{flightArrival}} into {{airport}}{{flightInTail}}
+Hotel check-in: {{checkIn}} at {{hotel}}
+Hotel check-out: {{checkOut}}
+Outbound: {{flightDeparture}} from {{airport}}{{flightOutTail}}
 
-┌────────────────────────┐
-    Guest: {{guestFullName}}
-    Inbound:           {{flightArrival}} into {{airport}}{{flightInTail}}
-    Hotel check-in:    {{checkIn}} at {{hotel}}
-    Hotel check-out:   {{checkOut}}
-    Outbound:          {{flightDeparture}} from {{airport}}{{flightOutTail}}
+Issue: {{issueSummary}}
+──────────────────────
 
-    Issue: {{issueSummary}}
-└────────────────────────┘
-
-Kindly advise on the correct details and any changes needed. We really appreciate your support making sure everything lines up for {{guestFullName}}.
+Please advise on the correct details and any changes needed. Thank you.
 
 Warm regards,
 {{plannerName}}
 {{eventName}} Planning Team`,
   car: `Dear {{carContact}},
 
-I hope you are well. I am reaching out about the ground transfer for {{guestFullName}}{{guestEmailParen}} for {{eventName}}.
+I am writing about the ground transfer for {{guestFullName}}{{guestEmailParen}} for {{eventName}}. While reviewing guest records we found something to confirm:
 
-While reviewing our guests' travel records, we found something we would appreciate your help with:
+──────────────────────
+Guest: {{guestFullName}}
+Flight arrival: {{flightArrival}}{{flightInTail}}
+Car pickup: {{carPickup}}
+Car dropoff: {{carDropoff}}
+Flight departure: {{flightDeparture}}{{flightOutTail}}
 
-┌────────────────────────┐
-    Guest: {{guestFullName}}
-    Flight arrival:    {{flightArrival}}{{flightInTail}}
-    Car pickup:        {{carPickup}}
-    Car dropoff:       {{carDropoff}}
-    Flight departure:  {{flightDeparture}}{{flightOutTail}}
+Issue: {{issueSummary}}
+──────────────────────
 
-    Issue: {{issueSummary}}
-└────────────────────────┘
-
-Could you please confirm the transfer times are correct, or let us know if they need adjusting? Thank you for helping make sure {{guestFullName}} gets where they need to be.
+Could you confirm the transfer times are correct, or let us know if they need adjusting? Thank you.
 
 Warm regards,
 {{plannerName}}
