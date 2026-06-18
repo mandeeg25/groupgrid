@@ -58,7 +58,7 @@ const P = {
 const font = "'Manrope', sans-serif";
 const fontDisplay = "'Poppins', sans-serif";
 // Build version — bump this whenever code is deployed so you can confirm at a glance which build is live.
-const APP_VERSION = "v4.7 · Jun 2026";
+const APP_VERSION = "v4.8 · Jun 2026";
 // Feature flag: hide the Dietary/Access feature from the UI for now while focusing on
 // registration, flights, hotels, and cars. The parsing/engine code stays intact —
 // flip this to true to bring the dietary upload, column, and detail back everywhere.
@@ -156,6 +156,9 @@ function CalendarIcon({ size = 20, line = P.navy, accent = P.accent }) {
 }
 function PeopleIcon({ size = 20, line = P.navy, accent = P.accent }) {
   return svgIcon(size, line, <><circle cx="9" cy="8.5" r="3" /><path d="M3.5 19c0-3.1 2.4-4.9 5.5-4.9s5.5 1.8 5.5 4.9" /><path d="M16 6.4a2.8 2.8 0 0 1 0 5.5" stroke={accent} /><path d="M17 14.3c2.4.4 3.7 2.1 3.7 4.7" stroke={accent} /></>);
+}
+function AlertIcon({ size = 20, line = P.navy, accent = P.amber }) {
+  return svgIcon(size, line, <><path d="M12 4 2.5 20.5h19z" /><path d="M12 10v4.5" stroke={accent} /><path d="M12 17.6v.2" stroke={accent} /></>);
 }
 
 // ── Responsive hook ───────────────────────────────────────────────────────────
@@ -3215,11 +3218,11 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               </div>
             ))}
           </div>
-          <div style={{ background:P.redLight, border:`1.5px solid ${P.red}22`, borderRadius:"14px", padding:"20px 28px", display:"flex", alignItems:"center", gap:"16px" }}>
-            <span style={{ fontSize:"28px", flexShrink:0 }}>😩</span>
+          <div style={{ background:P.navy, borderRadius:"16px", padding:"22px 28px", display:"flex", alignItems:"center", gap:"18px" }}>
+            <div style={{ width:46, height:46, borderRadius:"12px", background:P.navyLight, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><AlertIcon size={24} line="rgba(255,255,255,0.95)" accent={P.amber} /></div>
             <div>
-              <div style={{ fontSize:"15px", fontWeight:800, color:P.red, fontFamily:font, marginBottom:"4px" }}>Meanwhile, your event is in 3 days</div>
-              <div style={{ fontSize:"14px", color:P.grey600, fontFamily:font, lineHeight:1.6 }}>You've gone through the lists 6 times. You think they match. But that one person who registered late and never got a flight, the hotel room booked for someone who isn't even on your list, the name spelled two different ways — those are the ones that show up as surprises at check-in.</div>
+              <div style={{ fontSize:"15px", fontWeight:700, color:P.white, fontFamily:fontDisplay, marginBottom:"5px", letterSpacing:"-0.01em" }}>Meanwhile, your event is in <span style={{ color:P.amber }}>3 days</span></div>
+              <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.62)", fontFamily:font, lineHeight:1.65 }}>You've checked the lists more than once, and they look right. But the person who registered late and never booked a flight, the hotel room held for someone who isn't on your list, the name spelled two different ways: those are the ones that surface at check-in.</div>
             </div>
           </div>
         </div>
