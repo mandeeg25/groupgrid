@@ -57,7 +57,7 @@ const P = {
 };
 const font = "'Manrope', sans-serif";
 // Build version — bump this whenever code is deployed so you can confirm at a glance which build is live.
-const APP_VERSION = "v3.0 · Jun 2026";
+const APP_VERSION = "v3.4 · Jun 2026";
 // Feature flag: hide the Dietary/Access feature from the UI for now while focusing on
 // registration, flights, hotels, and cars. The parsing/engine code stays intact —
 // flip this to true to bring the dietary upload, column, and detail back everywhere.
@@ -220,6 +220,45 @@ function isOutside(date, ws, we) {
   if (we && d > stripTime(we)) return true;
   return false;
 }
+// Alias table for the most common business-event airports, so a planner can type a code
+// like "JFK" and still match "Kennedy" in a flight file (and vice versa). Not exhaustive —
+// for airports not listed here, exact code / direct string matching still applies.
+const AIRPORT_ALIASES = {
+  jfk:["kennedy","johnfkennedy","newyork"], lga:["laguardia","newyork"], ewr:["newark","newarkliberty","newyork"],
+  lax:["losangeles"], sfo:["sanfrancisco"], ord:["ohare","chicago"], mdw:["midway","chicago"],
+  atl:["atlanta","hartsfield","hartsfieldjackson"], dfw:["dallas","dallasfortworth","fortworth"], dal:["love","lovefield","dallas"],
+  mia:["miami"], fll:["fortlauderdale","lauderdale","hollywood"], mco:["orlando"], tpa:["tampa"],
+  bos:["boston","logan"], dca:["reagan","national","reagannational","washington"], iad:["dulles","washington"], bwi:["baltimore","baltimorewashington"],
+  sea:["seattle","seatac","seattletacoma"], den:["denver"], las:["lasvegas","vegas","harryreid","mccarran"], phx:["phoenix","skyharbor"],
+  iah:["houston","bush","intercontinental"], hou:["hobby","houston"], aus:["austin","bergstrom"], san:["sandiego"],
+  slc:["saltlake","saltlakecity"], msp:["minneapolis","stpaul","minneapolisstpaul"], dtw:["detroit","metro"], phl:["philadelphia"],
+  clt:["charlotte"], nash:["nashville"], bna:["nashville"], rdu:["raleigh","durham","raleighdurham"], pdx:["portland"],
+  lhr:["heathrow","london"], lgw:["gatwick","london"], cdg:["charlesdegaulle","degaulle","paris"], yyz:["toronto","pearson"], yul:["montreal","trudeau"],
+};
+function normAirport(s){ return String(s||"").toLowerCase().replace(/[^a-z0-9]/g,""); }
+// Build the full set of tokens (code + aliases) a single preferred entry should match against.
+function expandAirport(token){
+  const n = normAirport(token);
+  const set = new Set([n]);
+  if (AIRPORT_ALIASES[n]) AIRPORT_ALIASES[n].forEach(a => set.add(a));        // code → names
+  Object.entries(AIRPORT_ALIASES).forEach(([code,names]) => {                  // name → code
+    if (names.includes(n)) { set.add(code); names.forEach(a => set.add(a)); }
+  });
+  return [...set];
+}
+// True if the guest's airport value matches NONE of the preferred airports.
+function isWrongAirport(guestAirport, preferredList){
+  if (!guestAirport || !preferredList || preferredList.length === 0) return false;
+  const g = normAirport(guestAirport);
+  if (!g) return false;
+  for (const pref of preferredList) {
+    for (const tok of expandAirport(pref)) {
+      if (!tok) continue;
+      if (g === tok || g.includes(tok) || tok.includes(g)) return false; // matches a preferred airport
+    }
+  }
+  return true; // matched nothing on the preferred list
+}
 
 function parseSheet(wb, fieldMap) {
   const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" });
@@ -297,7 +336,7 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
   const hasReg = registration.length > 0;
   const hasFlights = flights.length > 0;
   const hasHotels = hotels.length > 0;
-  const { arrivalStart, arrivalEnd, departureStart, departureEnd } = aw || {};
+  const { arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports } = aw || {};
   const mkMaps = (arr) => { const byE = new Map(), byN = new Map(); arr.forEach(x => { if (x.email) byE.set(x.email, x); const k = normName(x.name); if (k) byN.set(k, x); }); return [byE, byN]; };
   const [fByE, fByN] = mkMaps(flights), [hByE, hByN] = mkMaps(hotels), [cByE, cByN] = mkMaps(cars), [dByE, dByN] = mkMaps(dietary), [rByE, rByN] = mkMaps(registration);
   const allLists = [...flights,...hotels,...cars,...dietary,...registration];
@@ -396,6 +435,7 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
     const arrDate = flight?.flightArrival || hotel?.checkIn || reg?.regCheckIn, depDate = flight?.flightDeparture || hotel?.checkOut || reg?.regCheckOut;
     if (arrDate && isOutside(arrDate, arrivalStart, arrivalEnd)) issues.push({ type:"window", text:`Arrival ${fmt(arrDate)} outside approved window` });
     if (depDate && isOutside(depDate, departureStart, departureEnd)) issues.push({ type:"window", text:`Departure ${fmt(depDate)} outside approved window` });
+    if (flight?.airport && isWrongAirport(flight.airport, preferredAirports)) issues.push({ type:"airport", text:`Arrives at ${flight.airport} — not a preferred airport` });
     if (dupNames.has(normName(displayName))) issues.push({ type:"duplicate", text:"Duplicate name detected across lists" });
     const seen = new Set(); const uniqueIssues = issues.filter(x => { if (seen.has(x.text)) return false; seen.add(x.text); return true; });
     const resolved = existing.resolved || [];
@@ -469,7 +509,7 @@ function Delta({ val }) {
 }
 
 function IssueTag({ issue, resolved, onResolve }) {
-  const cfg = { missing:{bg:P.amberLight,color:P.amber,border:`1px solid ${P.amber}44`,icon:<Circle size={11} strokeWidth={2}/>}, mismatch:{bg:P.redLight,color:P.red,border:`1px solid ${P.red}44`,icon:<AlertTriangle size={11} strokeWidth={2}/>}, window:{bg:P.purpleLight,color:P.purple,border:`1px solid ${P.purple}44`,icon:<Calendar size={11} strokeWidth={1.5}/>}, duplicate:{bg:"#FFF3E0",color:"#E65100",border:"1px solid #E6510044",icon:<AlertCircle size={11} strokeWidth={2}/>}, unregistered:{bg:P.purpleLight,color:P.purple,border:`1px solid ${P.purple}44`,icon:<Ban size={11} strokeWidth={2}/>} };
+  const cfg = { missing:{bg:P.amberLight,color:P.amber,border:`1px solid ${P.amber}44`,icon:<Circle size={11} strokeWidth={2}/>}, mismatch:{bg:P.redLight,color:P.red,border:`1px solid ${P.red}44`,icon:<AlertTriangle size={11} strokeWidth={2}/>}, window:{bg:P.purpleLight,color:P.purple,border:`1px solid ${P.purple}44`,icon:<Calendar size={11} strokeWidth={1.5}/>}, duplicate:{bg:"#FFF3E0",color:"#E65100",border:"1px solid #E6510044",icon:<AlertCircle size={11} strokeWidth={2}/>}, unregistered:{bg:P.purpleLight,color:P.purple,border:`1px solid ${P.purple}44`,icon:<Ban size={11} strokeWidth={2}/>}, airport:{bg:"#EAF2FE",color:"#4F8EF7",border:"1px solid #4F8EF744",icon:<Plane size={11} strokeWidth={2}/>} };
   const s = cfg[issue.type] || cfg.mismatch;
   const isRes = (resolved || []).includes(issue.text);
   return (
@@ -783,7 +823,7 @@ function EmailModal({ record, eventName, contacts, onClose }) {
       contactName: hotelContact,
       toDisplay: hotelEmail ? `${hotelContact} <${hotelEmail}>` : hotelContact,
       toEmail: hotelEmail,
-      subject: `${evName ? evName + " — " : ""}Guest Record Review: ${guestName}`,
+      subject: `${evName ? evName + " " : ""}[Hotel] — Guest Review: ${guestName}`,
       body: `Dear ${hotelContact},
 
 I hope this message finds you well! I am reaching out regarding the reservation for ${guestName}${record.email ? " (" + record.email + ")" : ""} ${hotel && hotel !== "the hotel" ? "at " + hotel : ""}${evName ? " for " + evName : ""}.
@@ -809,7 +849,7 @@ ${evName ? evName + " Planning Team" : "Planning Team"}`,
       contactName: travelContact,
       toDisplay: travelEmail ? `${travelContact} <${travelEmail}>` : travelContact,
       toEmail: travelEmail,
-      subject: `${evName ? evName + " — " : ""}Itinerary Review: ${guestName}`,
+      subject: `${evName ? evName + " " : ""}[Flight] — Guest Review: ${guestName}`,
       body: `Dear ${travelContact},
 
 I hope you are doing well! I am reaching out regarding the travel itinerary for ${guestName}${record.email ? " (" + record.email + ")" : ""}${evName ? " for " + evName : ""}.
@@ -1252,6 +1292,36 @@ With warm regards,
 {{plannerName}}
 {{eventName}} Planning Team`,
   },
+  wrong_airport: {
+    id: "wrong_airport",
+    label: "Different Airport",
+    icon: "✈",
+    color: "#4F8EF7",
+    description: "Guest is flying into an airport that isn't a preferred event airport",
+    subject: "{{eventName}} [Airport]: Could you confirm your travel details?",
+    body: `Hi {{guestName}},
+
+We are looking forward to seeing you at {{eventName}}!
+
+While reviewing travel for all of our guests, we noticed something we wanted to check with you:
+
+┌────────────────────────┐
+    Here is what needs your attention:
+
+    Your flight arrives into: {{airport}} on {{flightArrival}}
+         Flight: {{flightIn}}
+
+    This is not one of the airports we are coordinating ground transportation and arrivals around.
+└────────────────────────┘
+
+This may be completely intentional — perhaps it works better for your schedule! If so, no problem at all, just reply to let us know.
+
+If it was booked in error, or if you would like help adjusting it, we are happy to assist. Could you confirm your arrival airport when you have a moment?
+
+With warm regards,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  },
   outside_window: {
     id: "outside_window",
     label: "Outside Approved Travel Window",
@@ -1346,6 +1416,13 @@ function fillTemplate(template, record, extra = {}) {
     "{{checkIn}}": fmt(record.hotel?.checkIn) || "—",
     "{{checkOut}}": fmt(record.hotel?.checkOut) || "—",
     "{{hotel}}": record.hotel?.hotel || "the hotel",
+    "{{hotelContact}}": extra.hotelName || "Hotel Team",
+    "{{travelContact}}": extra.travelName || "Travel Team",
+    "{{carContact}}": extra.carName || "Transfer Team",
+    "{{guestEmailParen}}": record.email ? ` (${record.email})` : "",
+    "{{flightInTail}}": record.flight?.flightIn ? ` — Flight ${record.flight.flightIn}` : "",
+    "{{flightOutTail}}": record.flight?.flightOut ? ` — Flight ${record.flight.flightOut}` : "",
+    "{{issueSummary}}": (record.issues || []).filter(x => !(record.resolved || []).includes(x.text)).map(x => x.text).join("; ") || "—",
     "{{carPickup}}": fmt(record.car?.pickupDate) || "—",
     "{{carDropoff}}": fmt(record.car?.dropoffDate) || "—",
     "{{plannerName}}": extra.plannerName || "The Planning Team",
@@ -1363,8 +1440,10 @@ function getApplicableTemplates(record) {
   const applicable = [];
   const issues = record.issues || [];
   const has = (sub) => issues.some(x => x.text && x.text.includes(sub));
-  if (has("before check-in")) applicable.push("arrives_early");
-  if (has("before check-out")) applicable.push("departs_late");
+  // Hotel arrival-timing issues (flight vs check-in, or check-in differs from registration) → hotel
+  if (has("check-in")) applicable.push("arrives_early");
+  // Hotel departure-timing issues (flight vs check-out, or check-out differs from registration) → hotel
+  else if (has("check-out")) applicable.push("departs_late");
   // Missing hotel — matches both the registration-anchored text and the travel-vs-travel fallback text
   if (has("no hotel booked") || has("Missing from hotel roster") || has("no hotel' but no reason")) applicable.push("missing_hotel");
   // Missing flight — same, across both engine paths
@@ -1374,8 +1453,92 @@ function getApplicableTemplates(record) {
   if (has("Car pickup") || has("Car dropoff")) applicable.push("car_mismatch");
   if (has("not on registration list") || issues.some(x => x.type === "unregistered")) applicable.push("needs_registration");
   if (issues.some(x => x.type === "window")) applicable.push("outside_window");
+  if (issues.some(x => x.type === "airport")) applicable.push("wrong_airport");
   return applicable;
 }
+
+// ── Email routing: who each template is addressed TO, by default ───────────────
+// audience: "hotel" | "travel" | "car" | "guest". Vendor-routed templates carry a
+// vendor-addressed body so the recipient never gets a "Hi {{guestName}}" email meant
+// for the attendee. The original guest-addressed body stays on the template as a fallback.
+const TEMPLATE_AUDIENCE = {
+  arrives_early:      "hotel",
+  departs_late:       "hotel",
+  missing_hotel:      "hotel",
+  missing_flight:     "travel",
+  outside_window:     "guest",
+  wrong_airport:      "guest",
+  missing_transfer:   "car",
+  car_mismatch:       "car",
+  needs_registration: "guest",
+  general_confirmation: "guest",
+};
+// Vendor-addressed bodies, keyed by audience. The planner is writing TO the vendor about a guest.
+const VENDOR_BODY = {
+  hotel: `Dear {{hotelContact}},
+
+I hope you are well. I am reaching out about the reservation for {{guestFullName}}{{guestEmailParen}} for {{eventName}}.
+
+While reviewing our guests' travel records, we found something we would appreciate your help with:
+
+┌────────────────────────┐
+    Guest: {{guestFullName}}
+    Flight arrival:    {{flightArrival}}{{flightInTail}}
+    Hotel check-in:    {{checkIn}} at {{hotel}}
+    Hotel check-out:   {{checkOut}}
+    Flight departure:  {{flightDeparture}}{{flightOutTail}}
+
+    Issue: {{issueSummary}}
+└────────────────────────┘
+
+Could you please review and confirm the correct booking details at your earliest convenience? Thank you so much for your help making sure {{guestFullName}}'s stay is set.
+
+Warm regards,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  travel: `Dear {{travelContact}},
+
+I hope you are doing well. I am reaching out about the travel itinerary for {{guestFullName}}{{guestEmailParen}} for {{eventName}}.
+
+While reviewing our guests' travel records, we found something we would appreciate your help to confirm or correct:
+
+┌────────────────────────┐
+    Guest: {{guestFullName}}
+    Inbound:           {{flightArrival}} into {{airport}}{{flightInTail}}
+    Hotel check-in:    {{checkIn}} at {{hotel}}
+    Hotel check-out:   {{checkOut}}
+    Outbound:          {{flightDeparture}} from {{airport}}{{flightOutTail}}
+
+    Issue: {{issueSummary}}
+└────────────────────────┘
+
+Kindly advise on the correct details and any changes needed. We really appreciate your support making sure everything lines up for {{guestFullName}}.
+
+Warm regards,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  car: `Dear {{carContact}},
+
+I hope you are well. I am reaching out about the ground transfer for {{guestFullName}}{{guestEmailParen}} for {{eventName}}.
+
+While reviewing our guests' travel records, we found something we would appreciate your help with:
+
+┌────────────────────────┐
+    Guest: {{guestFullName}}
+    Flight arrival:    {{flightArrival}}{{flightInTail}}
+    Car pickup:        {{carPickup}}
+    Car dropoff:       {{carDropoff}}
+    Flight departure:  {{flightDeparture}}{{flightOutTail}}
+
+    Issue: {{issueSummary}}
+└────────────────────────┘
+
+Could you please confirm the transfer times are correct, or let us know if they need adjusting? Thank you for helping make sure {{guestFullName}} gets where they need to be.
+
+Warm regards,
+{{plannerName}}
+{{eventName}} Planning Team`,
+};
 
 // ── New Template Modal ────────────────────────────────────────────────────────
 const ICON_OPTIONS = ["✉","📋","⭐","🔔","🎯","🚨","💬","📌","🏷","👋","🎉","⚡","📣","🤝","📝","🔁","❓","✅","🛎","💡"];
@@ -1517,13 +1680,13 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
   const [activeView, setActiveView] = useState("templates"); // templates | queue
   const [newTemplateOpen, setNewTemplateOpen] = useState(false);
   const [checkedIds, setCheckedIds] = useState(new Set());
-  const [bulkRecipient, setBulkRecipient] = useState("guest"); // guest | hotel | travel | all
+  const [bulkRecipient, setBulkRecipient] = useState("smart"); // smart | guest | hotel | travel | car | all
   const [editedIds, setEditedIds] = useState(new Set()); // tracks which queue items have been manually edited
   const [localEdits, setLocalEdits] = useState({}); // {id: {to, subject, body}} — staged edits before save
   const [showTemplateConfig, setShowTemplateConfig] = useState(false); // collapse template/config UI by default
 
   const plannerName = contacts?.plannerName || "The Planning Team";
-  const extra = { eventName, plannerName, arrivalStart, arrivalEnd, departureStart, departureEnd };
+  const extra = { eventName, plannerName, arrivalStart, arrivalEnd, departureStart, departureEnd, hotelName: contacts?.hotel?.name, travelName: contacts?.travel?.name, carName: contacts?.car?.name };
 
   function saveNewTemplate(tmpl) {
     setTemplates(prev => ({ ...prev, [tmpl.id]: tmpl }));
@@ -1552,35 +1715,65 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
     }
   }
 
+  // Resolve the default recipient + body for a built-in template, based on its audience.
+  // Vendor-routed templates use the vendor-addressed body and the vendor's email.
+  // If the matching vendor contact has no email on file, fall back to the guest so the
+  // email is never silently dropped (and the planner can fix the address).
+  function resolveRouting(templateId, tmpl, record) {
+    const audience = TEMPLATE_AUDIENCE[templateId] || "guest";
+    const vendorEmail = audience === "hotel" ? contacts?.hotel?.email
+                      : audience === "travel" ? contacts?.travel?.email
+                      : audience === "car" ? contacts?.car?.email
+                      : "";
+    if (audience !== "guest" && vendorEmail && VENDOR_BODY[audience]) {
+      const tag = audience === "hotel" ? "Hotel" : audience === "travel" ? "Flight" : "Transfer";
+      return {
+        to: vendorEmail,
+        audience,
+        subject: `${(extra.eventName && extra.eventName !== "our event") ? extra.eventName + " " : ""}[${tag}] — Guest Review: ${record.displayName || record.firstName || ""}`,
+        body: fillTemplate(VENDOR_BODY[audience], record, extra),
+      };
+    }
+    // guest audience, or vendor contact missing → guest-addressed body to the guest
+    return {
+      to: record.email,
+      audience: "guest",
+      subject: fillTemplate(tmpl.subject, record, extra),
+      body: fillTemplate(tmpl.body, record, extra),
+    };
+  }
+
   // Build the send queue from all flagged guests who have emails
   function buildQueue() {
     const q = [];
     (results || []).forEach(record => {
-      if (!record.email) return;
       const unresolved = (record.issues || []).filter(x => !(record.resolved || []).includes(x.text));
       if (unresolved.length === 0) return; // only message guests who actually have an open issue
       let matched = false;
-      // Default templates: use first applicable match
+      // Default templates: use first applicable match, routed to the right recipient
       const applicable = getApplicableTemplates(record);
       if (applicable.length > 0) {
         const templateId = applicable[0];
         const tmpl = templates[templateId];
-        if (tmpl) { q.push({ id: `${record.key}-${templateId}`, record, templateId, subject: fillTemplate(tmpl.subject, record, extra), body: fillTemplate(tmpl.body, record, extra), to: record.email, status: "pending" }); matched = true; }
+        if (tmpl) {
+          const r = resolveRouting(templateId, tmpl, record);
+          // Skip only if there's no recipient at all (no vendor email AND no guest email)
+          if (r.to) { q.push({ id: `${record.key}-${templateId}`, record, templateId, audience: r.audience, subject: r.subject, body: r.body, to: r.to, status: "pending" }); matched = true; }
+        }
       }
-      // Custom templates: add a separate queue item for each that matches
+      // Custom templates: add a separate queue item for each that matches (still to guest)
       Object.values(templates).filter(t => t.isCustom).forEach(tmpl => {
-        if (getCustomApplicable(record, tmpl)) {
-          q.push({ id: `${record.key}-${tmpl.id}`, record, templateId: tmpl.id, subject: fillTemplate(tmpl.subject, record, extra), body: fillTemplate(tmpl.body, record, extra), to: record.email, status: "pending" });
+        if (getCustomApplicable(record, tmpl) && record.email) {
+          q.push({ id: `${record.key}-${tmpl.id}`, record, templateId: tmpl.id, audience: "guest", subject: fillTemplate(tmpl.subject, record, extra), body: fillTemplate(tmpl.body, record, extra), to: record.email, status: "pending" });
           matched = true;
         }
       });
-      // Fallback: flagged guest with an email but no matching template — still queue a generic note
-      // so they're never silently dropped (covers date mismatches, wrong-hotel, unregistered, etc.)
-      if (!matched) {
+      // Fallback: flagged guest with no matching template — generic note to the guest
+      if (!matched && record.email) {
         const issueList = unresolved.map(x => "• " + x.text).join("\n");
         const subject = `${eventName || "Event"} [Travel]: Could you confirm your travel details?`;
         const body = `Hi ${record.firstName || record.displayName || "there"},\n\nWhile reviewing arrangements for ${eventName || "our event"}, we found something on your record that needs attention:\n\n${issueList}\n\nCould you take a look and let us know? Thank you.\n\n${contacts?.plannerName || "[Your Name]"}`;
-        q.push({ id: `${record.key}-generic`, record, templateId: null, subject, body, to: record.email, status: "pending" });
+        q.push({ id: `${record.key}-generic`, record, templateId: null, audience: "guest", subject, body, to: record.email, status: "pending" });
       }
     });
     setQueue(q);
@@ -1609,10 +1802,21 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
   }
 
   function getRecipientAddresses(item) {
-    // Returns array of {to, toLabel} based on bulkRecipient setting
+    // Returns array of {to, toLabel} based on bulkRecipient setting.
+    // "smart" (default) uses each email's own auto-routed recipient (vendor or guest).
     const addrs = [];
+    if (bulkRecipient === "smart") {
+      if (item.to) {
+        const label = item.audience === "hotel" ? (contacts?.hotel?.name || "Hotel Contact")
+                    : item.audience === "travel" ? (contacts?.travel?.name || "Travel Contact")
+                    : item.audience === "car" ? (contacts?.car?.name || "Transfer Contact")
+                    : item.record.displayName;
+        addrs.push({ to: item.to, label });
+      }
+      return addrs;
+    }
     if (bulkRecipient === "guest" || bulkRecipient === "all") {
-      if (item.to) addrs.push({ to: item.to, label: item.record.displayName });
+      if (item.record?.email) addrs.push({ to: item.record.email, label: item.record.displayName });
     }
     if (bulkRecipient === "hotel" || bulkRecipient === "all") {
       const email = contacts?.hotel?.email;
@@ -1621,6 +1825,10 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
     if (bulkRecipient === "travel" || bulkRecipient === "all") {
       const email = contacts?.travel?.email;
       if (email) addrs.push({ to: email, label: contacts?.travel?.name || "Travel Contact" });
+    }
+    if (bulkRecipient === "car" || bulkRecipient === "all") {
+      const email = contacts?.car?.email;
+      if (email) addrs.push({ to: email, label: contacts?.car?.name || "Transfer Contact" });
     }
     return addrs;
   }
@@ -1962,6 +2170,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
             const checkedPending = pendingItems.filter(x => checkedIds.has(x.id));
             const hasHotelContact = !!contacts?.hotel?.email;
             const hasTravelContact = !!contacts?.travel?.email;
+            const hasCarContact = !!contacts?.car?.email;
 
             return (
             <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
@@ -1985,10 +2194,11 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                 <div style={{ display:"flex", alignItems:"center", gap:"6px", flexWrap:"wrap" }}>
                   <span style={{ fontSize:"15px", fontWeight:700, color:P.navyLight, fontFamily:font, flexShrink:0 }}>Send to:</span>
                   {[
+                    { k:"smart",   l:"Smart (auto-route)", available: true },
                     { k:"guest",   l:"Guest",          available: true },
                     { k:"hotel",   l: hasHotelContact ? (contacts.hotel.name || "Hotel Contact") : "Hotel Contact",   available: hasHotelContact },
                     { k:"travel",  l: hasTravelContact ? (contacts.travel.name || "Travel Contact") : "Travel Contact", available: hasTravelContact },
-                    { k:"all",     l:"All Three",       available: hasHotelContact && hasTravelContact },
+                    { k:"car",     l: hasCarContact ? (contacts.car.name || "Transfer Contact") : "Transfer Contact", available: hasCarContact },
                   ].map(({ k, l, available }) => (
                     <button key={k} onClick={() => available && setBulkRecipient(k)}
                       title={!available ? "Add this contact first" : ""}
@@ -2012,7 +2222,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                       style={{ background:`linear-gradient(135deg, ${P.periwinkleD}, ${P.periwinkle})`, border:"none", borderRadius:"10px", padding:"9px 20px", fontSize:"15px", fontWeight:800, fontFamily:font, color:P.white, cursor:"pointer", boxShadow:"0 3px 12px rgba(91,109,184,0.4)", display:"flex", alignItems:"center", gap:"8px" }}>
                       Send {checkedPending.length} Email{checkedPending.length !== 1 ? "s" : ""}
                       <span style={{ background:"rgba(255,255,255,0.25)", borderRadius:"6px", padding:"1px 7px", fontSize:"15px" }}>
-                        {bulkRecipient === "all" ? "× 3 recipients" : `to ${bulkRecipient === "guest" ? "Guests" : bulkRecipient === "hotel" ? (contacts?.hotel?.name || "Hotel") : (contacts?.travel?.name || "Travel")}`}
+                        {bulkRecipient === "smart" ? "auto-routed" : bulkRecipient === "all" ? "× recipients" : `to ${bulkRecipient === "guest" ? "Guests" : bulkRecipient === "hotel" ? (contacts?.hotel?.name || "Hotel") : bulkRecipient === "car" ? (contacts?.car?.name || "Transfer") : (contacts?.travel?.name || "Travel")}`}
                       </span>
                     </button>
                   ) : (
@@ -3657,6 +3867,7 @@ function SetupTile({ label, sub, icon, accent, file, setter, required, recommend
 function SetupScreen({
   eventName, setEventName, arrivalStart, setArrivalStart, arrivalEnd, setArrivalEnd,
   departureStart, setDepartureStart, departureEnd, setDepartureEnd,
+  preferredAirports, setPreferredAirports,
   contacts, setContactsOpen,
   registrationFile, setRegistrationFile, flightFile, setFlightFile, hotelFile, setHotelFile,
   hotelProperty, setHotelProperty, extraHotels, setExtraHotels,
@@ -3712,6 +3923,10 @@ function SetupScreen({
             </div>
           ))}
         </div>
+        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", margin:"8px 0 4px" }}>Preferred airport(s) <span style={{ textTransform:"none", letterSpacing:0, fontWeight:400 }}>· optional</span></div>
+        <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"8px", lineHeight:1.5 }}>Enter the airport code(s) for your event city, separated by commas (e.g. JFK, LGA). GroupGrid flags anyone flying into a different airport. It recognizes common airport names too.</div>
+        <input type="text" value={preferredAirports} onChange={e => setPreferredAirports(e.target.value)} placeholder="e.g. JFK, LGA"
+          style={{ width:"100%", background:P.grey50, border:`1.5px solid ${preferredAirports?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:preferredAirports?P.navy:P.grey400, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box", marginBottom:"12px" }} />
         <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", margin:"8px 0 12px" }}>Contacts <span style={{ textTransform:"none", letterSpacing:0, fontWeight:400 }}>· optional — to email your hotel &amp; travel agency directly</span></div>
         <button onClick={() => setContactsOpen(true)}
           style={{ display:"flex", alignItems:"center", gap:"10px", width:"100%", background:hasContacts?P.accent+"12":P.grey50, border:`1.5px ${hasContacts?"solid":"dashed"} ${hasContacts?P.accent+"55":P.grey200}`, borderRadius:"10px", padding:"12px 14px", cursor:"pointer", fontFamily:font, textAlign:"left" }}>
@@ -3814,6 +4029,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
   const [arrivalEnd, setArrivalEnd] = useState("");
   const [departureStart, setDepartureStart] = useState("");
   const [departureEnd, setDepartureEnd] = useState("");
+  const [preferredAirports, setPreferredAirports] = useState("");
   const [eventName, setEventName] = useState("");
   const [emailModal, setEmailModal] = useState(null);
   const [meta, setMeta] = useState({});
@@ -3906,7 +4122,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
   // (the old bug: every note/date change reset the 60s countdown, so it rarely fired).
   const autosaveData = useRef({});
   useEffect(() => {
-    autosaveData.current = { results, meta, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, storageKey };
+    autosaveData.current = { results, meta, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, storageKey };
   }, [results, meta, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, storageKey]);
 
   useEffect(() => {
@@ -3969,7 +4185,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
       if (carFile)          { const w = await readXlsx(carFile);          cars = parseCarSheet(w); }
       if (dietaryFile)      { const w = await readXlsx(dietaryFile);      dietary = parseDietarySheet(w); }
       if (registrationFile) { const w = await readXlsx(registrationFile); registration = parseRegistrationSheet(w); }
-      const aw = { arrivalStart:parseDate(arrivalStart), arrivalEnd:parseDate(arrivalEnd), departureStart:parseDate(departureStart), departureEnd:parseDate(departureEnd) };
+      const aw = { arrivalStart:parseDate(arrivalStart), arrivalEnd:parseDate(arrivalEnd), departureStart:parseDate(departureStart), departureEnd:parseDate(departureEnd), preferredAirports: preferredAirports.split(",").map(s=>s.trim()).filter(Boolean) };
       const allResults = crossMatch(flights, hotels, cars, dietary, aw, meta, registration);
       setResults(allResults);
     } catch (err) { setError("Could not read files: " + err.message); }
@@ -3996,7 +4212,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
   function saveSession() {
     if (!results) return;
-    const session = { id:Date.now(), name:eventName||`Session ${new Date().toLocaleDateString()}`, date:new Date().toISOString(), meta, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, guestCount:results.length, issueCount:results.filter(r=>r.status!=="ok").length, results };
+    const session = { id:Date.now(), name:eventName||`Session ${new Date().toLocaleDateString()}`, date:new Date().toISOString(), meta, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, guestCount:results.length, issueCount:results.filter(r=>r.status!=="ok").length, results };
     const next = [session, ...savedSessions.filter(s => s.name !== session.name)].slice(0, 50);
     setSavedSessions(next);
     try {
@@ -4569,7 +4785,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 // so warn if there's unsaved work first \u2014 the user can Save, then reopen to get notes back.
                 const hasWork = results && (Object.keys(meta||{}).length > 0 || eventName);
                 if (hasWork && !window.confirm("Start a new project? Your current notes and resolved flags will be cleared from this screen. To keep them, click Cancel, then use Save Now first \u2014 you can reopen this project anytime to get them back.")) return;
-                setResults(null); setFlightFile(null); setHotelFile(null); setCarFile(null); setDietaryFile(null); setRegistrationFile(null); setEventName(""); setMeta({}); setFilter("all"); setSearch(""); setExpanded(null); setActiveTab("grid"); }}
+                setResults(null); setFlightFile(null); setHotelFile(null); setCarFile(null); setDietaryFile(null); setRegistrationFile(null); setEventName(""); setMeta({}); setPreferredAirports(""); setFilter("all"); setSearch(""); setExpanded(null); setActiveTab("grid"); }}
               style={{ width:"100%", display:"flex", alignItems:"center", gap:"8px", background:"rgba(255,255,255,0.07)", border:`1px dashed rgba(255,255,255,0.18)`, borderRadius:"8px", padding:"7px 10px", cursor:"pointer", marginBottom:"6px", fontFamily:font, transition:"all 0.15s", textAlign:"left" }}
               onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.12)"}
               onMouseLeave={e => e.currentTarget.style.background="rgba(255,255,255,0.07)"}>
@@ -4606,6 +4822,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                         setMeta(s.meta||{}); setEventName(s.eventName||"");
                         setArrivalStart(s.arrivalStart||""); setArrivalEnd(s.arrivalEnd||"");
                         setDepartureStart(s.departureStart||""); setDepartureEnd(s.departureEnd||"");
+                        setPreferredAirports(s.preferredAirports||"");
                         if (s.results && s.results.length) { setResults(rehydrateResults(s.results)); setActiveTab("grid"); setFilter("all"); setExpanded(null); }
                         else { setResults(null); setSaveMsg("This project was saved before full data was stored — re-upload its files to view it."); setTimeout(()=>setSaveMsg(""), 5000); }
                         if (isMobile) setSidebarOpen(false);
@@ -4790,6 +5007,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
             arrivalEnd={arrivalEnd} setArrivalEnd={setArrivalEnd}
             departureStart={departureStart} setDepartureStart={setDepartureStart}
             departureEnd={departureEnd} setDepartureEnd={setDepartureEnd}
+            preferredAirports={preferredAirports} setPreferredAirports={setPreferredAirports}
             contacts={contacts} setContactsOpen={setContactsOpen}
             registrationFile={registrationFile} setRegistrationFile={setRegistrationFile}
             flightFile={flightFile} setFlightFile={setFlightFile}
@@ -5157,6 +5375,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                                 : <div style={{ display:"flex", flexDirection:"column", gap:"2px" }}>
                                     {activeIssues.some(x=>x.type==="missing") && <span style={{ color:P.amber, fontSize:"15px", fontWeight:700, fontFamily:font }}>○ missing</span>}
                                     {activeIssues.some(x=>x.type==="window") && <span style={{ color:P.purple, fontSize:"15px", fontWeight:700, fontFamily:font }}>🗓 window</span>}
+                                    {activeIssues.some(x=>x.type==="airport") && <span style={{ color:"#4F8EF7", fontSize:"15px", fontWeight:700, fontFamily:font }}>✈ airport</span>}
                                     {activeIssues.some(x=>x.type==="mismatch") && <span style={{ color:P.red, fontSize:"15px", fontWeight:700, fontFamily:font }}>⚑ mismatch</span>}
                                     {activeIssues.some(x=>x.type==="duplicate") && <span style={{ color:"#E65100", fontSize:"15px", fontWeight:700, fontFamily:font }}>⚠ dupe</span>}
                                   </div>}
