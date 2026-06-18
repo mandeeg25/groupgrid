@@ -3,7 +3,7 @@
 // Architecture: 100% browser-local React SPA. No server, no PII storage.
 //
 // Mobile changes (v2):
-//   [x] useIsMobile hook drives layout switching at 768px
+//   [x] useIsMobixale hook drives layout switching at 768px
 //   [x] Sidebar becomes slide-in drawer on mobile (hamburger toggle)
 //   [x] Upload grid: 4-col desktop → 2-col mobile
 //   [x] Compact upload bar: wraps cleanly on small screens
@@ -58,27 +58,45 @@ const P = {
 const font = "'Manrope', sans-serif";
 const fontDisplay = "'Poppins', sans-serif";
 // Build version — bump this whenever code is deployed so you can confirm at a glance which build is live.
-const APP_VERSION = "v4.2 · Jun 2026";
+const APP_VERSION = "v4.6 · Jun 2026";
 // Feature flag: hide the Dietary/Access feature from the UI for now while focusing on
 // registration, flights, hotels, and cars. The parsing/engine code stays intact —
 // flip this to true to bring the dietary upload, column, and detail back everywhere.
 const SHOW_DIETARY = false;
 
-// ── Brand mark: nine dots, three across, with a teal diagonal (the grid made literal,
-// teal marks the clean cross-check). Reused everywhere the logo appears so it stays consistent.
+// ── Official brand mark (from the GroupGrid logo kit): a navy rounded square with a
+// 3×3 dot grid. The diagonal (top-left, center, bottom-right) is teal — the clean
+// cross-check — and the other six dots are light blue-grey. One source of truth for
+// every logo placement so the mark is identical everywhere.
+const MARK_TEAL = "#00C9B1";
+const MARK_DOT  = "#A9C2DC";
+function markDots() {
+  // diagonal = teal, others = light blue-grey, exactly per the official artwork
+  const pos = [28, 50, 72];
+  const out = [];
+  pos.forEach((cy, r) => pos.forEach((cx, c) => {
+    out.push(<circle key={`${r}-${c}`} cx={cx} cy={cy} r="9" fill={r === c ? MARK_TEAL : MARK_DOT} />);
+  }));
+  return out;
+}
 function BrandMark({ size = 28, onDark = true }) {
-  const base = onDark ? "rgba(255,255,255,0.22)" : "rgba(12,30,63,0.18)";
-  const teal = "#00C9B1";
-  const dots = [];
-  for (let r = 0; r < 3; r++) {
-    for (let c = 0; c < 3; c++) {
-      const diag = r === c; // the diagonal = the cross-check, in teal
-      dots.push(<circle key={`${r}-${c}`} cx={5 + c * 7} cy={5 + r * 7} r="2.4" fill={diag ? teal : base} />);
-    }
-  }
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
-      {dots}
+    <svg width={size} height={size} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0, display: "block" }}>
+      <rect width="100" height="100" rx="26" fill={onDark ? "#0A1A33" : "#0C1E3F"} />
+      {markDots()}
+    </svg>
+  );
+}
+// Full official lockup: the mark + the two-tone GroupGrid wordmark (Poppins).
+// viewBox 0 0 470 100, matching the kit's logo-onlight / logo-ondark SVGs.
+function BrandLogo({ height = 26, onDark = true }) {
+  return (
+    <svg width={height * 4.7} height={height} viewBox="0 0 470 100" xmlns="http://www.w3.org/2000/svg" style={{ display: "block", flexShrink: 0 }}>
+      <rect width="100" height="100" rx="26" fill={onDark ? "#0A1A33" : "#0C1E3F"} />
+      {markDots()}
+      <text x="120" y="50" dominantBaseline="central" fontFamily="'Poppins', 'Helvetica Neue', Arial, sans-serif" fontWeight="600" fontSize="54" letterSpacing="-1">
+        <tspan fill={onDark ? "#FFFFFF" : "#0C1E3F"}>Group</tspan><tspan fill={MARK_TEAL}>Grid</tspan>
+      </text>
     </svg>
   );
 }
@@ -92,47 +110,52 @@ function BrandWordmark({ light = true, size = 16 }) {
   );
 }
 
-// ── Signature icons: single-line, 1.8 stroke, round cap/join, navy line + one teal accent
-// on the matched/active/in-motion part. Used at the key brand moments.
+// ── Signature icons: official Group Grid single-line set (from the brand kit),
+// navy line + one teal accent on the matched/active part. 1.8 stroke, round cap/join.
 const ICON_STROKE = 1.8;
 function GridIcon({ size = 20, line = P.navy, accent = P.accent }) {
-  // 3x3 grid; the diagonal cell is the teal "cross-check" accent
-  const r = 2.0, pos = [4, 12, 20];
+  const r = 1.9, pos = [7, 12, 17];
   const dots = [];
   pos.forEach((cy, ri) => pos.forEach((cx, ci) => {
     dots.push(<circle key={`${ri}-${ci}`} cx={cx} cy={cy} r={r} fill={ri === ci ? accent : line} />);
   }));
   return <svg width={size} height={size} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>{dots}</svg>;
 }
+function svgIcon(size, line, paths) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={line} strokeWidth={ICON_STROKE} strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>{paths}</svg>;
+}
 function CrossCheckIcon({ size = 20, line = P.navy, accent = P.accent }) {
-  // circular refresh/cross-check arrows (navy) with a teal check confirming the match
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={line} strokeWidth={ICON_STROKE} strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
-      <path d="M3.5 8.5a8 8 0 0 1 13.4-3.2L20 8" />
-      <path d="M20.5 15.5a8 8 0 0 1-13.4 3.2L4 16" />
-      <polyline points="20 3.5 20 8 15.5 8" />
-      <polyline points="4 20.5 4 16 8.5 16" />
-      <polyline points="9.2 12.2 11.2 14.2 15 10" stroke={accent} />
-    </svg>
-  );
+  return svgIcon(size, line, <><path d="M5 8.5a7 7 0 0 1 11.5-2.7L19 8" /><path d="M19 16a7 7 0 0 1-11.5 2.7L5 16" /><path d="M19 4v4h-4" stroke={accent} /><path d="M5 20v-4h4" stroke={accent} /></>);
 }
 function FlagIcon({ size = 20, line = P.navy, accent = P.accent }) {
-  // pole navy, the flag itself teal (the part that needs attention / is active)
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={line} strokeWidth={ICON_STROKE} strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
-      <line x1="5" y1="22" x2="5" y2="3" />
-      <path d="M5 4h11l-2.5 4L16 12H5z" fill={accent} stroke={accent} />
-    </svg>
-  );
+  return svgIcon(size, line, <><path d="M6 21V4" /><path d="M6 4.5h11l-2.2 4 2.2 4H6" stroke={accent} /></>);
 }
 function ClearedIcon({ size = 20, line = P.navy, accent = P.accent }) {
-  // navy ring, teal check = a record confirmed/cleared
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={line} strokeWidth={ICON_STROKE} strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
-      <circle cx="12" cy="12" r="9.5" />
-      <polyline points="7.5 12.3 10.6 15.4 16.5 9" stroke={accent} />
-    </svg>
-  );
+  return svgIcon(size, line, <><circle cx="12" cy="12" r="9.5" /><path d="M7.5 12.3l3.1 3.1L16.5 9" stroke={accent} /></>);
+}
+function SpreadsheetIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M4 10h16M10 10v10" stroke={accent} /></>);
+}
+function MagnifierIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <><circle cx="11" cy="11" r="6.2" /><path d="M20 20l-4.6-4.6" /><path d="M8.4 11l2 2 3.4-3.4" stroke={accent} /></>);
+}
+function UploadIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <><path d="M12 16V5" /><path d="M8 9l4-4 4 4" stroke={accent} /><path d="M5 20h14" /></>);
+}
+function PlaneIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />);
+}
+function HotelIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <><path d="M3 19v-6.5l2-1V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3.5l2 1V19" /><path d="M3 13h18" stroke={accent} /><path d="M7 11.5V10h4v1.5" /></>);
+}
+function CarIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <><path d="M4 16l1.7-4.9A2 2 0 0 1 7.6 9.8h8.8a2 2 0 0 1 1.9 1.3L20 16" /><path d="M3 16h18v2.6h-2.3V16M5.3 18.6V16" /><circle cx="8" cy="16" r="1.3" /><circle cx="16" cy="16" r="1.3" /></>);
+}
+function CalendarIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 9.5h16M8 3v4M16 3v4" /><path d="M8.5 13.5l2 2 3.5-3.5" stroke={accent} /></>);
+}
+function PeopleIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <><circle cx="9" cy="8.5" r="3" /><path d="M3.5 19c0-3.1 2.4-4.9 5.5-4.9s5.5 1.8 5.5 4.9" /><path d="M16 6.4a2.8 2.8 0 0 1 0 5.5" stroke={accent} /><path d="M17 14.3c2.4.4 3.7 2.1 3.7 4.7" stroke={accent} /></>);
 }
 
 // ── Responsive hook ───────────────────────────────────────────────────────────
@@ -2523,23 +2546,7 @@ function LoginPanel({ onLogin, onClose }) {
       {/* Header */}
       <div style={{ padding:"24px 28px 20px", borderBottom:"1px solid rgba(255,255,255,0.08)", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
         <div style={{ display:"flex", alignItems:"center" }}>
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 52" width="96" height="24" style={{display:"block"}}>
-            <defs>
-              <linearGradient id="ggTealLP" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#00C9B1"/><stop offset="100%" stopColor="#00A896"/>
-              </linearGradient>
-            </defs>
-            <g transform="translate(2,2)">
-              <rect x="0" y="0" width="48" height="48" rx="10" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.1)" strokeWidth="1"/>
-              {[9,19,29,39].map(cx => [9,19,29,39].map(cy => {
-                const isTeal = (cx===29&&cy===19)||(cx===39&&cy===19)||(cx===19&&cy===29)||(cx===29&&cy===29)||(cx===39&&cy===29)||(cx===9&&cy===39)||(cx===19&&cy===39)||(cx===29&&cy===39)||(cx===39&&cy===39);
-                const op = isTeal ? (cx+cy)/80 : 0.18;
-                return <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="3" fill={isTeal?"url(#ggTealLP)":`rgba(255,255,255,${op})`} opacity={isTeal?op:1}/>;
-              }))}
-            </g>
-            <text x="62" y="36" fontFamily="'Poppins', sans-serif" fontSize="26" fontWeight="700" fill="white">Group</text>
-            <text x="144" y="36" fontFamily="'Poppins', sans-serif" fontSize="26" fontWeight="600" fill="#00C9B1">Grid</text>
-          </svg>
+          <BrandLogo height={24} onDark={true} />
         </div>
         <button onClick={onClose} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:"10px", width:32, height:32, cursor:"pointer", color:"rgba(255,255,255,0.5)", display:"flex", alignItems:"center", justifyContent:"center" }}><X size={15} strokeWidth={1.8}/></button>
       </div>
@@ -3028,10 +3035,10 @@ function PrivacyPage({ onBack, nav }) {
 function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerms, onFaq }) {
 
   const problems = [
-    { time:"Day 1", label:"You export your registration list", sub:"300 people signed up — names, dates, requests", color:P.accentD, bg:"#E0FAF7", icon:<FileSpreadsheet size={20} strokeWidth={1.8} color={P.white}/> },
-    { time:"Day 3", label:"Flight manifest arrives", sub:"280 names — different format, different spelling", color:P.amber, bg:P.amberLight, icon:<Plane size={20} strokeWidth={1.8} color={P.white}/> },
-    { time:"Day 7", label:"Hotel roster comes in separately", sub:"294 rooms — do they all match who registered?", color:P.purple, bg:P.purpleLight, icon:<Hotel size={20} strokeWidth={1.8} color={P.white}/> },
-    { time:"Day 14", label:"You're still cross-checking", sub:"VLOOKUPs, filters, manual row-by-row scanning…", color:P.red, bg:P.redLight, icon:<AlertTriangle size={20} strokeWidth={1.8} color={P.white}/> },
+    { time:"Day 1", label:"You export your registration list", sub:"300 people signed up — names, dates, requests", color:P.navy, Icon:SpreadsheetIcon },
+    { time:"Day 3", label:"Flight manifest arrives", sub:"280 names — different format, different spelling", color:P.accentD, Icon:PlaneIcon },
+    { time:"Day 7", label:"Hotel roster comes in separately", sub:"294 rooms — do they all match who registered?", color:P.navy, Icon:HotelIcon },
+    { time:"Day 14", label:"You're still cross-checking", sub:"VLOOKUPs, filters, manual row-by-row scanning…", color:P.accentD, Icon:MagnifierIcon },
   ];
 
   const eventTypes = [
@@ -3041,10 +3048,10 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
   ];
 
   const steps = [
-    { n:"01", icon:"📋", title:"Upload your registration list", body:"Start with your master list of who registered — the source of truth. Then add your travel files: flight manifest, hotel roster, car transfers. Excel or CSV (.xlsx, .xls, .csv), any column names — GroupGrid figures it out." },
-    { n:"02", icon:"⚡", title:"Run the check", body:"In seconds, GroupGrid matches every registered person against the travel files by email, then name. It finds who registered but isn't booked, who's booked but never registered, and whose dates don't match." },
-    { n:"03", icon:"🎯", title:"See exactly what needs fixing", body:"Each flag shows who's affected and what's wrong — registered with no flight, hotel booked for someone not on the list, check-in dates that don't match what they requested. Resolve, add notes, mark done." },
-    { n:"04", icon:"📤", title:"Communicate & export", body:"Draft emails to your hotel or travel agency, download a clean Excel report, or generate a shareable HTML report — all without leaving GroupGrid." },
+    { n:"01", icon:"upload", box:P.navy, title:"Upload your registration list", body:"Start with your master list of who registered — the source of truth. Then add your travel files: flight manifest, hotel roster, car transfers. Excel or CSV (.xlsx, .xls, .csv), any column names — GroupGrid figures it out." },
+    { n:"02", icon:"crosscheck", box:P.accentD, title:"Run the check", body:"In seconds, GroupGrid matches every registered person against the travel files by email, then name. It finds who registered but isn't booked, who's booked but never registered, and whose dates don't match." },
+    { n:"03", icon:"magnifier", box:P.navy, title:"See exactly what needs fixing", body:"Each flag shows who's affected and what's wrong — registered with no flight, hotel booked for someone not on the list, check-in dates that don't match what they requested. Resolve, add notes, mark done." },
+    { n:"04", icon:"spreadsheet", box:P.accentD, title:"Communicate & export", body:"Draft emails to your hotel or travel agency, download a clean Excel report, or generate a shareable HTML report — all without leaving GroupGrid." },
   ];
 
   // Testimonials removed — placeholder quotes taken down. Add real, attributed quotes here when available.
@@ -3056,39 +3063,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
       {/* ── Nav ── */}
       <nav style={{ background:P.navy, height:"64px", padding:"0 40px", display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100, boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
         <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 52" width="200" height="52" style={{display:"block"}}>
-            <defs>
-              <linearGradient id="ggIconBgL" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#1A2E52"/>
-                <stop offset="100%" stopColor="#0C1E3F"/>
-              </linearGradient>
-              <linearGradient id="ggTealL" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#00C9B1"/>
-                <stop offset="100%" stopColor="#00A896"/>
-              </linearGradient>
-            </defs>
-            <g transform="translate(2,2)">
-              <rect x="0" y="0" width="48" height="48" rx="10" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.1)" strokeWidth="1"/>
-              <circle cx="9"  cy="9"  r="3" fill="rgba(255,255,255,0.18)"/>
-              <circle cx="19" cy="9"  r="3" fill="rgba(255,255,255,0.18)"/>
-              <circle cx="29" cy="9"  r="3" fill="rgba(255,255,255,0.18)"/>
-              <circle cx="39" cy="9"  r="3" fill="rgba(255,255,255,0.18)"/>
-              <circle cx="9"  cy="19" r="3" fill="rgba(255,255,255,0.18)"/>
-              <circle cx="19" cy="19" r="3" fill="rgba(255,255,255,0.18)"/>
-              <circle cx="29" cy="19" r="3" fill="url(#ggTealL)" opacity="0.45"/>
-              <circle cx="39" cy="19" r="3" fill="url(#ggTealL)" opacity="0.65"/>
-              <circle cx="9"  cy="29" r="3" fill="rgba(255,255,255,0.18)"/>
-              <circle cx="19" cy="29" r="3" fill="url(#ggTealL)" opacity="0.45"/>
-              <circle cx="29" cy="29" r="3" fill="url(#ggTealL)" opacity="0.75"/>
-              <circle cx="39" cy="29" r="3" fill="url(#ggTealL)" opacity="0.9"/>
-              <circle cx="9"  cy="39" r="3" fill="url(#ggTealL)" opacity="0.35"/>
-              <circle cx="19" cy="39" r="3" fill="url(#ggTealL)" opacity="0.6"/>
-              <circle cx="29" cy="39" r="3" fill="url(#ggTealL)" opacity="0.85"/>
-              <circle cx="39" cy="39" r="3" fill="url(#ggTealL)"/>
-            </g>
-            <text x="62" y="36" fontFamily="'Poppins', sans-serif" fontSize="26" fontWeight="700" letterSpacing="-0.5" fill="white">Group</text>
-            <text x="144" y="36" fontFamily="'Poppins', sans-serif" fontSize="26" fontWeight="600" letterSpacing="-0.5" fill="#00C9B1">Grid</text>
-          </svg>
+          <BrandLogo height={40} onDark={true} />
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:"28px" }}>
           <button onClick={onAbout} style={{ background:"none", border:"none", fontSize:"14px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>About</button>
@@ -3230,9 +3205,9 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
             </p>
           </div>
           <div className="gg-timeline-grid" style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"16px", marginBottom:"40px" }}>
-            {problems.map(({ time, label, sub, color, bg, icon }, i) => (
+            {problems.map(({ time, label, sub, color, bg, Icon }, i) => (
               <div key={time} className="gg-timeline-card" style={{ background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"16px", padding:"24px", position:"relative", overflow:"visible", boxShadow:"0 1px 3px rgba(12,30,63,0.04)" }}>
-                <div style={{ width:"44px", height:"44px", borderRadius:"12px", background:color, display:"flex", alignItems:"center", justifyContent:"center", marginBottom:"16px" }}>{icon}</div>
+                <div style={{ width:"44px", height:"44px", borderRadius:"12px", background:color, display:"flex", alignItems:"center", justifyContent:"center", marginBottom:"16px" }}>{Icon && <Icon size={22} line="rgba(255,255,255,0.95)" accent={P.white} />}</div>
                 <div style={{ fontSize:"11px", fontWeight:800, color, fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"8px" }}>{time}</div>
                 <div style={{ fontSize:"16px", fontWeight:700, color:P.navy, fontFamily:fontDisplay, marginBottom:"8px", lineHeight:1.3, letterSpacing:"-0.01em" }}>{label}</div>
                 <div style={{ fontSize:"13px", color:P.grey400, fontFamily:font, lineHeight:1.6 }}>{sub}</div>
@@ -3263,18 +3238,22 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
             </p>
           </div>
           <div className="gg-card-grid-3" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"20px" }}>
-            {steps.map(({ n, icon, title, body }) => (
+            {steps.map(({ n, icon, box, title, body }) => {
+              const StepIcon = { upload:UploadIcon, crosscheck:CrossCheckIcon, magnifier:MagnifierIcon, spreadsheet:SpreadsheetIcon }[icon];
+              const iconAccent = box === P.accentD ? P.white : P.accent; // teal accent vanishes on a teal box, so go white there
+              return (
               <div key={n} style={{ background:"#FAFBFD", border:`1.5px solid ${P.grey100}`, borderRadius:"16px", padding:"28px 28px" }}>
                 <div style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"14px" }}>
-                  <div style={{ width:40, height:40, borderRadius:"10px", background:P.navy, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"18px", flexShrink:0 }}>{icon}</div>
+                  <div style={{ width:44, height:44, borderRadius:"12px", background:box, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{StepIcon && <StepIcon size={22} line="rgba(255,255,255,0.95)" accent={iconAccent} />}</div>
                   <div>
-                    <div style={{ fontSize:"11px", fontWeight:800, color:P.grey200, fontFamily:font, letterSpacing:"0.1em" }}>{n}</div>
-                    <div style={{ fontSize:"16px", fontWeight:800, color:P.navy, fontFamily:font, letterSpacing:"-0.02em" }}>{title}</div>
+                    <div style={{ fontSize:"11px", fontWeight:800, color:box === P.accentD ? P.accentD : P.accent, fontFamily:font, letterSpacing:"0.1em" }}>{n}</div>
+                    <div style={{ fontSize:"16px", fontWeight:700, color:P.navy, fontFamily:fontDisplay, letterSpacing:"-0.015em" }}>{title}</div>
                   </div>
                 </div>
                 <div style={{ fontSize:"14px", color:P.grey600, fontFamily:font, lineHeight:1.75 }}>{body}</div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -3293,19 +3272,22 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
           </div>
           <div className="gg-card-grid-3" style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"16px" }}>
             {[
-              { icon:"✈️", title:"Registered, but no flight", body:"See everyone who signed up for your event but doesn't have a flight booked yet." },
-              { icon:"🏨", title:"Registered, but no hotel", body:"Spot registered attendees who have travel but no hotel room reserved." },
-              { icon:"🚩", title:"Booked, but not registered", body:"Find flights or hotel rooms booked for people who never registered — often the costliest gap to miss." },
-              { icon:"📅", title:"Dates that don't match", body:"Catch when a hotel check-in or flight date doesn't match what the person requested at registration." },
-              { icon:"🚗", title:"Missing transfers", body:"Flag car bookings that don't line up with anyone's flight or registration." },
-              { icon:"👥", title:"Duplicates", body:"The same person registered or booked twice across your files, before it becomes a double charge." },
-            ].map(({ icon, title, body }) => (
+              { Icon:PlaneIcon, box:P.navy, title:"Registered, but no flight", body:"See everyone who signed up for your event but doesn't have a flight booked yet." },
+              { Icon:HotelIcon, box:P.accentD, title:"Registered, but no hotel", body:"Spot registered attendees who have travel but no hotel room reserved." },
+              { Icon:FlagIcon, box:P.navy, title:"Booked, but not registered", body:"Find flights or hotel rooms booked for people who never registered — often the costliest gap to miss." },
+              { Icon:CalendarIcon, box:P.accentD, title:"Dates that don't match", body:"Catch when a hotel check-in or flight date doesn't match what the person requested at registration." },
+              { Icon:CarIcon, box:P.navy, title:"Missing transfers", body:"Flag car bookings that don't line up with anyone's flight or registration." },
+              { Icon:PeopleIcon, box:P.accentD, title:"Duplicates", body:"The same person registered or booked twice across your files, before it becomes a double charge." },
+            ].map(({ Icon, box, title, body }) => {
+              const iconAccent = box === P.accentD ? P.white : P.accent;
+              return (
               <div key={title} style={{ background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"14px", padding:"24px 22px" }}>
-                <div style={{ fontSize:"24px", marginBottom:"12px" }}>{icon}</div>
+                <div style={{ width:46, height:46, borderRadius:"12px", background:box, display:"flex", alignItems:"center", justifyContent:"center", marginBottom:"14px" }}><Icon size={24} line="rgba(255,255,255,0.95)" accent={iconAccent} /></div>
                 <div style={{ fontSize:"16px", fontWeight:800, color:P.navy, fontFamily:font, marginBottom:"6px", letterSpacing:"-0.02em" }}>{title}</div>
                 <div style={{ fontSize:"14px", color:P.grey600, fontFamily:font, lineHeight:1.65 }}>{body}</div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -4002,7 +3984,7 @@ function SetupScreen({
         <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", margin:"8px 0 12px" }}>Contacts <span style={{ textTransform:"none", letterSpacing:0, fontWeight:400 }}>· optional — to email your hotel &amp; travel agency directly</span></div>
         <button onClick={() => setContactsOpen(true)}
           style={{ display:"flex", alignItems:"center", gap:"10px", width:"100%", background:hasContacts?P.accent+"12":P.grey50, border:`1.5px ${hasContacts?"solid":"dashed"} ${hasContacts?P.accent+"55":P.grey200}`, borderRadius:"10px", padding:"12px 14px", cursor:"pointer", fontFamily:font, textAlign:"left" }}>
-          <Users size={18} strokeWidth={1.8} color={P.accentD}/>
+          <PeopleIcon size={18} line={P.accentD} accent={P.accent}/>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:"14px", fontWeight:500, color:hasContacts?P.accentD:P.grey600, fontFamily:font }}>{hasContacts ? "Contacts added" : "Add hotel & travel agency contacts"}</div>
             {hasContacts && <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginTop:"1px" }}>{[contacts.hotel?.name, contacts.travel?.name, contacts.car?.name].filter(Boolean).join(" · ")}</div>}
@@ -4016,9 +3998,9 @@ function SetupScreen({
         <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"14px" }}>Upload whatever you have — registration, flights, hotels, cars. GroupGrid cross-checks any 2 or more. Excel or CSV. Hover a tile for expected columns.</div>
         <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>Upload any 2 or more</div>
         <div className="gg-setup-tiles3" style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"10px", marginBottom:"14px" }}>
-          <SetupTile label="Registration List" sub="Best anchor" icon={<Users size={20} strokeWidth={1.8} color="#00A896"/>} accent={P.accentD} file={registrationFile} setter={setRegistrationFile} recommended columns={["First/Last Name (or Name)","Email","Company / Job Title (opt)","Requested Check-In / Out (opt)","Flight / Hotel Request (opt)"]} />
-          <SetupTile label="Flight Manifest" sub=".xlsx, .xls, .csv" icon={<Plane size={20} strokeWidth={1.8} color="#4DA3FF"/>} accent={P.periwinkleD} file={flightFile} setter={setFlightFile} columns={["First/Last Name (or Name)","Email (opt)","Arrival Date","Departure Date","Flight # (opt)"]} />
-          <SetupTile label="Hotel Roster" sub=".xlsx, .xls, .csv" icon={<Hotel size={20} strokeWidth={1.8} color="#F5A623"/>} accent={P.navy} file={hotelFile} setter={setHotelFile} columns={["First/Last Name (or Name)","Email (opt)","Check-In Date","Check-Out Date","Hotel / Room (opt)"]} />
+          <SetupTile label="Registration List" sub="Best anchor" icon={<PeopleIcon size={20} />} accent={P.accentD} file={registrationFile} setter={setRegistrationFile} recommended columns={["First/Last Name (or Name)","Email","Company / Job Title (opt)","Requested Check-In / Out (opt)","Flight / Hotel Request (opt)"]} />
+          <SetupTile label="Flight Manifest" sub=".xlsx, .xls, .csv" icon={<PlaneIcon size={20} />} accent={P.periwinkleD} file={flightFile} setter={setFlightFile} columns={["First/Last Name (or Name)","Email (opt)","Arrival Date","Departure Date","Flight # (opt)"]} />
+          <SetupTile label="Hotel Roster" sub=".xlsx, .xls, .csv" icon={<HotelIcon size={20} />} accent={P.navy} file={hotelFile} setter={setHotelFile} columns={["First/Last Name (or Name)","Email (opt)","Check-In Date","Check-Out Date","Hotel / Room (opt)"]} />
         </div>
 
         {/* Multi-hotel: name the property and add more rooming lists */}
@@ -4054,7 +4036,7 @@ function SetupScreen({
 
         <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>More files</div>
         <div className="gg-setup-tiles2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px" }}>
-          <SetupTile label="Car Transfers" sub=".xlsx, .xls, .csv" icon={<Car size={20} strokeWidth={1.8} color="#9B59B6"/>} accent={P.grey600} file={carFile} setter={setCarFile} columns={["First/Last Name (or Name)","Email (opt)","Pickup Date","Dropoff Date","Pickup Location (opt)"]} />
+          <SetupTile label="Car Transfers" sub=".xlsx, .xls, .csv" icon={<CarIcon size={20} />} accent={P.grey600} file={carFile} setter={setCarFile} columns={["First/Last Name (or Name)","Email (opt)","Pickup Date","Dropoff Date","Pickup Location (opt)"]} />
           {SHOW_DIETARY && <SetupTile label="Dietary & Access" sub=".xlsx, .xls, .csv" icon={<Salad size={20} strokeWidth={1.8} color="#27AE60"/>} accent={P.teal} file={dietaryFile} setter={setDietaryFile} columns={["First/Last Name (or Name)","Email (opt)","Dietary Restrictions","Accessibility Needs","Special Notes (opt)"]} />}
         </div>
         <div style={{ fontSize:"13px", color:P.navyLight, fontFamily:font, marginTop:"16px", padding:"10px 13px", background:P.periwinkle+"0D", borderRadius:"9px", border:`1px solid ${P.periwinkle}22`, lineHeight:1.5 }}>
@@ -4748,39 +4730,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
               {[0,1,2].map(i => <span key={i} style={{ width:14, height:2, background:"rgba(255,255,255,0.7)", borderRadius:2, transition:"all 0.2s" }} />)}
             </button>
           )}
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 52" width={isMobile ? 120 : 185} height={isMobile ? 30 : 46} style={{display:"block"}}>
-              <defs>
-                <linearGradient id="ggIconBg2" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#1A2E52"/>
-                  <stop offset="100%" stopColor="#0C1E3F"/>
-                </linearGradient>
-                <linearGradient id="ggTeal" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#00C9B1"/>
-                  <stop offset="100%" stopColor="#00A896"/>
-                </linearGradient>
-              </defs>
-              <g transform="translate(2,2)">
-                <rect x="0" y="0" width="48" height="48" rx="10" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.1)" strokeWidth="1"/>
-                <circle cx="9"  cy="9"  r="3" fill="rgba(255,255,255,0.18)"/>
-                <circle cx="19" cy="9"  r="3" fill="rgba(255,255,255,0.18)"/>
-                <circle cx="29" cy="9"  r="3" fill="rgba(255,255,255,0.18)"/>
-                <circle cx="39" cy="9"  r="3" fill="rgba(255,255,255,0.18)"/>
-                <circle cx="9"  cy="19" r="3" fill="rgba(255,255,255,0.18)"/>
-                <circle cx="19" cy="19" r="3" fill="rgba(255,255,255,0.18)"/>
-                <circle cx="29" cy="19" r="3" fill="url(#ggTeal)" opacity="0.45"/>
-                <circle cx="39" cy="19" r="3" fill="url(#ggTeal)" opacity="0.65"/>
-                <circle cx="9"  cy="29" r="3" fill="rgba(255,255,255,0.18)"/>
-                <circle cx="19" cy="29" r="3" fill="url(#ggTeal)" opacity="0.45"/>
-                <circle cx="29" cy="29" r="3" fill="url(#ggTeal)" opacity="0.75"/>
-                <circle cx="39" cy="29" r="3" fill="url(#ggTeal)" opacity="0.9"/>
-                <circle cx="9"  cy="39" r="3" fill="url(#ggTeal)" opacity="0.35"/>
-                <circle cx="19" cy="39" r="3" fill="url(#ggTeal)" opacity="0.6"/>
-                <circle cx="29" cy="39" r="3" fill="url(#ggTeal)" opacity="0.85"/>
-                <circle cx="39" cy="39" r="3" fill="url(#ggTeal)"/>
-              </g>
-              <text x="62" y="36" fontFamily="'Poppins', sans-serif" fontSize="26" fontWeight="700" letterSpacing="-0.5" fill="white">Group</text>
-              <text x="144" y="36" fontFamily="'Poppins', sans-serif" fontSize="26" fontWeight="600" letterSpacing="-0.5" fill="#00C9B1">Grid</text>
-            </svg>
+          <BrandLogo height={isMobile ? 28 : 40} onDark={true} />
             {!isMobile && <button onClick={() => setPage("landing")} style={{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"7px", padding:"4px 12px", fontSize:"12px", fontWeight:600, color:"rgba(255,255,255,0.45)", fontFamily:font, cursor:"pointer", letterSpacing:"0.03em" }}>← Home</button>}
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
@@ -5013,7 +4963,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
             )}
             {!contacts.hotel.email && !contacts.travel.email && (
               <button onClick={() => setContactsOpen(true)} style={{ width:"100%", display:"flex", alignItems:"center", gap:"8px", background:"transparent", border:`1.5px dashed rgba(255,255,255,0.15)`, borderRadius:"9px", padding:"7px 10px", cursor:"pointer", fontFamily:font }}>
-                <Users size={14} strokeWidth={1.8} color="rgba(255,255,255,0.35)"/>
+                <PeopleIcon size={14} line="rgba(255,255,255,0.55)" accent={P.accent}/>
                 <span style={{ fontSize:"15px", fontWeight:700, color:"rgba(255,255,255,0.4)" }}>Add contacts</span>
               </button>
             )}
@@ -5038,7 +4988,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
             <div style={{ position:"relative", display:"flex" }}>
               <button onClick={() => setWindowOpen(!windowOpen)}
                 style={{ display:"inline-flex", alignItems:"center", gap:"7px", height:"36px", background:hasWindow?P.periwinkle+"14":P.grey50, border:`1.5px solid ${hasWindow?P.periwinkle+"55":P.grey100}`, borderRadius:"9px", padding:"0 13px", fontSize:"13px", fontWeight:500, color:hasWindow?P.periwinkleD:P.grey600, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>
-                {hasWindow ? "Dates set" : "Approved travel dates"} <Calendar size={14} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/>
+                {hasWindow ? "Dates set" : "Approved travel dates"} <CalendarIcon size={15} line={hasWindow?P.periwinkleD:P.grey600} accent={P.accent}/>
               </button>
               {windowOpen && (
                 <div style={{ position:"absolute", top:"calc(100% + 6px)", right:0, zIndex:60, width:"260px", background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"12px", padding:"14px", boxShadow:"0 12px 32px rgba(15,29,53,0.16)" }}>
@@ -5066,7 +5016,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
             </div>
             <button onClick={() => setContactsOpen(true)}
               style={{ display:"inline-flex", alignItems:"center", gap:"7px", height:"36px", background:(contacts.hotel.email||contacts.travel.email)?P.accent+"14":P.grey50, border:`1.5px solid ${(contacts.hotel.email||contacts.travel.email)?P.accent+"55":P.grey100}`, borderRadius:"9px", padding:"0 13px", fontSize:"13px", fontWeight:500, color:(contacts.hotel.email||contacts.travel.email)?P.accentD:P.grey600, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>
-              {(contacts.hotel.email||contacts.travel.email) ? "Contacts added" : "Contacts"} <Users size={14} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/>
+              {(contacts.hotel.email||contacts.travel.email) ? "Contacts added" : "Contacts"} <PeopleIcon size={15} line={(contacts.hotel.email||contacts.travel.email)?P.accentD:P.grey600} accent={P.accent}/>
             </button>
             </div>
           </div>
@@ -5094,10 +5044,10 @@ function GroupGrid({ user, onLogin, onLogout }) {
         ) : (
           <div style={{ marginBottom:"16px", padding:"10px 14px", background:P.white, borderRadius:"12px", border:`1px solid ${P.grey100}` }}>
             <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "auto auto auto auto auto auto auto auto", gap:"8px", alignItems:"center" }}>
-              <UploadSquare label="Registration" icon={<Users size={22} strokeWidth={1.8} color="#00A896"/>} accent={P.accentD} file={registrationFile} setter={setRegistrationFile} required={false} sub="Source of truth" compact />
-              <UploadSquare label="Flight"  icon={<Plane size={22} strokeWidth={1.8} color="#4DA3FF"/>} accent={P.periwinkleD} file={flightFile}  setter={setFlightFile}  required={false}  sub="Optional" compact />
-              <UploadSquare label="Hotel"   icon={<Hotel size={22} strokeWidth={1.8} color="#F5A623"/>} accent={P.navy}        file={hotelFile}   setter={setHotelFile}   required={false}  sub="Optional" compact />
-              <UploadSquare label="Car"     icon={<Car size={22} strokeWidth={1.8} color="#9B59B6"/>}   accent={P.grey600}     file={carFile}     setter={setCarFile}     required={false} sub="Optional" compact />
+              <UploadSquare label="Registration" icon={<PeopleIcon size={22} />} accent={P.accentD} file={registrationFile} setter={setRegistrationFile} required={false} sub="Source of truth" compact />
+              <UploadSquare label="Flight"  icon={<PlaneIcon size={22} />} accent={P.periwinkleD} file={flightFile}  setter={setFlightFile}  required={false}  sub="Optional" compact />
+              <UploadSquare label="Hotel"   icon={<HotelIcon size={22} />} accent={P.navy}        file={hotelFile}   setter={setHotelFile}   required={false}  sub="Optional" compact />
+              <UploadSquare label="Car"     icon={<CarIcon size={22} />}   accent={P.grey600}     file={carFile}     setter={setCarFile}     required={false} sub="Optional" compact />
               {SHOW_DIETARY && <UploadSquare label="Dietary" icon={<Salad size={22} strokeWidth={1.8} color="#27AE60"/>} accent={P.teal}        file={dietaryFile} setter={setDietaryFile} required={false} sub="Optional" compact />}
               {!isMobile && <div style={{ width:1, height:32, background:P.grey100, flexShrink:0 }} />}
               <button onClick={runCheck} disabled={!ready || loading}
@@ -5554,39 +5504,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
       <div style={{ borderTop:`1px solid ${P.grey100}`, padding:"12px 28px", display:"flex", alignItems:"center", justifyContent:"space-between", background:P.white, flexWrap:"wrap", gap:"10px" }}>
         <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
           <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 52" width="100" height="25" style={{display:"block"}}>
-              <defs>
-                <linearGradient id="ggIconBgL" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#1A2E52"/>
-                  <stop offset="100%" stopColor="#0C1E3F"/>
-                </linearGradient>
-                <linearGradient id="ggTealL" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#00C9B1"/>
-                  <stop offset="100%" stopColor="#00A896"/>
-                </linearGradient>
-              </defs>
-              <g transform="translate(2,2)">
-                <rect x="0" y="0" width="48" height="48" rx="10" fill="url(#ggIconBgL)"/>
-                <circle cx="9"  cy="9"  r="3" fill="rgba(255,255,255,0.18)"/>
-                <circle cx="19" cy="9"  r="3" fill="rgba(255,255,255,0.18)"/>
-                <circle cx="29" cy="9"  r="3" fill="rgba(255,255,255,0.18)"/>
-                <circle cx="39" cy="9"  r="3" fill="rgba(255,255,255,0.18)"/>
-                <circle cx="9"  cy="19" r="3" fill="rgba(255,255,255,0.18)"/>
-                <circle cx="19" cy="19" r="3" fill="rgba(255,255,255,0.18)"/>
-                <circle cx="29" cy="19" r="3" fill="url(#ggTealL)" opacity="0.45"/>
-                <circle cx="39" cy="19" r="3" fill="url(#ggTealL)" opacity="0.65"/>
-                <circle cx="9"  cy="29" r="3" fill="rgba(255,255,255,0.18)"/>
-                <circle cx="19" cy="29" r="3" fill="url(#ggTealL)" opacity="0.45"/>
-                <circle cx="29" cy="29" r="3" fill="url(#ggTealL)" opacity="0.75"/>
-                <circle cx="39" cy="29" r="3" fill="url(#ggTealL)" opacity="0.9"/>
-                <circle cx="9"  cy="39" r="3" fill="url(#ggTealL)" opacity="0.35"/>
-                <circle cx="19" cy="39" r="3" fill="url(#ggTealL)" opacity="0.6"/>
-                <circle cx="29" cy="39" r="3" fill="url(#ggTealL)" opacity="0.85"/>
-                <circle cx="39" cy="39" r="3" fill="url(#ggTealL)"/>
-              </g>
-              <text x="62" y="36" fontFamily="'Poppins', sans-serif" fontSize="26" fontWeight="700" letterSpacing="-0.5" fill="#0C1E3F">Group</text>
-              <text x="144" y="36" fontFamily="'Poppins', sans-serif" fontSize="26" fontWeight="600" letterSpacing="-0.5" fill="#00A896">Grid</text>
-            </svg>
+            <BrandLogo height={26} onDark={false} />
             <span style={{ fontSize:"13px", color:P.grey400, fontFamily:font }}>Built for event professionals · © 2026 · <span style={{ color:P.grey200 }}>{APP_VERSION}</span></span>
           </div>
           <div style={{ display:"flex", gap:"20px" }}>
