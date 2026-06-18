@@ -3,7 +3,7 @@
 // Architecture: 100% browser-local React SPA. No server, no PII storage.
 //
 // Mobile changes (v2):
-//   [x] useIsMobixale hook drives layout switching at 768px
+//   [x] useIsMobile hook drives layout switching at 768px
 //   [x] Sidebar becomes slide-in drawer on mobile (hamburger toggle)
 //   [x] Upload grid: 4-col desktop → 2-col mobile
 //   [x] Compact upload bar: wraps cleanly on small screens
@@ -58,7 +58,7 @@ const P = {
 const font = "'Manrope', sans-serif";
 const fontDisplay = "'Poppins', sans-serif";
 // Build version — bump this whenever code is deployed so you can confirm at a glance which build is live.
-const APP_VERSION = "v4.6 · Jun 2026";
+const APP_VERSION = "v4.7 · Jun 2026";
 // Feature flag: hide the Dietary/Access feature from the UI for now while focusing on
 // registration, flights, hotels, and cars. The parsing/engine code stays intact —
 // flip this to true to bring the dietary upload, column, and detail back everywhere.
@@ -3048,10 +3048,10 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
   ];
 
   const steps = [
-    { n:"01", icon:"upload", box:P.navy, title:"Upload your registration list", body:"Start with your master list of who registered — the source of truth. Then add your travel files: flight manifest, hotel roster, car transfers. Excel or CSV (.xlsx, .xls, .csv), any column names — GroupGrid figures it out." },
-    { n:"02", icon:"crosscheck", box:P.accentD, title:"Run the check", body:"In seconds, GroupGrid matches every registered person against the travel files by email, then name. It finds who registered but isn't booked, who's booked but never registered, and whose dates don't match." },
-    { n:"03", icon:"magnifier", box:P.navy, title:"See exactly what needs fixing", body:"Each flag shows who's affected and what's wrong — registered with no flight, hotel booked for someone not on the list, check-in dates that don't match what they requested. Resolve, add notes, mark done." },
-    { n:"04", icon:"spreadsheet", box:P.accentD, title:"Communicate & export", body:"Draft emails to your hotel or travel agency, download a clean Excel report, or generate a shareable HTML report — all without leaving GroupGrid." },
+    { n:"01", icon:"upload", box:P.accentD, title:"Upload your registration list", body:"Start with your master list of who registered — the source of truth. Then add your travel files: flight manifest, hotel roster, car transfers. Excel or CSV (.xlsx, .xls, .csv), any column names — GroupGrid figures it out." },
+    { n:"02", icon:"crosscheck", box:P.navyLight, title:"Run the check", body:"In seconds, GroupGrid matches every registered person against the travel files by email, then name. It finds who registered but isn't booked, who's booked but never registered, and whose dates don't match." },
+    { n:"03", icon:"magnifier", box:P.accentD, title:"See exactly what needs fixing", body:"Each flag shows who's affected and what's wrong — registered with no flight, hotel booked for someone not on the list, check-in dates that don't match what they requested. Resolve, add notes, mark done." },
+    { n:"04", icon:"spreadsheet", box:P.navyLight, title:"Communicate & export", body:"Draft emails to your hotel or travel agency, download a clean Excel report, or generate a shareable HTML report — all without leaving GroupGrid." },
   ];
 
   // Testimonials removed — placeholder quotes taken down. Add real, attributed quotes here when available.
@@ -3242,15 +3242,15 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               const StepIcon = { upload:UploadIcon, crosscheck:CrossCheckIcon, magnifier:MagnifierIcon, spreadsheet:SpreadsheetIcon }[icon];
               const iconAccent = box === P.accentD ? P.white : P.accent; // teal accent vanishes on a teal box, so go white there
               return (
-              <div key={n} style={{ background:"#FAFBFD", border:`1.5px solid ${P.grey100}`, borderRadius:"16px", padding:"28px 28px" }}>
+              <div key={n} style={{ background:P.navy, borderRadius:"16px", padding:"28px 28px" }}>
                 <div style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"14px" }}>
                   <div style={{ width:44, height:44, borderRadius:"12px", background:box, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{StepIcon && <StepIcon size={22} line="rgba(255,255,255,0.95)" accent={iconAccent} />}</div>
                   <div>
-                    <div style={{ fontSize:"11px", fontWeight:800, color:box === P.accentD ? P.accentD : P.accent, fontFamily:font, letterSpacing:"0.1em" }}>{n}</div>
-                    <div style={{ fontSize:"16px", fontWeight:700, color:P.navy, fontFamily:fontDisplay, letterSpacing:"-0.015em" }}>{title}</div>
+                    <div style={{ fontSize:"11px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em" }}>{n}</div>
+                    <div style={{ fontSize:"16px", fontWeight:700, color:P.white, fontFamily:fontDisplay, letterSpacing:"-0.015em" }}>{title}</div>
                   </div>
                 </div>
-                <div style={{ fontSize:"14px", color:P.grey600, fontFamily:font, lineHeight:1.75 }}>{body}</div>
+                <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.62)", fontFamily:font, lineHeight:1.75 }}>{body}</div>
               </div>
               );
             })}
