@@ -56,6 +56,8 @@ const P = {
   accent:"#00C9B1", accentLight:"#E0FAF7", accentD:"#00A896",
 };
 const font = "'Manrope', sans-serif";
+// Build version — bump this whenever code is deployed so you can confirm at a glance which build is live.
+const APP_VERSION = "v2.1 · Jun 2026";
 
 // ── Responsive hook ───────────────────────────────────────────────────────────
 function useIsMobile(breakpoint = 768) {
@@ -1184,6 +1186,68 @@ With warm regards,
 {{plannerName}}
 {{eventName}} Planning Team`,
   },
+  car_mismatch: {
+    id: "car_mismatch",
+    label: "Car Transfer Timing",
+    icon: "🚗",
+    color: P.red,
+    description: "Car transfer time does not line up with the guest's flight",
+    subject: "A quick check on your airport transfer for {{eventName}}",
+    body: `Hi {{guestName}},
+
+We are getting everything ready for {{eventName}} and want to make sure your arrival and departure go smoothly!
+
+While reviewing ground transportation, we noticed your car transfer timing does not quite line up with your flights:
+
+┌────────────────────────┐
+    Here is what needs your attention:
+
+    Your flight arrives:   {{flightArrival}}
+    Your car pickup:       {{carPickup}}
+
+    Your flight departs:   {{flightDeparture}}
+    Your car dropoff:      {{carDropoff}}
+└────────────────────────┘
+
+We want to make sure you are never left waiting at the airport, and never miss a ride to your departing flight. Could you confirm whether your transfer times are correct, or let us know if they need adjusting?
+
+Just reply and we will take care of the rest.
+
+With warm regards,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  },
+  needs_registration: {
+    id: "needs_registration",
+    label: "Needs to Register",
+    icon: "📝",
+    color: P.purple,
+    description: "Guest has travel booked but is not on the registration list",
+    subject: "Please complete your registration for {{eventName}}",
+    body: `Hi {{guestName}},
+
+We are looking forward to {{eventName}} and noticed you have travel arranged with us — wonderful!
+
+There is just one thing we are missing on our end:
+
+┌────────────────────────┐
+    Here is what needs your attention:
+
+    We have travel booked for you:
+    Flight arrival:   {{flightArrival}}
+    Hotel:            {{hotel}}
+
+    But we do not yet have your event registration on file.
+└────────────────────────┘
+
+So we can finalize your details and make sure nothing slips through, could you please complete your registration for {{eventName}}? It only takes a moment, and it helps us confirm everything is set for your trip.
+
+If you believe you already registered, just reply and we will look into it right away.
+
+With warm regards,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  },
   outside_window: {
     id: "outside_window",
     label: "Outside Approved Travel Window",
@@ -1278,6 +1342,8 @@ function fillTemplate(template, record, extra = {}) {
     "{{checkIn}}": fmt(record.hotel?.checkIn) || "—",
     "{{checkOut}}": fmt(record.hotel?.checkOut) || "—",
     "{{hotel}}": record.hotel?.hotel || "the hotel",
+    "{{carPickup}}": fmt(record.car?.pickupDate) || "—",
+    "{{carDropoff}}": fmt(record.car?.dropoffDate) || "—",
     "{{plannerName}}": extra.plannerName || "The Planning Team",
     "{{arrivalEnd}}": extra.arrivalEnd ? fmt(parseDate(extra.arrivalEnd)) : "—",
     "{{departureEnd}}": extra.departureEnd ? fmt(parseDate(extra.departureEnd)) : "—",
@@ -1300,6 +1366,9 @@ function getApplicableTemplates(record) {
   // Missing flight — same, across both engine paths
   if (has("no flight booked") || has("Missing from flight manifest") || has("no flight' but no reason")) applicable.push("missing_flight");
   if (has("Missing from car transfers")) applicable.push("missing_transfer");
+  // Car transfer timing mismatch (pickup vs flight arrival, dropoff vs flight departure)
+  if (has("Car pickup") || has("Car dropoff")) applicable.push("car_mismatch");
+  if (has("not on registration list") || issues.some(x => x.type === "unregistered")) applicable.push("needs_registration");
   if (issues.some(x => x.type === "window")) applicable.push("outside_window");
   return applicable;
 }
@@ -1311,6 +1380,8 @@ const TRIGGER_OPTIONS = [
   { value:"missing_hotel", label:"Missing hotel booking" },
   { value:"missing_flight", label:"Missing flight record" },
   { value:"missing_transfer", label:"Missing transfer record" },
+  { value:"car_mismatch", label:"Car transfer timing mismatch" },
+  { value:"needs_registration", label:"Booked travel but not registered" },
   { value:"arrives_early", label:"Arrives before check-in" },
   { value:"departs_late", label:"Departs after check-out" },
   { value:"outside_window", label:"Outside travel window" },
@@ -5221,7 +5292,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
               <text x="62" y="36" fontFamily="'Manrope', sans-serif" fontSize="26" fontWeight="700" letterSpacing="-0.5" fill="#0F1F3D">Group</text>
               <text x="144" y="36" fontFamily="'Manrope', sans-serif" fontSize="26" fontWeight="300" letterSpacing="-0.5" fill="#00A896">Grid</text>
             </svg>
-            <span style={{ fontSize:"13px", color:P.grey400, fontFamily:font }}>Built for event professionals · © 2026</span>
+            <span style={{ fontSize:"13px", color:P.grey400, fontFamily:font }}>Built for event professionals · © 2026 · <span style={{ color:P.grey200 }}>{APP_VERSION}</span></span>
           </div>
           <div style={{ display:"flex", gap:"20px" }}>
             {[
