@@ -57,7 +57,11 @@ const P = {
 };
 const font = "'Manrope', sans-serif";
 // Build version — bump this whenever code is deployed so you can confirm at a glance which build is live.
-const APP_VERSION = "v2.1 · Jun 2026";
+const APP_VERSION = "v3.0 · Jun 2026";
+// Feature flag: hide the Dietary/Access feature from the UI for now while focusing on
+// registration, flights, hotels, and cars. The parsing/engine code stays intact —
+// flip this to true to bring the dietary upload, column, and detail back everywhere.
+const SHOW_DIETARY = false;
 
 // ── Responsive hook ───────────────────────────────────────────────────────────
 function useIsMobile(breakpoint = 768) {
@@ -831,7 +835,7 @@ ${evName ? evName + " Planning Team" : "Planning Team"}`,
       contactName: guestName,
       toDisplay: record.email || "Guest email",
       toEmail: record.email || "",
-      subject: `${evName ? evName + ": " : ""}A quick note about your travel`,
+      subject: `${evName ? evName + " " : ""}[Travel]: Could you confirm your travel details?`,
       body: `Hi ${guestName},
 
 We are so excited to have you joining us${evName ? " for " + evName : ""} and we truly cannot wait to see you there!
@@ -984,7 +988,7 @@ const DEFAULT_TEMPLATES = {
     icon: "✈",
     color: P.amber,
     description: "Guest flight arrives before hotel check-in date",
-    subject: "Quick question about your arrival for {{eventName}}",
+    subject: "{{eventName}} [Arrival]: Could you confirm your travel details?",
     body: `Hi {{guestName}},
 
 We are so excited to have you joining us for {{eventName}} — it is going to be a wonderful event and we truly cannot wait to see you there!
@@ -1030,7 +1034,7 @@ Warmly,
     icon: "🏨",
     color: P.amber,
     description: "Guest flight departs after hotel check-out date",
-    subject: "Quick question about your departure for {{eventName}}",
+    subject: "{{eventName}} [Departure]: Could you confirm your travel details?",
     body: `Hi {{guestName}},
 
 We are so excited to have you joining us for {{eventName}} — it is going to be a wonderful event and we truly cannot wait to see you there!
@@ -1076,7 +1080,7 @@ Warmly,
     icon: "🏨",
     color: P.red,
     description: "Guest appears in flight list but no hotel booking on file",
-    subject: "We want to make sure you have a place to stay at {{eventName}}",
+    subject: "{{eventName}} [Hotel]: Could you confirm your travel details?",
     body: `Hi {{guestName}},
 
 We are so looking forward to welcoming you to {{eventName}} — it is going to be a fantastic event and we are thrilled you will be joining us!
@@ -1113,7 +1117,7 @@ Warmly,
     icon: "✈",
     color: P.red,
     description: "Guest appears in hotel list but no flight on file",
-    subject: "Could you share your flight details for {{eventName}}?",
+    subject: "{{eventName}} [Flight]: Could you confirm your travel details?",
     body: `Hi {{guestName}},
 
 We are so thrilled you will be joining us for {{eventName}} — it is going to be such a wonderful event and we genuinely cannot wait to see you there!
@@ -1154,7 +1158,7 @@ Warmly,
     icon: "🚗",
     color: P.amber,
     description: "Guest has no car transfer record",
-    subject: "Can we arrange your airport transfer for {{eventName}}?",
+    subject: "{{eventName}} [Transfer]: Could you confirm your travel details?",
     body: `Hi {{guestName}},
 
 We hope you are getting excited for {{eventName}} — we certainly are, and we truly cannot wait to see you!
@@ -1192,7 +1196,7 @@ With warm regards,
     icon: "🚗",
     color: P.red,
     description: "Car transfer time does not line up with the guest's flight",
-    subject: "A quick check on your airport transfer for {{eventName}}",
+    subject: "{{eventName}} [Car Transfer]: Could you confirm your travel details?",
     body: `Hi {{guestName}},
 
 We are getting everything ready for {{eventName}} and want to make sure your arrival and departure go smoothly!
@@ -1223,7 +1227,7 @@ With warm regards,
     icon: "📝",
     color: P.purple,
     description: "Guest has travel booked but is not on the registration list",
-    subject: "Please complete your registration for {{eventName}}",
+    subject: "{{eventName}} [Registration]: Could you confirm your travel details?",
     body: `Hi {{guestName}},
 
 We are looking forward to {{eventName}} and noticed you have travel arranged with us — wonderful!
@@ -1254,7 +1258,7 @@ With warm regards,
     icon: "🗓",
     color: P.purple,
     description: "Guest travel dates fall outside the approved event window",
-    subject: "A quick note about your travel dates for {{eventName}}",
+    subject: "{{eventName}} [Travel Dates]: Could you confirm your travel details?",
     body: `Hi {{guestName}},
 
 We are so glad you will be joining us for {{eventName}} — we want to make sure every detail of your trip is perfectly arranged and that you have the most wonderful experience!
@@ -1293,7 +1297,7 @@ Warmly,
     icon: "✅",
     color: P.green,
     description: "Proactive confirmation request for all guests",
-    subject: "Does your travel info look right for {{eventName}}?",
+    subject: "{{eventName}} [Travel Review]: Could you confirm your travel details?",
     body: `Hi {{guestName}},
 
 We are getting SO excited for {{eventName}} and we hope you are too — we truly cannot wait to see you there!
@@ -1574,7 +1578,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
       // so they're never silently dropped (covers date mismatches, wrong-hotel, unregistered, etc.)
       if (!matched) {
         const issueList = unresolved.map(x => "• " + x.text).join("\n");
-        const subject = `${eventName || "Event"} — please review your travel details`;
+        const subject = `${eventName || "Event"} [Travel]: Could you confirm your travel details?`;
         const body = `Hi ${record.firstName || record.displayName || "there"},\n\nWhile reviewing arrangements for ${eventName || "our event"}, we found something on your record that needs attention:\n\n${issueList}\n\nCould you take a look and let us know? Thank you.\n\n${contacts?.plannerName || "[Your Name]"}`;
         q.push({ id: `${record.key}-generic`, record, templateId: null, subject, body, to: record.email, status: "pending" });
       }
@@ -2593,7 +2597,7 @@ function AboutPage({ onBack, nav }) {
           <div style={{ fontSize:"13px", fontWeight:800, color:P.navy, fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"20px" }}>How It Works</div>
           <div style={{ display:"flex", flexDirection:"column", gap:"18px" }}>
             {[
-              { n:"1", title:"Upload your spreadsheets", body:"Drag in your flight manifest, hotel roster, car transfers, and dietary files — Excel or CSV (.xlsx, .xls, .csv), any column names. GroupGrid auto-detects them." },
+              { n:"1", title:"Upload your spreadsheets", body:"Drag in your flight manifest, hotel roster, and car transfers — Excel or CSV (.xlsx, .xls, .csv), any column names. GroupGrid auto-detects them." },
               { n:"2", title:"Run the cross-check", body:"GroupGrid matches every guest across all files by name and email, identifying mismatches, missing records, date gaps, and duplicates." },
               { n:"3", title:"See exactly what needs fixing", body:"Every flag is surfaced with context — who's affected, what the mismatch is, and how many days off. Resolve issues, add notes, and export a clean report." },
               { n:"4", title:"Share with your team or hotel", body:"Download an Excel file, generate a shareable HTML report, or draft emails directly to your hotel and travel agency contacts — all from the same screen." },
@@ -2879,23 +2883,23 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               </div>
             </div>
             <h1 style={{ fontSize:"clamp(28px, 4.5vw, 44px)", fontWeight:900, color:P.white, fontFamily:font, lineHeight:1.1, margin:"0 0 18px", maxWidth:"540px", letterSpacing:"-0.035em" }}>
-              300 people registered.<br/><span style={{ color:P.accent }}>Did all 300 get booked?</span>
+              300 people registered.<br/><span style={{ color:P.accent }}>Did all 300 actually get booked?</span>
             </h1>
             <p style={{ fontSize:"18px", color:"rgba(255,255,255,0.6)", fontFamily:font, lineHeight:1.75, margin:"0 0 12px", maxWidth:"520px" }}>
-              You have one list of people who registered for your event. You have separate spreadsheets from your travel and hotel vendors. Somewhere between them, people fall through — the late registrant with no flight, the hotel booking for someone who never signed up, the check-in date that doesn't match.
+              One missing flight. One hotel room booked for the wrong person. One attendee arriving with nowhere to stay.
             </p>
             <p style={{ fontSize:"18px", color:"rgba(255,255,255,0.85)", fontFamily:font, lineHeight:1.75, margin:"0 0 36px", maxWidth:"520px", fontWeight:600 }}>
-              GroupGrid checks your registration list against every travel file and shows you exactly who's missing what — <span style={{ color:P.accent }}>in minutes, not days.</span>
+              GroupGrid checks your registration list against flights, hotels, and transfers to show you exactly what needs attention — <span style={{ color:P.accent }}>in minutes.</span>
             </p>
             <div style={{ display:"flex", gap:"12px", flexWrap:"wrap", alignItems:"center" }}>
               <button onClick={onEnter} style={{ background:`linear-gradient(135deg, ${P.accent}, ${P.accentD})`, border:"none", borderRadius:"12px", padding:"14px 32px", fontSize:"16px", fontWeight:800, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 4px 20px rgba(0,201,177,0.4)", letterSpacing:"-0.02em" }}>
-                Try GroupGrid free →
+                Open GroupGrid →
               </button>
               <button onClick={onPricing} style={{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.15)", borderRadius:"12px", padding:"14px 24px", fontSize:"15px", fontWeight:600, color:"rgba(255,255,255,0.75)", fontFamily:font, cursor:"pointer" }}>
                 See pricing
               </button>
             </div>
-            <p style={{ fontSize:"13px", color:"rgba(255,255,255,0.3)", fontFamily:font, marginTop:"14px" }}>No setup · Upload your spreadsheets and get answers in minutes</p>
+            <p style={{ fontSize:"13px", color:"rgba(255,255,255,0.3)", fontFamily:font, marginTop:"14px" }}>No setup · Upload spreadsheets · Get answers</p>
           </div>
 
           {/* Right — live mismatch demo card */}
@@ -2907,7 +2911,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               <span style={{ fontSize:"12px", color:"rgba(255,255,255,0.35)", fontFamily:font, fontWeight:600 }}>GroupGrid — Annual Sales Summit 2025</span>
             </div>
             <div style={{ padding:"16px" }}>
-              <div style={{ fontSize:"11px", fontWeight:700, color:"rgba(255,255,255,0.35)", fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"10px" }}>Registration checked · 4 issues · 247 registered</div>
+              <div style={{ fontSize:"11px", fontWeight:700, color:"rgba(255,255,255,0.35)", fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"10px" }}>Cross-check complete · 300 reviewed · <span style={{ color:"#FF8A80" }}>4 need action</span></div>
               {[
                 { name:"Sarah Solomon", issue:"Registered but no flight booked", type:"error", badge:"No Flight" },
                 { name:"Marcus Williams", issue:"Has a hotel room but never registered", type:"error", badge:"Not Registered" },
@@ -2924,7 +2928,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               ))}
               <div style={{ marginTop:"12px", background:"rgba(0,201,177,0.1)", border:"1px solid rgba(0,201,177,0.2)", borderRadius:"8px", padding:"10px 12px", display:"flex", alignItems:"center", gap:"8px" }}>
                 <Check size={14} strokeWidth={2.5} color={P.accent} style={{flexShrink:0}}/>
-                <span style={{ fontSize:"12px", color:"rgba(255,255,255,0.6)", fontFamily:font }}>243 registered guests fully booked · <span style={{ color:P.accent, fontWeight:700 }}>✓ No action needed</span></span>
+                <span style={{ fontSize:"12px", color:"rgba(255,255,255,0.6)", fontFamily:font }}>296 registered guests fully booked · <span style={{ color:P.accent, fontWeight:700 }}>✓ No action needed</span></span>
               </div>
             </div>
           </div>
@@ -2937,10 +2941,10 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
           <div style={{ textAlign:"center", marginBottom:"56px" }}>
             <div style={{ fontSize:"12px", fontWeight:800, color:P.periwinkleD, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>SOUND FAMILIAR?</div>
             <h2 style={{ fontSize:"clamp(30px, 5vw, 44px)", fontWeight:900, color:P.navy, fontFamily:font, margin:"0 0 16px", letterSpacing:"-0.035em", lineHeight:1.1 }}>
-              The spreadsheet death spiral<br/>before every big event
+              Event Data Shouldn&rsquo;t<br/>Need a Detective.
             </h2>
             <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, maxWidth:"560px", margin:"0 auto" }}>
-              Your registration list and your travel files live in different spreadsheets, in different formats. Making them agree by hand takes hours — and it's easy to miss someone.
+              When attendee information lives in separate spreadsheets, mistakes are inevitable. Keep registrations, travel, and accommodations connected in one place.
             </p>
           </div>
           <div className="gg-timeline-grid" style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"16px", marginBottom:"40px" }}>
@@ -3046,22 +3050,12 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
       <div style={{ background:`linear-gradient(160deg, ${P.navy} 0%, ${P.navyLight} 100%)`, padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
         <div style={{ maxWidth:"880px", margin:"0 auto", textAlign:"center" }}>
           <div style={{ fontSize:"12px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"16px" }}>WHY PLANNERS USE IT</div>
-          <h2 style={{ fontSize:"clamp(26px, 4vw, 38px)", fontWeight:900, color:P.white, fontFamily:font, margin:"0 0 32px", letterSpacing:"-0.035em", lineHeight:1.15 }}>
+          <h2 style={{ fontSize:"clamp(26px, 4vw, 38px)", fontWeight:900, color:P.white, fontFamily:font, margin:"0 0 20px", letterSpacing:"-0.035em", lineHeight:1.15 }}>
             The check that used to take days,<br/>done before your coffee gets cold.
           </h2>
-          <div className="gg-card-grid-3" style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"20px" }}>
-            {[
-              { icon:"⏱️", title:"Minutes, not days", body:"Upload your files and see every gap in minutes — no more row-by-row scanning the week before an event." },
-              { icon:"🎯", title:"Catch what hides", body:"The late registrant with no flight, the room booked for a no-show, the date that's one day off — surfaced automatically." },
-              { icon:"✉️", title:"Fix it in one place", body:"Email your hotel and travel agency about every flagged guest right from the results — no switching tabs or rebuilding lists." },
-            ].map(({ icon, title, body }) => (
-              <div key={title} style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:"16px", padding:"28px 24px", textAlign:"left", backdropFilter:"blur(10px)" }}>
-                <div style={{ fontSize:"26px", marginBottom:"12px" }}>{icon}</div>
-                <div style={{ fontSize:"16px", fontWeight:800, color:P.white, fontFamily:font, marginBottom:"6px", letterSpacing:"-0.02em" }}>{title}</div>
-                <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.6)", fontFamily:font, lineHeight:1.65 }}>{body}</div>
-              </div>
-            ))}
-          </div>
+          <p style={{ fontSize:"17px", color:"rgba(255,255,255,0.65)", fontFamily:font, lineHeight:1.7, maxWidth:"600px", margin:"0 auto" }}>
+            The late registrant with no flight, the room booked for a no-show, the date that's one day off — surfaced automatically, so you can fix them before they become day-of surprises.
+          </p>
         </div>
       </div>
 
@@ -3097,7 +3091,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
           { label:"Flight Manifest", color:"#4F8EF7", icon:"✈️", sub:"flight_manifest_dec.xlsx" },
           { label:"Hotel Roster",    color:"#F5A623", icon:"🏨", sub:"hotel_roster_marriott.xlsx" },
           { label:"Car Transfers",   color:"#9B59B6", icon:"🚗", sub:"car_transfers_sfo.xlsx" },
-          { label:"Dietary & Access",color:"#27AE60", icon:"🥗", sub:"dietary_requirements.xlsx" },
+          ...(SHOW_DIETARY?[{ label:"Dietary & Access",color:"#27AE60", icon:"🥗", sub:"dietary_requirements.xlsx" }]:[]),
         ];
 
         const runDemo = () => {
@@ -3132,7 +3126,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                   From files to flags<br/><span style={{ color:P.accent }}>in minutes, not days.</span>
                 </h2>
                 <p style={{ fontSize:"16px", color:P.grey400, fontFamily:font, lineHeight:1.7, maxWidth:"460px", margin:"0 auto" }}>
-                  Watch GroupGrid check a 247-person registration list against the travel files and surface every gap instantly.
+                  Watch GroupGrid check a 300-person registration list against the travel files and surface every gap instantly.
                 </p>
               </div>
 
@@ -3154,9 +3148,9 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                   {/* Mini sidebar */}
                   <div className="gg-demo-sidebar" style={{ width:"160px", flexShrink:0, background:P.navy, padding:"16px 12px", display:"flex", flexDirection:"column", gap:"4px" }}>
                     {[
-                      { icon:"◉", label:"Registered",    count:demoPhase==="results"||demoPhase==="checking"?"247":"—",   active:true },
+                      { icon:"◉", label:"Registered",    count:demoPhase==="results"||demoPhase==="checking"?"300":"—",   active:true },
                       { icon:"⚑", label:"Action Needed", count:demoPhase==="results"?"4":"—",   color:P.red },
-                      { icon:"✓", label:"Fully Booked",  count:demoPhase==="results"?"243":"—", color:P.accent },
+                      { icon:"✓", label:"Fully Booked",  count:demoPhase==="results"?"296":"—", color:P.accent },
                       { icon:"○", label:"Not Registered",count:demoPhase==="results"?"1":"—",   color:P.purple },
                     ].map(({ icon, label, count, active, color }) => (
                       <div key={label} style={{ display:"flex", alignItems:"center", gap:"6px", padding:"5px 8px", borderRadius:"6px", background:active?"rgba(0,201,177,0.15)":"transparent" }}>
@@ -3211,7 +3205,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                           <div style={{ marginBottom:"16px", animation:"ggIn 0.3s ease" }}>
                             <div style={{ display:"flex", justifyContent:"space-between", marginBottom:"5px" }}>
                               <span style={{ fontSize:"12px", fontWeight:700, color:P.navy, fontFamily:font }}>
-                                {checkPct < 100 ? "Checking 247 registrations against travel…" : "✓ Check complete — 4 issues found"}
+                                {checkPct < 100 ? "Checking 300 registrations against travel…" : "✓ Check complete — 4 issues found"}
                               </span>
                               <span style={{ fontSize:"12px", fontWeight:800, color:P.accent, fontFamily:font }}>{checkPct}%</span>
                             </div>
@@ -3333,11 +3327,11 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
           </p>
           <div style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:"rgba(0,201,177,0.1)", border:"1px solid rgba(0,201,177,0.25)", borderRadius:"20px", padding:"6px 16px", marginBottom:"32px" }}>
             <ShieldCheck size={14} strokeWidth={2} color={P.accent}/>
-            <span style={{ fontSize:"13px", fontWeight:600, color:"rgba(255,255,255,0.7)", fontFamily:font }}>Built by a planner with 15+ years in the field</span>
+            <span style={{ fontSize:"13px", fontWeight:600, color:"rgba(255,255,255,0.7)", fontFamily:font }}>Built by an event planner who spent 15+ years reconciling attendee lists by hand</span>
           </div>
           <div className="gg-cta-btns" style={{ display:"flex", gap:"12px", justifyContent:"center", flexWrap:"wrap" }}>
             <button onClick={onEnter} style={{ background:`linear-gradient(135deg, ${P.accent}, ${P.accentD})`, border:"none", borderRadius:"12px", padding:"16px 40px", fontSize:"17px", fontWeight:800, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 4px 24px rgba(0,201,177,0.4)", letterSpacing:"-0.02em" }}>
-              Try GroupGrid free →
+              Open GroupGrid →
             </button>
             <button onClick={onPricing} style={{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.15)", borderRadius:"12px", padding:"16px 28px", fontSize:"16px", fontWeight:600, color:"rgba(255,255,255,0.75)", fontFamily:font, cursor:"pointer" }}>
               View pricing
@@ -3732,7 +3726,7 @@ function SetupScreen({
 
       <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", opacity: hasName ? 1 : 0.55, pointerEvents: hasName ? "auto" : "none", transition:"opacity 0.2s" }}>
         <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 2 · Upload files {!hasName && <span style={{ fontSize:"12px", fontWeight:400, color:P.grey400 }}>· name your event first</span>}</div>
-        <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"14px" }}>Upload whatever you have — registration, flights, hotels, cars, dietary. GroupGrid cross-checks any 2 or more. Excel or CSV. Hover a tile for expected columns.</div>
+        <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"14px" }}>Upload whatever you have — registration, flights, hotels, cars. GroupGrid cross-checks any 2 or more. Excel or CSV. Hover a tile for expected columns.</div>
         <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>Upload any 2 or more</div>
         <div className="gg-setup-tiles3" style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"10px", marginBottom:"14px" }}>
           <SetupTile label="Registration List" sub="Best anchor" icon={<Users size={20} strokeWidth={1.5} color="#00A896"/>} accent={P.accentD} file={registrationFile} setter={setRegistrationFile} recommended columns={["First/Last Name (or Name)","Email","Company / Job Title (opt)","Requested Check-In / Out (opt)","Flight / Hotel Request (opt)"]} />
@@ -3774,7 +3768,7 @@ function SetupScreen({
         <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>More files</div>
         <div className="gg-setup-tiles2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px" }}>
           <SetupTile label="Car Transfers" sub=".xlsx, .xls, .csv" icon={<Car size={20} strokeWidth={1.5} color="#9B59B6"/>} accent={P.grey600} file={carFile} setter={setCarFile} columns={["First/Last Name (or Name)","Email (opt)","Pickup Date","Dropoff Date","Pickup Location (opt)"]} />
-          <SetupTile label="Dietary & Access" sub=".xlsx, .xls, .csv" icon={<Salad size={20} strokeWidth={1.5} color="#27AE60"/>} accent={P.teal} file={dietaryFile} setter={setDietaryFile} columns={["First/Last Name (or Name)","Email (opt)","Dietary Restrictions","Accessibility Needs","Special Notes (opt)"]} />
+          {SHOW_DIETARY && <SetupTile label="Dietary & Access" sub=".xlsx, .xls, .csv" icon={<Salad size={20} strokeWidth={1.5} color="#27AE60"/>} accent={P.teal} file={dietaryFile} setter={setDietaryFile} columns={["First/Last Name (or Name)","Email (opt)","Dietary Restrictions","Accessibility Needs","Special Notes (opt)"]} />}
         </div>
         <div style={{ fontSize:"13px", color:P.navyLight, fontFamily:font, marginTop:"16px", padding:"10px 13px", background:P.periwinkle+"0D", borderRadius:"9px", border:`1px solid ${P.periwinkle}22`, lineHeight:1.5 }}>
           <span style={{ background:P.periwinkle+"22", color:P.periwinkleD, borderRadius:"5px", padding:"1px 7px", fontSize:"11px", fontWeight:600, marginRight:"7px" }}>TIP</span>
@@ -3906,31 +3900,40 @@ function GroupGrid({ user, onLogin, onLogout }) {
   // Mark dirty whenever meaningful state changes
   useEffect(() => { if (results) isDirty.current = true; }, [results, meta, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd]);
 
-  // Autosave every 60 seconds when there are results and something changed
+  // Autosave every 30 seconds when there are results and something changed.
+  // We keep the latest state in a ref so the interval can read current values
+  // WITHOUT the effect tearing down and restarting the timer on every edit
+  // (the old bug: every note/date change reset the 60s countdown, so it rarely fired).
+  const autosaveData = useRef({});
   useEffect(() => {
-    if (!results) return;
+    autosaveData.current = { results, meta, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, storageKey };
+  }, [results, meta, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, storageKey]);
+
+  useEffect(() => {
     const interval = setInterval(() => {
       if (!isDirty.current) return;
+      const d = autosaveData.current;
+      if (!d.results) return;
       setAutoSaveStatus("saving");
       setTimeout(() => {
         const session = {
           id: Date.now(),
-          name: eventName || `Session ${new Date().toLocaleDateString()}`,
+          name: d.eventName || `Session ${new Date().toLocaleDateString()}`,
           date: new Date().toISOString(),
-          meta, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd,
-          guestCount: results.length,
-          issueCount: results.filter(r => r.status !== "ok").length,
+          meta: d.meta, eventName: d.eventName, arrivalStart: d.arrivalStart, arrivalEnd: d.arrivalEnd, departureStart: d.departureStart, departureEnd: d.departureEnd,
+          guestCount: d.results.length,
+          issueCount: d.results.filter(r => r.status !== "ok").length,
           autoSaved: true,
-          results,
+          results: d.results,
         };
         setSavedSessions(prev => {
           const next = [session, ...prev.filter(s => s.name !== session.name)].slice(0, 50);
           try {
-            storage.set(storageKey, JSON.stringify(next));
+            storage.set(d.storageKey, JSON.stringify(next));
           } catch(e) {
             try {
               const trimmed = next.map((s, i) => i === 0 ? s : { ...s, results: undefined });
-              storage.set(storageKey, JSON.stringify(trimmed));
+              storage.set(d.storageKey, JSON.stringify(trimmed));
             } catch(e2) {}
           }
           return next;
@@ -3939,9 +3942,9 @@ function GroupGrid({ user, onLogin, onLogout }) {
         setAutoSaveStatus("saved");
         setTimeout(() => setAutoSaveStatus("idle"), 3000);
       }, 300);
-    }, 60000);
+    }, 30000);
     return () => clearInterval(interval);
-  }, [results, meta, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, storageKey]);
+  }, []); // run once; reads live state via the ref so the timer never resets
 
   async function readXlsx(file) {
     return new Promise((res, rej) => {
@@ -4137,7 +4140,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
       } else {
         // Generic fallback for issues without a specific template (date mismatch, wrong hotel, etc.)
         const issueList = (record.issues||[]).filter(x=>!(record.resolved||[]).includes(x.text)).map(x => "• " + x.text).join("\n");
-        subject = `${eventName || "Event"} — please review your travel details`;
+        subject = `${eventName || "Event"} [Travel]: Could you confirm your travel details?`;
         body = `Hi ${record.firstName || record.displayName || "there"},\n\nWhile reviewing arrangements for ${eventName || "our event"}, we found something on your record that needs attention:\n\n${issueList}\n\nCould you take a look and let us know? Thank you.\n\n${contacts?.plannerName || "[Your Name]"}`;
       }
       // Stagger so the browser doesn't block multiple mailto: opens
@@ -4219,7 +4222,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
     // ── diet rows ──
     var dietRows = "";
-    var dietGuests = results.filter(function(r) { return r.diet && (r.diet.dietary || r.diet.accessibility || r.diet.specialNotes); });
+    var dietGuests = SHOW_DIETARY ? results.filter(function(r) { return r.diet && (r.diet.dietary || r.diet.accessibility || r.diet.specialNotes); }) : [];
     for (var di = 0; di < dietGuests.length; di++) {
       var dr = dietGuests[di];
       dietRows += '<tr style="border-bottom:1px solid #DDE1EE;">'
@@ -4381,7 +4384,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
   const counts = results ? { total:results.length, ok:results.filter(r=>r.status==="ok").length, flagged:results.filter(r=>r.status!=="ok").length, warn:results.filter(r=>r.status==="warn").length, error:results.filter(r=>r.status==="error").length, missing:results.filter(r=>r.issues.some(x=>x.type==="missing")).length, window:results.filter(r=>r.issues.some(x=>x.type==="window")).length, mismatch:results.filter(r=>r.issues.some(x=>x.type==="mismatch")).length, duplicate:results.filter(r=>r.issues.some(x=>x.type==="duplicate")).length, unregistered:results.filter(r=>r.issues.some(x=>x.type==="unregistered")).length, dietary:results.filter(r=>r.diet?.dietary||r.diet?.accessibility).length } : null;
 
   const hasCars = results?.some(r => r.car);
-  const hasDiet = results?.some(r => r.diet);
+  const hasDiet = SHOW_DIETARY && results?.some(r => r.diet);
   const hasHotelNames = results?.some(r => r.hotel?.hotel && r.hotel.hotel.trim());
   const uploadedCount = [registrationFile, flightFile, hotelFile, carFile, dietaryFile].filter(Boolean).length + extraHotels.filter(h=>h.file).length;
   const ready = uploadedCount >= 2;
@@ -4804,7 +4807,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
               <UploadSquare label="Flight"  icon={<Plane size={22} strokeWidth={1.5} color="#4F8EF7"/>} accent={P.periwinkleD} file={flightFile}  setter={setFlightFile}  required={false}  sub="Optional" compact />
               <UploadSquare label="Hotel"   icon={<Hotel size={22} strokeWidth={1.5} color="#F5A623"/>} accent={P.navy}        file={hotelFile}   setter={setHotelFile}   required={false}  sub="Optional" compact />
               <UploadSquare label="Car"     icon={<Car size={22} strokeWidth={1.5} color="#9B59B6"/>}   accent={P.grey600}     file={carFile}     setter={setCarFile}     required={false} sub="Optional" compact />
-              <UploadSquare label="Dietary" icon={<Salad size={22} strokeWidth={1.5} color="#27AE60"/>} accent={P.teal}        file={dietaryFile} setter={setDietaryFile} required={false} sub="Optional" compact />
+              {SHOW_DIETARY && <UploadSquare label="Dietary" icon={<Salad size={22} strokeWidth={1.5} color="#27AE60"/>} accent={P.teal}        file={dietaryFile} setter={setDietaryFile} required={false} sub="Optional" compact />}
               {!isMobile && <div style={{ width:1, height:32, background:P.grey100, flexShrink:0 }} />}
               <button onClick={runCheck} disabled={!ready || loading}
                 style={{ background:ready&&!loading?P.accent:P.grey100, color:ready&&!loading?P.white:P.grey400, border:"none", borderRadius:"7px", padding:"7px 16px", fontSize:"14px", fontWeight:600, fontFamily:font, cursor:ready&&!loading?"pointer":"not-allowed", transition:"all 0.18s", flexShrink:0, whiteSpace:"nowrap", boxShadow:ready&&!loading?"0 1px 6px rgba(0,201,177,0.3)":"none", gridColumn: isMobile ? "1 / -1" : "auto" }}>
@@ -4886,7 +4889,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 ))}
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"8px", marginBottom:"20px" }}>
-                {[{label:"Missing Records",val:counts.missing,color:P.amber,icon:<Circle size={14} strokeWidth={1.5}/>},{label:"Date Mismatches",val:results.filter(r=>r.issues.some(x=>x.type==="mismatch")).length,color:P.red,icon:<AlertTriangle size={14} strokeWidth={1.5}/>},{label:"Outside Window",val:counts.window,color:P.purple,icon:<Calendar size={14} strokeWidth={1.5}/>},{label:"Duplicate Names",val:counts.duplicate,color:"#E65100",icon:<AlertCircle size={14} strokeWidth={1.5}/>},{label:"Dietary / Access",val:counts.dietary,color:P.teal,icon:<Salad size={14} strokeWidth={1.5}/>}].map(({label,val,color,icon}) => (
+                {[{label:"Missing Records",val:counts.missing,color:P.amber,icon:<Circle size={14} strokeWidth={1.5}/>},{label:"Date Mismatches",val:results.filter(r=>r.issues.some(x=>x.type==="mismatch")).length,color:P.red,icon:<AlertTriangle size={14} strokeWidth={1.5}/>},{label:"Outside Window",val:counts.window,color:P.purple,icon:<Calendar size={14} strokeWidth={1.5}/>},{label:"Duplicate Names",val:counts.duplicate,color:"#E65100",icon:<AlertCircle size={14} strokeWidth={1.5}/>},...(SHOW_DIETARY?[{label:"Dietary / Access",val:counts.dietary,color:P.teal,icon:<Salad size={14} strokeWidth={1.5}/>}]:[])].map(({label,val,color,icon}) => (
                   <div key={label} style={{ background:P.offWhite, borderRadius:"10px", padding:"10px 14px", display:"flex", alignItems:"center", gap:"10px" }}>
                     <div style={{ fontSize:"18px", fontWeight:900, color, fontFamily:font, minWidth:"28px" }}>{val}</div>
                     <div style={{ fontSize:"15px", color:P.navy, fontWeight:600, fontFamily:font }}>{icon} {label}</div>
