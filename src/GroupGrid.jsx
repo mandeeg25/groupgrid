@@ -1279,10 +1279,10 @@ function fillTemplate(template, record, extra = {}) {
     "{{checkOut}}": fmt(record.hotel?.checkOut) || "—",
     "{{hotel}}": record.hotel?.hotel || "the hotel",
     "{{plannerName}}": extra.plannerName || "The Planning Team",
-    "{{arrivalEnd}}": extra.arrivalEnd ? fmt(new Date(extra.arrivalEnd)) : "—",
-    "{{departureEnd}}": extra.departureEnd ? fmt(new Date(extra.departureEnd)) : "—",
-    "{{eventStart}}": extra.arrivalStart ? fmt(new Date(extra.arrivalStart)) : "—",
-    "{{eventEnd}}": extra.departureEnd ? fmt(new Date(extra.departureEnd)) : "—",
+    "{{arrivalEnd}}": extra.arrivalEnd ? fmt(parseDate(extra.arrivalEnd)) : "—",
+    "{{departureEnd}}": extra.departureEnd ? fmt(parseDate(extra.departureEnd)) : "—",
+    "{{eventStart}}": extra.arrivalStart ? fmt(parseDate(extra.arrivalStart)) : "—",
+    "{{eventEnd}}": extra.departureEnd ? fmt(parseDate(extra.departureEnd)) : "—",
   };
   let s = template;
   Object.entries(map).forEach(([k, v]) => { s = s.split(k).join(v); });
@@ -3895,7 +3895,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
       if (carFile)          { const w = await readXlsx(carFile);          cars = parseCarSheet(w); }
       if (dietaryFile)      { const w = await readXlsx(dietaryFile);      dietary = parseDietarySheet(w); }
       if (registrationFile) { const w = await readXlsx(registrationFile); registration = parseRegistrationSheet(w); }
-      const aw = { arrivalStart:arrivalStart?new Date(arrivalStart):null, arrivalEnd:arrivalEnd?new Date(arrivalEnd):null, departureStart:departureStart?new Date(departureStart):null, departureEnd:departureEnd?new Date(departureEnd):null };
+      const aw = { arrivalStart:parseDate(arrivalStart), arrivalEnd:parseDate(arrivalEnd), departureStart:parseDate(departureStart), departureEnd:parseDate(departureEnd) };
       const allResults = crossMatch(flights, hotels, cars, dietary, aw, meta, registration);
       setResults(allResults);
     } catch (err) { setError("Could not read files: " + err.message); }
@@ -4996,14 +4996,17 @@ function GroupGrid({ user, onLogin, onLogout }) {
                         { l:"Last Name",  col:"lastName",  w:"110px" },
                         { l:"Email",      col:"email",     w:"160px" },
                         { l:"Status",    col:"status" },
-                        { l:"Arrival",   col:"arrival" },
-                        { l:"Check-In",  col:"checkin" },
+                        // Arrival side: flight in → car pickup → hotel check-in
+                        { l:"Flight Arrival",   col:"arrival" },
+                        ...(hasCars?[{l:"Car Pickup",col:null},{l:"Δ",col:null}]:[]),
+                        { l:"Hotel Check-In",  col:"checkin" },
                         { l:"Δ",         col:null },
-                        { l:"Departure", col:"departure" },
-                        { l:"Check-Out", col:"checkout" },
+                        // Departure side: hotel check-out → car dropoff → flight out
+                        { l:"Hotel Check-Out", col:"checkout" },
                         { l:"Δ",         col:null },
+                        ...(hasCars?[{l:"Car Dropoff",col:null}]:[]),
+                        { l:"Flight Departure", col:"departure" },
                         ...(hasHotelNames?[{l:"Hotel",col:"hotel"}]:[]),
-                        ...(hasCars?[{l:"Pickup",col:null},{l:"Dropoff",col:null},{l:"Δ",col:null}]:[]),
                         ...(hasDiet?[{l:"Dietary",col:null}]:[]),
                         { l:"Flags",     col:"flags" },
                         { l:"Note",      col:"note" },
@@ -5054,21 +5057,23 @@ function GroupGrid({ user, onLogin, onLogout }) {
                               {r.email || "—"}
                             </td>
                             <td style={{ padding:"10px 12px" }}><StatusChip status={r.status} /></td>
+                            {/* Arrival side: flight arrival → car pickup → hotel check-in */}
                             <td style={{ padding:"10px 12px", color:r.flight?P.grey600:P.red, fontSize:"15px", fontFamily:font, fontWeight:r.flight?500:700 }}>{r.flight ? fmt(r.flight.flightArrival) : "⚠ Missing"}</td>
+                            {hasCars && <>
+                              <td style={{ padding:"10px 12px", color:P.navy, fontSize:"15px", fontFamily:font }}>{fmt(r.car?.pickupDate)}</td>
+                              <td style={{ padding:"10px 12px", textAlign:"center" }}><Delta val={r.details?.pickupDiff} /></td>
+                            </>}
                             <td style={{ padding:"10px 12px", color:r.hotel?P.grey600:P.red, fontSize:"15px", fontFamily:font, fontWeight:r.hotel?500:700 }}>{r.hotel ? fmt(r.hotel.checkIn) : "⚠ Missing"}</td>
                             <td style={{ padding:"10px 12px", textAlign:"center" }}><Delta val={r.details?.arrDiff} /></td>
-                            <td style={{ padding:"10px 12px", color:r.flight?P.grey600:P.red, fontSize:"15px", fontFamily:font, fontWeight:r.flight?500:700 }}>{r.flight ? fmt(r.flight.flightDeparture) : "⚠ Missing"}</td>
+                            {/* Departure side: hotel check-out → car dropoff → flight departure */}
                             <td style={{ padding:"10px 12px", color:r.hotel?P.grey600:P.red, fontSize:"15px", fontFamily:font, fontWeight:r.hotel?500:700 }}>{r.hotel ? fmt(r.hotel.checkOut) : "⚠ Missing"}</td>
                             <td style={{ padding:"10px 12px", textAlign:"center" }}><Delta val={r.details?.depDiff} /></td>
+                            {hasCars && <td style={{ padding:"10px 12px", color:P.navy, fontSize:"15px", fontFamily:font }}>{fmt(r.car?.dropoffDate)}</td>}
+                            <td style={{ padding:"10px 12px", color:r.flight?P.grey600:P.red, fontSize:"15px", fontFamily:font, fontWeight:r.flight?500:700 }}>{r.flight ? fmt(r.flight.flightDeparture) : "⚠ Missing"}</td>
                             {hasHotelNames && (() => {
                               const wrongHotel = (r.issues||[]).some(x => x.text && x.text.includes("but assigned to"));
                               return <td style={{ padding:"10px 12px", color:wrongHotel?P.red:P.navy, fontSize:"15px", fontFamily:font, fontWeight:wrongHotel?600:500, whiteSpace:"nowrap" }}>{r.hotel?.hotel ? (wrongHotel ? "⚠ "+r.hotel.hotel : r.hotel.hotel) : "—"}</td>;
                             })()}
-                            {hasCars && <>
-                              <td style={{ padding:"10px 12px", color:P.navy, fontSize:"15px", fontFamily:font }}>{fmt(r.car?.pickupDate)}</td>
-                              <td style={{ padding:"10px 12px", color:P.navy, fontSize:"15px", fontFamily:font }}>{fmt(r.car?.dropoffDate)}</td>
-                              <td style={{ padding:"10px 12px", textAlign:"center" }}><Delta val={r.details?.pickupDiff} /></td>
-                            </>}
                             {hasDiet && <td style={{ padding:"10px 12px" }}>
                               {r.diet?.dietary ? <span style={{ background:P.tealLight, color:P.teal, fontSize:"15px", fontWeight:700, padding:"2px 8px", borderRadius:"20px", fontFamily:font }}>{r.diet.dietary.slice(0,16)}{r.diet.dietary.length>16?"…":""}</span> : <span style={{ color:P.grey400 }}>—</span>}
                             </td>}
