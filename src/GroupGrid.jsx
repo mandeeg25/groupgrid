@@ -58,7 +58,7 @@ const P = {
 const font = "'Manrope', sans-serif";
 const fontDisplay = "'Poppins', sans-serif";
 // Build version — bump this whenever code is deployed so you can confirm at a glance which build is live.
-const APP_VERSION = "v5.0 · Jun 2026";
+const APP_VERSION = "v5.3 · Jun 2026";
 // Feature flag: hide the Dietary/Access feature from the UI for now while focusing on
 // registration, flights, hotels, and cars. The parsing/engine code stays intact —
 // flip this to true to bring the dietary upload, column, and detail back everywhere.
@@ -160,6 +160,15 @@ function PeopleIcon({ size = 20, line = P.navy, accent = P.accent }) {
 function AlertIcon({ size = 20, line = P.navy, accent = P.amber }) {
   return svgIcon(size, line, <><path d="M12 4 2.5 20.5h19z" /><path d="M12 10v4.5" stroke={accent} /><path d="M12 17.6v.2" stroke={accent} /></>);
 }
+function CityIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <><path d="M3 20V9.5l5-2.5V20" /><path d="M8 20V4l6 2.6V20" /><path d="M14 20v-7l5 2V20" /><path d="M2.5 20h19" /><path d="M10.5 10v0M10.5 13.5v0M5.3 12v0" stroke={accent} /></>);
+}
+function GlobeIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <><circle cx="12" cy="12" r="8.2" /><path d="M3.8 12h16.4" stroke={accent} /><path d="M12 3.8c2.6 2.3 2.6 14.1 0 16.4M12 3.8c-2.6 2.3-2.6 14.1 0 16.4" /></>);
+}
+function BadgeIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <><rect x="7" y="3" width="10" height="6" rx="1.5" /><rect x="5.5" y="9" width="13" height="11" rx="2" /><path d="M9.5 14h5" stroke={accent} /></>);
+}
 
 // ── Responsive hook ───────────────────────────────────────────────────────────
 function useIsMobile(breakpoint = 768) {
@@ -176,6 +185,9 @@ function useIsMobile(breakpoint = 768) {
 
 // ── Global mobile CSS (injected once) ────────────────────────────────────────
 const MOBILE_CSS = `
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; max-width: 100%; overflow-x: hidden; }
+  #root { overflow-x: hidden; max-width: 100%; }
   @media (max-width: 767px) {
     .gg-sidebar { transform: translateX(-100%); transition: transform 0.25s ease; position: fixed !important; z-index: 200; height: calc(100vh - 52px) !important; top: 52px !important; }
     .gg-sidebar.open { transform: translateX(0); }
@@ -225,6 +237,10 @@ const MOBILE_CSS = `
 
 function GlobalStyles() {
   useEffect(() => {
+    // Ensure a correct mobile viewport meta exists even if the host index.html is missing or has a wrong one.
+    let vp = document.querySelector('meta[name="viewport"]');
+    if (!vp) { vp = document.createElement("meta"); vp.setAttribute("name", "viewport"); document.head.appendChild(vp); }
+    vp.setAttribute("content", "width=device-width, initial-scale=1, viewport-fit=cover");
     const el = document.createElement("style");
     el.id = "gg-mobile-css";
     el.textContent = MOBILE_CSS;
@@ -2680,18 +2696,18 @@ function TermsPage({ onBack, nav }) {
 
 function AboutPage({ onBack, nav }) {
   const useCases = [
-    { icon:"🎯", label:"Sales Kickoffs" },
-    { icon:"🏢", label:"Corporate Events" },
-    { icon:"🤝", label:"Board Retreats" },
-    { icon:"💼", label:"Advisory Boards" },
-    { icon:"🔵", label:"Executive Roundtables" },
-    { icon:"🎪", label:"Tradeshows" },
-    { icon:"🏥", label:"Healthcare Meetings" },
-    { icon:"🏆", label:"Event Agencies" },
-    { icon:"🎤", label:"Conferences" },
-    { icon:"🤲", label:"Association Meetings" },
-    { icon:"🌐", label:"Global Summits" },
-    { icon:"📋", label:"Field Marketing Events" },
+    { Icon:FlagIcon,   label:"Sales Kickoffs" },
+    { Icon:CityIcon,   label:"Corporate Events" },
+    { Icon:PeopleIcon, label:"Board Retreats" },
+    { Icon:PeopleIcon, label:"Advisory Boards" },
+    { Icon:PeopleIcon, label:"Executive Roundtables" },
+    { Icon:BadgeIcon,  label:"Tradeshows" },
+    { Icon:CityIcon,   label:"Healthcare Meetings" },
+    { Icon:GridIcon,   label:"Event Agencies" },
+    { Icon:CityIcon,   label:"Conferences" },
+    { Icon:PeopleIcon, label:"Association Meetings" },
+    { Icon:GlobeIcon,  label:"Global Summits" },
+    { Icon:FlagIcon,   label:"Field Marketing Events" },
   ];
 
   return (
@@ -2720,7 +2736,7 @@ function AboutPage({ onBack, nav }) {
 
         {/* Founder story */}
         <div style={{ background:P.white, borderRadius:"20px", border:`1.5px solid ${P.grey100}`, padding:"36px 40px", marginBottom:"32px", position:"relative", overflow:"hidden" }}>
-          <div style={{ position:"absolute", top:0, left:0, width:"4px", height:"100%", background:`linear-gradient(180deg, ${P.accent}, ${P.periwinkleD})` }} />
+          <div style={{ position:"absolute", top:0, left:0, width:"4px", height:"100%", background:`linear-gradient(180deg, ${P.accent}, ${P.navy})` }} />
           <div style={{ fontSize:"13px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"16px" }}>Why GroupGrid Exists</div>
           <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.85, margin:"0 0 20px" }}>
             GroupGrid was created to solve a challenge I lived with for more than 15 years as an event professional: <strong style={{ color:P.navy }}>reconciling who registered for an event against what was actually booked for their travel.</strong> Registration lists, flight manifests, and hotel rosters never quite agree, and finding the gaps before they become day-of problems is slow, manual, and error-prone.
@@ -2735,35 +2751,48 @@ function AboutPage({ onBack, nav }) {
 
         {/* Value strip */}
         <div style={{ background:P.navy, borderRadius:"16px", padding:"28px 32px", marginBottom:"32px" }}>
-          <div style={{ fontSize:"13px", fontWeight:800, color:"rgba(255,255,255,0.5)", fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"20px" }}>What GroupGrid Does For You</div>
-          <div className="gg-landing-stats" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"16px" }}>
+          <div style={{ fontSize:"13px", fontWeight:800, color:"rgba(255,255,255,0.5)", fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"22px" }}>What GroupGrid Does For You</div>
+          <div className="gg-landing-stats" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"22px 28px" }}>
             {[
-              { stat:"Fast", label:"Check a full event without manual spreadsheet work" },
-              { stat:"Every", label:"Registered person matched to their travel" },
-              { stat:"0", label:"Guest files uploaded to any server" },
-              { stat:"4+", label:"Gap types caught automatically" },
-            ].map(({ stat, label }) => (
-              <div key={label} style={{ display:"flex", alignItems:"center", gap:"16px" }}>
-                <div style={{ fontSize:"24px", fontWeight:700, color:P.accent, fontFamily:fontDisplay, lineHeight:1, flexShrink:0, minWidth:"72px" }}>{stat}</div>
-                <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.55)", fontFamily:font, lineHeight:1.5 }}>{label}</div>
+              { Icon:CrossCheckIcon, title:"No manual cross-checking", body:"Check an entire event without comparing spreadsheets row by row." },
+              { Icon:PeopleIcon, title:"Everyone matched to their travel", body:"Each registered guest is lined up against their flight, hotel, and car." },
+              { Icon:ShieldCheck, title:"Your guest files stay private", body:"Files are read in your browser and never uploaded to a server.", lucide:true },
+              { Icon:FlagIcon, title:"Gaps caught before the event", body:"Missing bookings, mismatched dates, and duplicates, surfaced with time to fix them." },
+            ].map(({ Icon, title, body, lucide }, i) => {
+              const box = i % 2 === 0 ? P.accentD : P.navyLight;
+              const iconAccent = box === P.accentD ? P.white : P.accent;
+              return (
+              <div key={title} style={{ display:"flex", alignItems:"flex-start", gap:"14px" }}>
+                <div style={{ width:38, height:38, borderRadius:"10px", background:box, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:"2px" }}>
+                  {lucide ? <Icon size={19} strokeWidth={1.8} color="rgba(255,255,255,0.95)"/> : <Icon size={20} line="rgba(255,255,255,0.95)" accent={iconAccent} />}
+                </div>
+                <div>
+                  <div style={{ fontSize:"15px", fontWeight:700, color:P.white, fontFamily:font, marginBottom:"3px", letterSpacing:"-0.01em" }}>{title}</div>
+                  <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.55)", fontFamily:font, lineHeight:1.55 }}>{body}</div>
+                </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
         {/* Who it's for */}
         <div style={{ marginBottom:"32px" }}>
-          <div style={{ fontSize:"13px", fontWeight:800, color:P.navy, fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"8px" }}>Built for Event Planners Managing 2 to 10,000+ Attendees</div>
+          <div style={{ fontSize:"13px", fontWeight:800, color:P.navy, fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"8px" }}>Built for Event Planners Running Events of Any Size</div>
           <p style={{ fontSize:"16px", color:P.grey600, fontFamily:font, lineHeight:1.7, margin:"0 0 20px" }}>
             Wherever you need to make sure attendees arrive on time, have a confirmed hotel room, and won't show up at the wrong airport — GroupGrid has you covered.
           </p>
           <div className="gg-landing-usecases" style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:"10px" }}>
-            {useCases.map(({ icon, label }) => (
-              <div key={label} style={{ display:"flex", alignItems:"center", gap:"10px", background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"10px", padding:"12px 14px" }}>
-                <span style={{ fontSize:"18px", flexShrink:0 }}>{icon}</span>
+            {useCases.map(({ Icon, label }, i) => {
+              const box = i % 2 === 0 ? P.navy : P.accentD;
+              const iconAccent = box === P.accentD ? P.white : P.accent;
+              return (
+              <div key={label} style={{ display:"flex", alignItems:"center", gap:"12px", background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"12px", padding:"12px 14px" }}>
+                <div style={{ width:36, height:36, borderRadius:"10px", background:box, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon size={19} line="rgba(255,255,255,0.95)" accent={iconAccent} /></div>
                 <span style={{ fontSize:"14px", fontWeight:600, color:P.navy, fontFamily:font }}>{label}</span>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -2857,7 +2886,7 @@ function FAQPage({ onBack, nav }) {
     { q:"What if my spreadsheet columns are named differently?", a:"GroupGrid auto-detects common column names. Your \"Arrival Date\" and someone else's \"Arr. Date\" or \"Flight In\" all get recognized automatically. There's no manual mapping or setup required." },
     { q:"What if I don't have email addresses?", a:"GroupGrid matches people by email first for the most accurate results, then falls back to matching by name. Including an email column is best, but it's not required." },
     { q:"Is my data secure?", a:"Your guest files are read and processed entirely in your browser and are never uploaded to our servers. Account sign-in and your saved projects are handled securely through Supabase, a trusted third-party provider. The sensitive guest spreadsheet data itself stays in your browser." },
-    { q:"Who is GroupGrid for?", a:"Any event or meeting planner who manages attendee travel — from a 20-person board retreat to a 10,000-person conference. If people are registering and you're booking their flights and hotels, GroupGrid makes sure the two lists match." },
+    { q:"Who is GroupGrid for?", a:"Any event or meeting planner who manages attendee travel, from a small board retreat to a large multi-day conference. If people are registering and you're booking their flights and hotels, GroupGrid makes sure the two lists match." },
     { q:"How much does it cost?", a:"$249/month for full access — unlimited events, unlimited guests, every feature. Create an account to get started." },
     { q:"Do I need to install anything?", a:"No. GroupGrid runs in your web browser. There's nothing to download or install." },
   ];
@@ -3183,7 +3212,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
         <div style={{ maxWidth:"1000px", margin:"0 auto", textAlign:"center" }}>
           <div style={{ fontSize:"12px", fontWeight:800, color:P.navy, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>WHO IT'S FOR</div>
           <h2 style={{ fontSize:"clamp(28px, 4.5vw, 42px)", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 12px", letterSpacing:"-0.035em", lineHeight:1.1 }}>
-            Built for event planners managing<br/><span style={{ color:P.periwinkleD }}>2 to 10,000+ attendees</span>
+            Built for event planners<br/><span style={{ color:P.accent }}>running events of any size</span>
           </h2>
           <p style={{ fontSize:"16px", color:P.grey400, fontFamily:font, lineHeight:1.7, maxWidth:"520px", margin:"0 auto 40px" }}>
             Anywhere you need to make sure attendees arrive on time, have a confirmed room, and won't be stranded at the wrong airport.
@@ -4594,13 +4623,13 @@ function GroupGrid({ user, onLogin, onLogout }) {
       {(() => {
         const nav = { onHome:() => setPage("landing"), onPricing:() => setPage("pricing"), onAbout:() => setPage("about"), onFaq:() => setPage("faq"), onContact:() => setPage("contact"), onPrivacy:() => setPage("privacy"), onTerms:() => setPage("terms"), onApp:enterApp, current:page };
         return (<>
-      {(page === "landing" || (!user && page === "app")) && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><LandingPage onEnter={enterApp} onPricing={() => setPage("pricing")} onAbout={() => setPage("about")} onContact={() => setPage("contact")} onPrivacy={() => setPage("privacy")} onTerms={() => setPage("terms")} onFaq={() => setPage("faq")} /></div>}
-      {page === "pricing" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><PricingPage onBack={() => setPage("landing")} nav={nav} /></div>}
-      {page === "about"   && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><AboutPage   onBack={() => setPage("landing")} nav={nav} /></div>}
-      {page === "faq"     && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><FAQPage     onBack={() => setPage("landing")} nav={nav} /></div>}
-      {page === "contact" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><ContactPage onBack={() => setPage("landing")} nav={nav} /></div>}
-      {page === "privacy" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><PrivacyPage onBack={() => setPage("landing")} nav={nav} /></div>}
-      {page === "terms"   && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowY:"auto" }}><TermsPage   onBack={() => setPage("landing")} nav={nav} /></div>}
+      {(page === "landing" || (!user && page === "app")) && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto" }}><LandingPage onEnter={enterApp} onPricing={() => setPage("pricing")} onAbout={() => setPage("about")} onContact={() => setPage("contact")} onPrivacy={() => setPage("privacy")} onTerms={() => setPage("terms")} onFaq={() => setPage("faq")} /></div>}
+      {page === "pricing" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto" }}><PricingPage onBack={() => setPage("landing")} nav={nav} /></div>}
+      {page === "about"   && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto" }}><AboutPage   onBack={() => setPage("landing")} nav={nav} /></div>}
+      {page === "faq"     && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto" }}><FAQPage     onBack={() => setPage("landing")} nav={nav} /></div>}
+      {page === "contact" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto" }}><ContactPage onBack={() => setPage("landing")} nav={nav} /></div>}
+      {page === "privacy" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto" }}><PrivacyPage onBack={() => setPage("landing")} nav={nav} /></div>}
+      {page === "terms"   && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto" }}><TermsPage   onBack={() => setPage("landing")} nav={nav} /></div>}
         </>);
       })()}
 
