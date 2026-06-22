@@ -58,7 +58,7 @@ const P = {
 const font = "'Manrope', sans-serif";
 const fontDisplay = "'Poppins', sans-serif";
 // Build version — bump this whenever code is deployed so you can confirm at a glance which build is live.
-const APP_VERSION = "v5.7 · Jun 2026";
+const APP_VERSION = "v6.0 · Jun 2026";
 // Feature flag: hide the Dietary/Access feature from the UI for now while focusing on
 // registration, flights, hotels, and cars. The parsing/engine code stays intact —
 // flip this to true to bring the dietary upload, column, and detail back everywhere.
@@ -186,9 +186,12 @@ function useIsMobile(breakpoint = 768) {
 // ── Global mobile CSS (injected once) ────────────────────────────────────────
 const MOBILE_CSS = `
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; max-width: 100%; overflow-x: hidden; }
+  html, body { margin: 0; padding: 0; max-width: 100%; overflow-x: hidden; overscroll-behavior-y: none; }
   #root { overflow-x: hidden; max-width: 100%; }
   @media (max-width: 767px) {
+    .gg-landing-nav { padding: 0 16px !important; }
+    .gg-landing-navlinks { display: none !important; }
+    .gg-landing-logo svg { height: 30px !important; width: auto !important; }
     .gg-sidebar { transform: translateX(-100%); transition: transform 0.25s ease; position: fixed !important; z-index: 200; height: calc(100vh - 52px) !important; top: 52px !important; }
     .gg-sidebar.open { transform: translateX(0); }
     .gg-sidebar-overlay { display: block !important; }
@@ -319,6 +322,9 @@ function stripTime(d) { if (!d) return null; const x = new Date(d); x.setHours(0
 function diffDays(a, b) { if (!a || !b) return null; return Math.round((stripTime(a) - stripTime(b)) / 86400000); }
 function findCol(headers, candidates) {
   const h = headers.map(x => String(x || "").toLowerCase().trim());
+  // Exact header match first (so "Arrival" the date isn't confused with "Arrival Airport").
+  for (const c of candidates) { const i = h.indexOf(c); if (i !== -1) return i; }
+  // Then substring match as a fallback.
   for (const c of candidates) { const i = h.findIndex(x => x.includes(c)); if (i !== -1) return i; }
   return -1;
 }
@@ -418,7 +424,7 @@ function parseSheet(wb, fieldMap) {
 }
 
 function parseFlightSheet(wb) {
-  return parseSheet(wb, { name:["name","attendee","passenger","guest","traveler"], email:["email","e-mail","email address"], flightArrival:["arrival","arrive","inbound date","land","flight in"], flightDeparture:["departure","depart","outbound","fly out","return date"], flightIn:["inbound flight","arrival flight","flight in #","inbound #"], flightOut:["outbound flight","departure flight","flight out","return flight"], airport:["airport","hub"] });
+  return parseSheet(wb, { name:["name","attendee","passenger","guest","traveler"], email:["email","e-mail","email address"], flightArrival:["arrival date","inbound date","arrival","arrive","land","flight in"], flightDeparture:["departure date","return date","outbound date","departure","depart","fly out"], flightIn:["inbound flight","arrival flight","flight in #","inbound #"], flightOut:["outbound flight","departure flight","flight out","return flight"], arrivalAirport:["arrival airport","arr airport","arriving airport","inbound airport","origin airport","origin"], departureAirport:["departure airport","dep airport","departing airport","outbound airport","destination airport","destination"], airport:["airport","hub"] });
 }
 function parseHotelSheet(wb) {
   return parseSheet(wb, { name:["name","attendee","guest","passenger"], email:["email","e-mail","email address"], checkIn:["check-in","checkin","arrival","hotel in"], checkOut:["check-out","checkout","departure","hotel out"], room:["room","confirmation","conf","booking","reservation"], hotel:["hotel","property","venue"] });
@@ -559,7 +565,9 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
     const arrDate = flight?.flightArrival || hotel?.checkIn || reg?.regCheckIn, depDate = flight?.flightDeparture || hotel?.checkOut || reg?.regCheckOut;
     if (arrDate && isOutside(arrDate, arrivalStart, arrivalEnd)) issues.push({ type:"window", text:`Arrival ${fmt(arrDate)} outside approved window` });
     if (depDate && isOutside(depDate, departureStart, departureEnd)) issues.push({ type:"window", text:`Departure ${fmt(depDate)} outside approved window` });
-    if (flight?.airport && isWrongAirport(flight.airport, preferredAirports)) issues.push({ type:"airport", text:`Arrives at ${flight.airport} — not a preferred airport` });
+    const arrApt = flight?.arrivalAirport || flight?.airport, depApt = flight?.departureAirport || flight?.airport;
+    if (arrApt && isWrongAirport(arrApt, preferredAirports)) issues.push({ type:"airport", text:`Arrives at ${arrApt.toUpperCase()} (not a preferred airport)` });
+    if (depApt && depApt !== arrApt && isWrongAirport(depApt, preferredAirports)) issues.push({ type:"airport", text:`Departs from ${depApt.toUpperCase()} (not a preferred airport)` });
     if (dupNames.has(normName(displayName))) issues.push({ type:"duplicate", text:"Duplicate name detected across lists" });
     const seen = new Set(); const uniqueIssues = issues.filter(x => { if (seen.has(x.text)) return false; seen.add(x.text); return true; });
     const resolved = existing.resolved || [];
@@ -1486,6 +1494,39 @@ const TEMPLATE_AUDIENCE = {
   needs_registration: "guest",
   general_confirmation: "guest",
 };
+// Group the comms by what they are about, so hotel/flight/car messages sit together.
+const TEMPLATE_CATEGORY = {
+  arrives_early:      "Hotel",
+  departs_late:       "Hotel",
+  missing_hotel:      "Hotel",
+  missing_flight:     "Flight",
+  wrong_airport:      "Flight",
+  outside_window:     "Flight",
+  missing_transfer:   "Car Transfer",
+  car_mismatch:       "Car Transfer",
+  needs_registration: "Registration & Confirmation",
+  general_confirmation: "Registration & Confirmation",
+};
+const CATEGORY_ORDER = ["Hotel", "Flight", "Car Transfer", "Registration & Confirmation", "Custom"];
+// Brand icon for each template (single-line GroupGrid icon set).
+const TEMPLATE_ICON_KEY = {
+  arrives_early:      "hotel",
+  departs_late:       "hotel",
+  missing_hotel:      "hotel",
+  missing_flight:     "plane",
+  wrong_airport:      "flag",
+  outside_window:     "calendar",
+  missing_transfer:   "car",
+  car_mismatch:       "car",
+  needs_registration: "people",
+  general_confirmation: "cleared",
+};
+const TEMPLATE_ICONS = { hotel: HotelIcon, plane: PlaneIcon, car: CarIcon, flag: FlagIcon, calendar: CalendarIcon, people: PeopleIcon, cleared: ClearedIcon };
+function TemplateIcon({ tmpl, size = 20 }) {
+  const Comp = TEMPLATE_ICONS[TEMPLATE_ICON_KEY[tmpl.id]];
+  if (Comp) return <Comp size={size} line={tmpl.color} accent={tmpl.color} />;
+  return <span style={{ fontSize: size - 2 }}>{tmpl.icon}</span>; // custom templates keep their emoji
+}
 // Vendor-addressed bodies, keyed by audience. The planner is writing TO the vendor about a guest.
 const VENDOR_BODY = {
   hotel: `Dear {{hotelContact}},
@@ -2109,15 +2150,22 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
             <div style={{ fontSize:"14px", fontWeight:600, color:P.navy }}>Email Templates</div>
             <Btn onClick={() => setNewTemplateOpen(true)} outline color={P.periwinkleD} small>New Template <Plus size={12} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></Btn>
           </div>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px" }}>
-            {Object.values(templates).map(tmpl => {
+          {(() => {
+            const byCat = {};
+            Object.values(templates).forEach(t => { const c = TEMPLATE_CATEGORY[t.id] || "Custom"; (byCat[c] = byCat[c] || []).push(t); });
+            const cats = CATEGORY_ORDER.filter(c => byCat[c]?.length).concat(Object.keys(byCat).filter(c => !CATEGORY_ORDER.includes(c)));
+            return cats.map(cat => (
+            <div key={cat} style={{ marginBottom:"22px" }}>
+              <div style={{ fontSize:"12px", fontWeight:800, color:P.navyLight, textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 10px" }}>{cat}</div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px" }}>
+                {byCat[cat].map(tmpl => {
               const applicable = (results||[]).filter(r => r.email && (getApplicableTemplates(r).includes(tmpl.id) || getCustomApplicable(r, tmpl)));
               const isCustomized = !tmpl.isCustom && JSON.stringify(tmpl) !== JSON.stringify(DEFAULT_TEMPLATES[tmpl.id]);
               return (
                 <div key={tmpl.id} style={{ background:P.white, borderRadius:"10px", border:`1px solid ${P.grey100}`, padding:"16px 20px" }}>
                   <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:"10px" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
-                      <div style={{ width:36, height:36, borderRadius:"10px", background:tmpl.color+"18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"18px", flexShrink:0 }}>{tmpl.icon}</div>
+                      <div style={{ width:36, height:36, borderRadius:"10px", background:tmpl.color+"18", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><TemplateIcon tmpl={tmpl} size={20} /></div>
                       <div>
                         <div style={{ fontSize:"15px", fontWeight:600, color:P.navy }}>{tmpl.label}</div>
                         <div style={{ fontSize:"13px", color:P.navyLight, marginTop:"2px" }}>{tmpl.description}</div>
@@ -2145,8 +2193,11 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                   </div>
                 </div>
               );
-            })}
-          </div>
+                })}
+              </div>
+            </div>
+            ));
+          })()}
         </>
       )}
 
@@ -2257,7 +2308,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                       )}
                       <div onClick={() => setReviewIdx(isActive ? -1 : idx)} style={{ display:"flex", alignItems:"center", gap:"12px", flex:1, minWidth:0, cursor:"pointer" }}>
                         <div style={{ width:34, height:34, borderRadius:"9px", background:item.status==="sent"?P.greenLight:item.status==="skipped"?P.grey50:tmpl.color+"18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"16px", flexShrink:0 }}>
-                          {item.status==="sent"?"✓":item.status==="skipped"?"—":tmpl.icon}
+                          {item.status==="sent"?"✓":item.status==="skipped"?"—":<TemplateIcon tmpl={tmpl} size={18} />}
                         </div>
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ display:"flex", alignItems:"center", gap:"8px", flexWrap:"wrap" }}>
@@ -2986,15 +3037,17 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
       <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet" />
 
       {/* ── Nav ── */}
-      <nav style={{ background:P.navy, height:"64px", padding:"0 40px", display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100, boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
+      <nav className="gg-landing-nav" style={{ background:P.navy, height:"64px", padding:"0 40px", display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100, boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
+        <div className="gg-landing-logo" style={{ display:"flex", alignItems:"center", gap:"10px" }}>
           <BrandLogo height={40} onDark={true} />
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:"28px" }}>
-          <button onClick={onAbout} style={{ background:"none", border:"none", fontSize:"14px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>About</button>
-          <button onClick={onFaq} style={{ background:"none", border:"none", fontSize:"14px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>FAQ</button>
-          <button onClick={onPricing} style={{ background:"none", border:"none", fontSize:"14px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>Pricing</button>
-          <button onClick={onEnter} style={{ background:P.accent, border:"none", borderRadius:"8px", padding:"8px 20px", fontSize:"14px", fontWeight:700, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 2px 12px rgba(0,201,177,0.35)" }}>Open App →</button>
+          <div className="gg-landing-navlinks" style={{ display:"flex", alignItems:"center", gap:"28px" }}>
+            <button onClick={onAbout} style={{ background:"none", border:"none", fontSize:"14px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>About</button>
+            <button onClick={onFaq} style={{ background:"none", border:"none", fontSize:"14px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>FAQ</button>
+            <button onClick={onPricing} style={{ background:"none", border:"none", fontSize:"14px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>Pricing</button>
+          </div>
+          <button onClick={onEnter} style={{ background:P.accent, border:"none", borderRadius:"8px", padding:"8px 18px", fontSize:"14px", fontWeight:700, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 2px 12px rgba(0,201,177,0.35)", whiteSpace:"nowrap", flexShrink:0 }}>Open App →</button>
         </div>
       </nav>
 
@@ -4250,8 +4303,8 @@ function GroupGrid({ user, onLogin, onLogout }) {
       "Guest": r.displayName, "Email": r.email||"—",
       "Status": {ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status],
       "Active Issues": r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None",
-      "Flight Arrival": fmt(r.flight?.flightArrival), "Hotel Check-In": fmt(r.hotel?.checkIn), "Arrival Δ": r.details?.arrDiff??"N/A",
-      "Flight Departure": fmt(r.flight?.flightDeparture), "Hotel Check-Out": fmt(r.hotel?.checkOut), "Departure Δ": r.details?.depDiff??"N/A",
+      "Flight Arrival": fmt(r.flight?.flightArrival), "Arrival Airport": (r.flight?.arrivalAirport||r.flight?.airport||"").toUpperCase()||"—", "Hotel Check-In": fmt(r.hotel?.checkIn), "Arrival Δ": r.details?.arrDiff??"N/A",
+      "Flight Departure": fmt(r.flight?.flightDeparture), "Departure Airport": (r.flight?.departureAirport||r.flight?.airport||"").toUpperCase()||"—", "Hotel Check-Out": fmt(r.hotel?.checkOut), "Departure Δ": r.details?.depDiff??"N/A",
       "Car Pickup": fmt(r.car?.pickupDate), "Car Dropoff": fmt(r.car?.dropoffDate),
       "Hotel": r.hotel?.hotel||"—", "Room/Conf": r.hotel?.room||"—",
       "Dietary": r.diet?.dietary||"—", "Accessibility": r.diet?.accessibility||"—",
@@ -4271,7 +4324,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
   }
 
   function exportReport() {
-    const rows = filtered.map(r => ({ "First Name":r.firstName||r.displayName.split(" ")[0]||"—", "Last Name":r.lastName||r.displayName.split(" ").slice(1).join(" ")||"—", "Full Name":r.displayName, "Email":r.email||"—", "Registered":r.reg?"Yes":(r.registered?"Yes":"No"), "Status":{ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status], "Active Issues":r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None", "Resolved":r.resolved?.join("; ")||"—", "Note":r.note||"—", "Company":r.reg?.company||"—", "Job Title":r.reg?.jobTitle||"—", "Requested Check-In":fmt(r.reg?.regCheckIn), "Requested Check-Out":fmt(r.reg?.regCheckOut), "Dietary":r.diet?.dietary||r.reg?.dietaryRequest||"—", "Accessibility":r.diet?.accessibility||"—", "Flight Arrival":fmt(r.flight?.flightArrival), "Hotel Check-In":fmt(r.hotel?.checkIn), "Arrival Δ":r.details?.arrDiff??"N/A", "Flight Departure":fmt(r.flight?.flightDeparture), "Hotel Check-Out":fmt(r.hotel?.checkOut), "Departure Δ":r.details?.depDiff??"N/A", "Car Pickup":fmt(r.car?.pickupDate), "Car Dropoff":fmt(r.car?.dropoffDate), "Hotel":r.hotel?.hotel||"—", "Room":r.hotel?.room||"—", "Matched By":r.matchedBy }));
+    const rows = filtered.map(r => ({ "First Name":r.firstName||r.displayName.split(" ")[0]||"—", "Last Name":r.lastName||r.displayName.split(" ").slice(1).join(" ")||"—", "Full Name":r.displayName, "Email":r.email||"—", "Registered":r.reg?"Yes":(r.registered?"Yes":"No"), "Status":{ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status], "Active Issues":r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None", "Resolved":r.resolved?.join("; ")||"—", "Note":r.note||"—", "Company":r.reg?.company||"—", "Job Title":r.reg?.jobTitle||"—", "Requested Check-In":fmt(r.reg?.regCheckIn), "Requested Check-Out":fmt(r.reg?.regCheckOut), "Dietary":r.diet?.dietary||r.reg?.dietaryRequest||"—", "Accessibility":r.diet?.accessibility||"—", "Flight Arrival":fmt(r.flight?.flightArrival), "Hotel Check-In":fmt(r.hotel?.checkIn), "Arrival Δ":r.details?.arrDiff??"N/A", "Flight Departure":fmt(r.flight?.flightDeparture), "Hotel Check-Out":fmt(r.hotel?.checkOut), "Departure Δ":r.details?.depDiff??"N/A", "Car Pickup":fmt(r.car?.pickupDate), "Car Dropoff":fmt(r.car?.dropoffDate), "Hotel":r.hotel?.hotel||"—", "Room":r.hotel?.room||"—", "Arrival Airport":(r.flight?.arrivalAirport||r.flight?.airport||"").toUpperCase()||"—", "Departure Airport":(r.flight?.departureAirport||r.flight?.airport||"").toUpperCase()||"—", "Matched By":r.matchedBy }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "GroupGrid");
     XLSX.writeFile(wb, `groupgrid-${(eventName||"report").replace(/\s+/g,"-")}-${new Date().toISOString().slice(0,10)}.xlsx`);
@@ -4346,7 +4399,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
   function exportSelected() {
     const toExport = selectedRows.size > 0 ? filtered.filter(r => selectedRows.has(r.key)) : filtered;
-    const rows = toExport.map(r => ({ "First Name":r.firstName||r.displayName.split(" ")[0]||"—", "Last Name":r.lastName||r.displayName.split(" ").slice(1).join(" ")||"—", "Full Name":r.displayName, "Email":r.email||"—", "Registered":r.reg?"Yes":(r.registered?"Yes":"No"), "Status":{ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status], "Active Issues":r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None", "Note":r.note||"—", "Company":r.reg?.company||"—", "Job Title":r.reg?.jobTitle||"—", "Requested Check-In":fmt(r.reg?.regCheckIn), "Requested Check-Out":fmt(r.reg?.regCheckOut), "Flight Arrival":fmt(r.flight?.flightArrival), "Flight In":r.flight?.flightIn||"—", "Hotel Check-In":fmt(r.hotel?.checkIn), "Arrival Δ":r.details?.arrDiff??"N/A", "Flight Departure":fmt(r.flight?.flightDeparture), "Flight Out":r.flight?.flightOut||"—", "Hotel Check-Out":fmt(r.hotel?.checkOut), "Departure Δ":r.details?.depDiff??"N/A", "Airport":r.flight?.airport||"—", "Hotel":r.hotel?.hotel||"—", "Room":r.hotel?.room||"—", "Car Pickup":fmt(r.car?.pickupDate), "Car Dropoff":fmt(r.car?.dropoffDate), "Dietary":r.diet?.dietary||r.reg?.dietaryRequest||"—", "Accessibility":r.diet?.accessibility||"—" }));
+    const rows = toExport.map(r => ({ "First Name":r.firstName||r.displayName.split(" ")[0]||"—", "Last Name":r.lastName||r.displayName.split(" ").slice(1).join(" ")||"—", "Full Name":r.displayName, "Email":r.email||"—", "Registered":r.reg?"Yes":(r.registered?"Yes":"No"), "Status":{ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status], "Active Issues":r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None", "Note":r.note||"—", "Company":r.reg?.company||"—", "Job Title":r.reg?.jobTitle||"—", "Requested Check-In":fmt(r.reg?.regCheckIn), "Requested Check-Out":fmt(r.reg?.regCheckOut), "Flight Arrival":fmt(r.flight?.flightArrival), "Flight In":r.flight?.flightIn||"—", "Hotel Check-In":fmt(r.hotel?.checkIn), "Arrival Δ":r.details?.arrDiff??"N/A", "Flight Departure":fmt(r.flight?.flightDeparture), "Flight Out":r.flight?.flightOut||"—", "Hotel Check-Out":fmt(r.hotel?.checkOut), "Departure Δ":r.details?.depDiff??"N/A", "Arrival Airport":(r.flight?.arrivalAirport||r.flight?.airport||"").toUpperCase()||"—", "Departure Airport":(r.flight?.departureAirport||r.flight?.airport||"").toUpperCase()||"—", "Hotel":r.hotel?.hotel||"—", "Room":r.hotel?.room||"—", "Car Pickup":fmt(r.car?.pickupDate), "Car Dropoff":fmt(r.car?.dropoffDate), "Dietary":r.diet?.dietary||r.reg?.dietaryRequest||"—", "Accessibility":r.diet?.accessibility||"—" }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "GroupGrid");
     const label = selectedRows.size > 0 ? `${selectedRows.size}-selected` : "all";
@@ -4406,9 +4459,11 @@ function GroupGrid({ user, onLogin, onLogout }) {
         + '<td style="padding:10px 12px;font-size:13px;color:#4A5166;">' + sCell(r.email) + "</td>"
         + '<td style="padding:10px 12px;">' + sBadge(r.status) + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;">' + (r.flight ? fmt(r.flight.flightArrival) : missingCell()) + "</td>"
+        + '<td style="padding:10px 12px;font-size:13px;color:#4A5166;font-weight:600;">' + ((r.flight && (r.flight.arrivalAirport||r.flight.airport)) ? (r.flight.arrivalAirport||r.flight.airport).toUpperCase() : "\u2014") + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;">' + (r.hotel ? fmt(r.hotel.checkIn) : missingCell()) + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;">' + sDelta(r.details && r.details.arrDiff) + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;">' + (r.flight ? fmt(r.flight.flightDeparture) : missingCell()) + "</td>"
+        + '<td style="padding:10px 12px;font-size:13px;color:#4A5166;font-weight:600;">' + ((r.flight && (r.flight.departureAirport||r.flight.airport)) ? (r.flight.departureAirport||r.flight.airport).toUpperCase() : "\u2014") + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;">' + (r.hotel ? fmt(r.hotel.checkOut) : missingCell()) + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;">' + sDelta(r.details && r.details.depDiff) + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;">' + issueHtml + "</td>"
@@ -4542,9 +4597,11 @@ function GroupGrid({ user, onLogin, onLogout }) {
       + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5166;text-transform:uppercase;letter-spacing:0.04em;">Email</th>'
       + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5166;text-transform:uppercase;letter-spacing:0.04em;">Status</th>'
       + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5166;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;">Flight In</th>'
+      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5166;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;">Arr Apt</th>'
       + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5166;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;">Check-In</th>'
       + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5166;text-transform:uppercase;letter-spacing:0.04em;">\u0394 Arr</th>'
       + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5166;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;">Flight Out</th>'
+      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5166;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;">Dep Apt</th>'
       + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5166;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;">Check-Out</th>'
       + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5166;text-transform:uppercase;letter-spacing:0.04em;">\u0394 Dep</th>'
       + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5166;text-transform:uppercase;letter-spacing:0.04em;">Flags</th>'
@@ -4633,13 +4690,13 @@ function GroupGrid({ user, onLogin, onLogout }) {
       {(() => {
         const nav = { onHome:() => setPage("landing"), onPricing:() => setPage("pricing"), onAbout:() => setPage("about"), onFaq:() => setPage("faq"), onContact:() => setPage("contact"), onPrivacy:() => setPage("privacy"), onTerms:() => setPage("terms"), onApp:enterApp, current:page };
         return (<>
-      {(page === "landing" || (!user && page === "app")) && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto" }}><LandingPage onEnter={enterApp} onPricing={() => setPage("pricing")} onAbout={() => setPage("about")} onContact={() => setPage("contact")} onPrivacy={() => setPage("privacy")} onTerms={() => setPage("terms")} onFaq={() => setPage("faq")} /></div>}
-      {page === "pricing" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto" }}><PricingPage onBack={() => setPage("landing")} nav={nav} /></div>}
-      {page === "about"   && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto" }}><AboutPage   onBack={() => setPage("landing")} nav={nav} /></div>}
-      {page === "faq"     && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto" }}><FAQPage     onBack={() => setPage("landing")} nav={nav} /></div>}
-      {page === "contact" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto" }}><ContactPage onBack={() => setPage("landing")} nav={nav} /></div>}
-      {page === "privacy" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto" }}><PrivacyPage onBack={() => setPage("landing")} nav={nav} /></div>}
-      {page === "terms"   && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto" }}><TermsPage   onBack={() => setPage("landing")} nav={nav} /></div>}
+      {(page === "landing" || (!user && page === "app")) && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><LandingPage onEnter={enterApp} onPricing={() => setPage("pricing")} onAbout={() => setPage("about")} onContact={() => setPage("contact")} onPrivacy={() => setPage("privacy")} onTerms={() => setPage("terms")} onFaq={() => setPage("faq")} /></div>}
+      {page === "pricing" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><PricingPage onBack={() => setPage("landing")} nav={nav} /></div>}
+      {page === "about"   && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><AboutPage   onBack={() => setPage("landing")} nav={nav} /></div>}
+      {page === "faq"     && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><FAQPage     onBack={() => setPage("landing")} nav={nav} /></div>}
+      {page === "contact" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><ContactPage onBack={() => setPage("landing")} nav={nav} /></div>}
+      {page === "privacy" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><PrivacyPage onBack={() => setPage("landing")} nav={nav} /></div>}
+      {page === "terms"   && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><TermsPage   onBack={() => setPage("landing")} nav={nav} /></div>}
         </>);
       })()}
 
@@ -5246,6 +5303,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                         { l:"Status",    col:"status" },
                         // Arrival side: flight in → car pickup → hotel check-in
                         { l:"Flight Arrival",   col:"arrival" },
+                        { l:"Arr Airport",      col:null },
                         ...(hasCars?[{l:"Car Pickup",col:null},{l:"Δ",col:null}]:[]),
                         { l:"Hotel Check-In",  col:"checkin" },
                         { l:"Δ",         col:null },
@@ -5254,6 +5312,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                         { l:"Δ",         col:null },
                         ...(hasCars?[{l:"Car Dropoff",col:null}]:[]),
                         { l:"Flight Departure", col:"departure" },
+                        { l:"Dep Airport",      col:null },
                         ...(hasHotelNames?[{l:"Hotel",col:"hotel"}]:[]),
                         ...(hasDiet?[{l:"Dietary",col:null}]:[]),
                         { l:"Flags",     col:"flags" },
@@ -5307,6 +5366,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                             <td style={{ padding:"10px 12px" }}><StatusChip status={r.status} /></td>
                             {/* Arrival side: flight arrival → car pickup → hotel check-in */}
                             <td style={{ padding:"10px 12px", color:r.flight?P.grey600:P.red, fontSize:"15px", fontFamily:font, fontWeight:r.flight?500:700 }}>{r.flight ? fmt(r.flight.flightArrival) : "⚠ Missing"}</td>
+                            <td style={{ padding:"10px 12px", color:P.grey600, fontSize:"14px", fontFamily:font, fontWeight:600, letterSpacing:"0.03em", whiteSpace:"nowrap" }}>{(r.flight?.arrivalAirport || r.flight?.airport || "").toUpperCase() || "—"}</td>
                             {hasCars && <>
                               <td style={{ padding:"10px 12px", color:P.navy, fontSize:"15px", fontFamily:font }}>{fmt(r.car?.pickupDate)}</td>
                               <td style={{ padding:"10px 12px", textAlign:"center" }}><Delta val={r.details?.pickupDiff} /></td>
@@ -5318,6 +5378,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                             <td style={{ padding:"10px 12px", textAlign:"center" }}><Delta val={r.details?.depDiff} /></td>
                             {hasCars && <td style={{ padding:"10px 12px", color:P.navy, fontSize:"15px", fontFamily:font }}>{fmt(r.car?.dropoffDate)}</td>}
                             <td style={{ padding:"10px 12px", color:r.flight?P.grey600:P.red, fontSize:"15px", fontFamily:font, fontWeight:r.flight?500:700 }}>{r.flight ? fmt(r.flight.flightDeparture) : "⚠ Missing"}</td>
+                            <td style={{ padding:"10px 12px", color:P.grey600, fontSize:"14px", fontFamily:font, fontWeight:600, letterSpacing:"0.03em", whiteSpace:"nowrap" }}>{(r.flight?.departureAirport || r.flight?.airport || "").toUpperCase() || "—"}</td>
                             {hasHotelNames && (() => {
                               const wrongHotel = (r.issues||[]).some(x => x.text && x.text.includes("but assigned to"));
                               return <td style={{ padding:"10px 12px", color:wrongHotel?P.red:P.navy, fontSize:"15px", fontFamily:font, fontWeight:wrongHotel?600:500, whiteSpace:"nowrap" }}>{r.hotel?.hotel ? (wrongHotel ? "⚠ "+r.hotel.hotel : r.hotel.hotel) : "—"}</td>;
@@ -5361,7 +5422,8 @@ function GroupGrid({ user, onLogin, onLogout }) {
                                         <DR label="Departure" val={fmt(r.flight.flightDeparture)} />
                                         {r.flight.flightIn && <DR label="Inbound #" val={r.flight.flightIn} accent />}
                                         {r.flight.flightOut && <DR label="Outbound #" val={r.flight.flightOut} accent />}
-                                        {r.flight.airport && <DR label="Airport" val={r.flight.airport} />}
+                                        {(r.flight.arrivalAirport || r.flight.airport) && <DR label="Arr Airport" val={(r.flight.arrivalAirport || r.flight.airport).toUpperCase()} />}
+                                        {(r.flight.departureAirport || r.flight.airport) && <DR label="Dep Airport" val={(r.flight.departureAirport || r.flight.airport).toUpperCase()} />}
                                         {r.flight.email && <DR label="Email" val={r.flight.email} />}
                                       </> : <div style={{ background:P.amberLight, borderRadius:"8px", padding:"8px 10px", color:P.amber, fontSize:"15px", fontWeight:700, fontFamily:font }}>○ Not in flight manifest</div>}
                                     </Card>
