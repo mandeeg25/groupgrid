@@ -58,7 +58,7 @@ const P = {
 const font = "'Manrope', sans-serif";
 const fontDisplay = "'Poppins', sans-serif";
 // Build version — bump this whenever code is deployed so you can confirm at a glance which build is live.
-const APP_VERSION = "v5.3 · Jun 2026";
+const APP_VERSION = "v5.7 · Jun 2026";
 // Feature flag: hide the Dietary/Access feature from the UI for now while focusing on
 // registration, flights, hotels, and cars. The parsing/engine code stays intact —
 // flip this to true to bring the dietary upload, column, and detail back everywhere.
@@ -241,6 +241,16 @@ function GlobalStyles() {
     let vp = document.querySelector('meta[name="viewport"]');
     if (!vp) { vp = document.createElement("meta"); vp.setAttribute("name", "viewport"); document.head.appendChild(vp); }
     vp.setAttribute("content", "width=device-width, initial-scale=1, viewport-fit=cover");
+    // Set the GroupGrid brand-mark favicon at runtime so it shows even if index.html has none.
+    const faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='26' fill='#0C1E3F'/><circle cx='28' cy='28' r='9' fill='#00C9B1'/><circle cx='50' cy='28' r='9' fill='#A9C2DC'/><circle cx='72' cy='28' r='9' fill='#A9C2DC'/><circle cx='28' cy='50' r='9' fill='#A9C2DC'/><circle cx='50' cy='50' r='9' fill='#00C9B1'/><circle cx='72' cy='50' r='9' fill='#A9C2DC'/><circle cx='28' cy='72' r='9' fill='#A9C2DC'/><circle cx='50' cy='72' r='9' fill='#A9C2DC'/><circle cx='72' cy='72' r='9' fill='#00C9B1'/></svg>";
+    const faviconHref = "data:image/svg+xml," + encodeURIComponent(faviconSvg);
+    let icon = document.querySelector('link[rel="icon"]');
+    if (!icon) { icon = document.createElement("link"); icon.setAttribute("rel", "icon"); document.head.appendChild(icon); }
+    icon.setAttribute("type", "image/svg+xml");
+    icon.setAttribute("href", faviconHref);
+    let apple = document.querySelector('link[rel="apple-touch-icon"]');
+    if (!apple) { apple = document.createElement("link"); apple.setAttribute("rel", "apple-touch-icon"); document.head.appendChild(apple); }
+    apple.setAttribute("href", faviconHref);
     const el = document.createElement("style");
     el.id = "gg-mobile-css";
     el.textContent = MOBILE_CSS;
@@ -2585,7 +2595,7 @@ function LoginPanel({ onLogin, onClose }) {
 
       {/* Footer */}
       <div style={{ padding:"16px 28px", borderTop:"1px solid rgba(255,255,255,0.07)", flexShrink:0 }}>
-        <div style={{ fontSize:"12px", color:"rgba(255,255,255,0.18)", textAlign:"center" }}>© 2026 GroupGrid · Built for event professionals</div>
+        <div style={{ fontSize:"12px", color:"rgba(255,255,255,0.18)", textAlign:"center" }}>© 2026 GroupGrid · Built for event professionals · {APP_VERSION}</div>
       </div>
     </div>
   );
@@ -3523,7 +3533,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
       {/* ── Footer ── */}
       <div style={{ background:P.navy, padding:"28px 40px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:"16px" }}>
         <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
-          <span style={{ fontSize:"13px", color:"rgba(255,255,255,0.3)", fontFamily:font }}>Built for event professionals · © 2026</span>
+          <span style={{ fontSize:"13px", color:"rgba(255,255,255,0.3)", fontFamily:font }}>Built for event professionals · © 2026 · <span style={{ color:"rgba(255,255,255,0.5)" }}>{APP_VERSION}</span></span>
         </div>
         <div style={{ display:"flex", gap:"20px" }}>
           {[
@@ -4682,11 +4692,19 @@ function GroupGrid({ user, onLogin, onLogout }) {
             </button>
           )}
           </div>
-          {/* Mobile: sign-in button always visible */}
+          {/* Mobile: auth control always visible — Sign In when logged out, account + Sign out when logged in */}
           {isMobile && !user && (
             <button onClick={() => setLoginOpen(true)} style={{ background:P.accent, border:"none", borderRadius:"8px", padding:"6px 14px", cursor:"pointer", fontFamily:font }}>
               <span style={{ fontSize:"13px", fontWeight:600, color:P.white }}>Sign In</span>
             </button>
+          )}
+          {isMobile && user && (
+            <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
+              <div title={user.email} style={{ width:28, height:28, borderRadius:"50%", background:P.accentD, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:"12px", fontWeight:700, color:P.white, fontFamily:font, textTransform:"uppercase" }}>{(user.name || user.email || "?").trim().charAt(0)}</div>
+              <button onClick={onLogout} style={{ background:"transparent", border:"1px solid rgba(255,255,255,0.2)", borderRadius:"8px", padding:"6px 12px", cursor:"pointer", fontFamily:font }}>
+                <span style={{ fontSize:"13px", fontWeight:600, color:"rgba(255,255,255,0.7)" }}>Sign out</span>
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -4695,7 +4713,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
         {/* ── Left Sidebar / Mobile Drawer ── */}
         <div className={`gg-sidebar${isMobile && sidebarOpen ? " open" : ""}`}
-          style={{ width:224, flexShrink:0, background:P.navy, borderRight:`1px solid rgba(255,255,255,0.07)`, display:"flex", flexDirection:"column", padding:"20px 14px", overflowY:"auto", position: isMobile ? "fixed" : "relative", top: isMobile ? "52px" : 0, height: isMobile ? "calc(100vh - 52px)" : "auto", minHeight: isMobile ? undefined : `calc(100vh - 52px)`, alignSelf:"stretch", zIndex: isMobile ? 200 : "auto" }}>
+          style={{ width:224, flexShrink:0, background:P.navy, borderRight:`1px solid rgba(255,255,255,0.07)`, display:"flex", flexDirection:"column", padding:"20px 14px", overflowY:"auto", position: isMobile ? "fixed" : "relative", left: isMobile ? 0 : undefined, top: isMobile ? "52px" : 0, height: isMobile ? "calc(100vh - 52px)" : "auto", minHeight: isMobile ? undefined : `calc(100vh - 52px)`, alignSelf:"stretch", zIndex: isMobile ? 250 : "auto", transform: isMobile ? (sidebarOpen ? "translateX(0)" : "translateX(-100%)") : "none", transition: isMobile ? "transform 0.25s ease" : "none", boxShadow: isMobile && sidebarOpen ? "4px 0 24px rgba(0,0,0,0.35)" : "none" }}>
 
           {/* Mobile drawer close */}
           {isMobile && (
