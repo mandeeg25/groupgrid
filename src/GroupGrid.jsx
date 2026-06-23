@@ -58,7 +58,7 @@ const P = {
 const font = "'Manrope', sans-serif";
 const fontDisplay = "'Poppins', sans-serif";
 // Build version — bump this whenever code is deployed so you can confirm at a glance which build is live.
-const APP_VERSION = "v6.2 · Jun 2026";
+const APP_VERSION = "v6.3 · Jun 2026";
 // Feature flag: hide the Dietary/Access feature from the UI for now while focusing on
 // registration, flights, hotels, and cars. The parsing/engine code stays intact —
 // flip this to true to bring the dietary upload, column, and detail back everywhere.
@@ -186,8 +186,8 @@ function useIsMobile(breakpoint = 768) {
 // ── Global mobile CSS (injected once) ────────────────────────────────────────
 const MOBILE_CSS = `
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; max-width: 100%; overflow-x: hidden; overscroll-behavior-y: none; }
-  #root { overflow-x: hidden; max-width: 100%; }
+  html, body { margin: 0; padding: 0; max-width: 100%; overflow-x: clip; overscroll-behavior-y: none; }
+  #root { overflow-x: clip; max-width: 100%; }
   @media (max-width: 767px) {
     .gg-landing-nav { padding: 0 16px !important; }
     .gg-landing-navlinks { display: none !important; }
@@ -4698,7 +4698,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
 
   return (
-    <div style={{ minHeight:"100vh", width:"100%", maxWidth:"100vw", overflowX:"hidden", background:"#F4F7FA", fontFamily:font, fontSize:"15px", WebkitFontSmoothing:"antialiased", boxSizing:"border-box" }}>
+    <div style={{ minHeight:"100vh", width:"100%", maxWidth:"100vw", overflowX:"clip", background:"#F4F7FA", fontFamily:font, fontSize:"15px", WebkitFontSmoothing:"antialiased", boxSizing:"border-box" }}>
       <GlobalStyles />
       <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet" />
 
