@@ -58,7 +58,7 @@ const P = {
 const font = "'Manrope', sans-serif";
 const fontDisplay = "'Poppins', sans-serif";
 // Build version — bump this whenever code is deployed so you can confirm at a glance which build is live.
-const APP_VERSION = "v6.3 · Jun 2026";
+const APP_VERSION = "v6.6 · Jun 2026";
 // Feature flag: hide the Dietary/Access feature from the UI for now while focusing on
 // registration, flights, hotels, and cars. The parsing/engine code stays intact —
 // flip this to true to bring the dietary upload, column, and detail back everywhere.
@@ -509,7 +509,7 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
   const hasReg = registration.length > 0;
   const hasFlights = flights.length > 0;
   const hasHotels = hotels.length > 0;
-  const { arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports } = aw || {};
+  const { arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, arrivalCutoff } = aw || {};
   const mkMaps = (arr) => { const byE = new Map(), byN = new Map(); arr.forEach(x => { if (x.email) byE.set(x.email, x); const k = normName(x.name); if (k) byN.set(k, x); }); return [byE, byN]; };
   const [fByE, fByN] = mkMaps(flights), [hByE, hByN] = mkMaps(hotels), [cByE, cByN] = mkMaps(cars), [dByE, dByN] = mkMaps(dietary), [rByE, rByN] = mkMaps(registration);
   const allLists = [...flights,...hotels,...cars,...dietary,...registration];
@@ -605,6 +605,16 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
       if (car.pickupDate && flight.flightArrival) { const pd = diffDays(car.pickupDate, flight.flightArrival); details.pickupDiff = pd; if (pd!==0) issues.push({ type:"mismatch", text:`Car pickup ${Math.abs(pd)} ${Math.abs(pd)===1?"day":"days"} ${pd<0?"before":"after"} flight arrival` }); }
       if (car.dropoffDate && flight.flightDeparture) { const dd2 = diffDays(car.dropoffDate, flight.flightDeparture); if (dd2!==0) issues.push({ type:"mismatch", text:`Car dropoff ${Math.abs(dd2)} ${Math.abs(dd2)===1?"day":"days"} ${dd2<0?"before":"after"} flight departure` }); }
     }
+    // ── Early-arrival / night-prior hotel rule ──
+    // If a flight lands before the planner's cutoff time, the traveler should already
+    // have a room from the night before. Flag when no night-prior hotel night is on file.
+    if (arrivalCutoff && flight && flight.arrivalTime && flight.flightArrival && flight.arrivalTime < arrivalCutoff && hotel && hotel.checkIn) {
+      const gap = diffDays(flight.flightArrival, hotel.checkIn); // >= 1 means check-in is the night before (or earlier)
+      if (gap === 0) {
+        const prior = new Date(flight.flightArrival); prior.setDate(prior.getDate() - 1);
+        issues.push({ type:"earlyarrival", text:`Arrives ${fmtTime(flight.arrivalTime,"ampm")} (before ${fmtTime(arrivalCutoff,"ampm")} cutoff) \u2014 book hotel for the night prior (${fmt(prior)})` });
+      }
+    }
     const arrDate = flight?.flightArrival || hotel?.checkIn || reg?.regCheckIn, depDate = flight?.flightDeparture || hotel?.checkOut || reg?.regCheckOut;
     if (arrDate && isOutside(arrDate, arrivalStart, arrivalEnd)) issues.push({ type:"window", text:`Arrival ${fmt(arrDate)} outside approved window` });
     if (depDate && isOutside(depDate, departureStart, departureEnd)) issues.push({ type:"window", text:`Departure ${fmt(depDate)} outside approved window` });
@@ -684,7 +694,7 @@ function Delta({ val }) {
 }
 
 function IssueTag({ issue, resolved, onResolve }) {
-  const cfg = { missing:{bg:P.amberLight,color:P.amber,border:`1px solid ${P.amber}44`,icon:<Circle size={11} strokeWidth={1.8}/>}, mismatch:{bg:P.redLight,color:P.red,border:`1px solid ${P.red}44`,icon:<AlertTriangle size={11} strokeWidth={1.8}/>}, window:{bg:P.purpleLight,color:P.purple,border:`1px solid ${P.purple}44`,icon:<Calendar size={11} strokeWidth={1.8}/>}, duplicate:{bg:"#FFF3E0",color:"#E65100",border:"1px solid #E6510044",icon:<AlertCircle size={11} strokeWidth={1.8}/>}, unregistered:{bg:P.purpleLight,color:P.purple,border:`1px solid ${P.purple}44`,icon:<Ban size={11} strokeWidth={1.8}/>}, airport:{bg:"#EAF2FE",color:"#4DA3FF",border:"1px solid #4DA3FF44",icon:<Plane size={11} strokeWidth={1.8}/>} };
+  const cfg = { missing:{bg:P.amberLight,color:P.amber,border:`1px solid ${P.amber}44`,icon:<Circle size={11} strokeWidth={1.8}/>}, mismatch:{bg:P.redLight,color:P.red,border:`1px solid ${P.red}44`,icon:<AlertTriangle size={11} strokeWidth={1.8}/>}, window:{bg:P.purpleLight,color:P.purple,border:`1px solid ${P.purple}44`,icon:<Calendar size={11} strokeWidth={1.8}/>}, duplicate:{bg:"#FFF3E0",color:"#E65100",border:"1px solid #E6510044",icon:<AlertCircle size={11} strokeWidth={1.8}/>}, unregistered:{bg:P.purpleLight,color:P.purple,border:`1px solid ${P.purple}44`,icon:<Ban size={11} strokeWidth={1.8}/>}, airport:{bg:"#EAF2FE",color:"#4DA3FF",border:"1px solid #4DA3FF44",icon:<Plane size={11} strokeWidth={1.8}/>}, earlyarrival:{bg:"#EEF0FB",color:P.periwinkleD,border:`1px solid ${P.periwinkleD}44`,icon:<Calendar size={11} strokeWidth={1.8}/>} };
   const s = cfg[issue.type] || cfg.mismatch;
   const isRes = (resolved || []).includes(issue.text);
   return (
@@ -1528,6 +1538,7 @@ function getApplicableTemplates(record) {
   if (has("not on registration list") || issues.some(x => x.type === "unregistered")) applicable.push("needs_registration");
   if (issues.some(x => x.type === "window")) applicable.push("outside_window");
   if (issues.some(x => x.type === "airport")) applicable.push("wrong_airport");
+  if (issues.some(x => x.type === "earlyarrival") && !applicable.includes("arrives_early")) applicable.push("arrives_early");
   return applicable;
 }
 
@@ -2940,7 +2951,7 @@ function AboutPage({ onBack, nav }) {
             <div style={{ fontSize:"15px", fontWeight:800, color:P.teal, fontFamily:font }}>Your guest files never leave your browser</div>
           </div>
           <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, lineHeight:1.7 }}>
-            Your guest files — names, emails, flight details, hotel records — are read and processed entirely in your browser and are never uploaded to our servers. Account sign-in and your saved projects are handled securely through Supabase, a trusted third-party provider. The sensitive guest spreadsheet data itself stays in your browser.
+            Your guest files — names, emails, flight details, hotel records — are read and processed entirely in your browser and are never uploaded to our servers. Account sign-in is handled securely through Supabase, a trusted third-party provider, and your saved projects are stored locally in your browser. The sensitive guest spreadsheet data itself stays in your browser.
           </div>
         </div>
 
@@ -2999,7 +3010,7 @@ function FAQPage({ onBack, nav }) {
     { q:"What files do I need?", a:"You need any two or more files to run a check — for example a registration list plus a hotel roster, or a flight manifest plus a hotel roster. Your registration list is recommended: when you add it, GroupGrid uses it as the source of truth and checks everything against it. You can also add car transfer and dietary files. Everything is standard Excel (.xlsx, .xls) or CSV format." },
     { q:"What if my spreadsheet columns are named differently?", a:"GroupGrid auto-detects common column names. Your \"Arrival Date\" and someone else's \"Arr. Date\" or \"Flight In\" all get recognized automatically. There's no manual mapping or setup required." },
     { q:"What if I don't have email addresses?", a:"GroupGrid matches people by email first for the most accurate results, then falls back to matching by name. Including an email column is best, but it's not required." },
-    { q:"Is my data secure?", a:"Your guest files are read and processed entirely in your browser and are never uploaded to our servers. Account sign-in and your saved projects are handled securely through Supabase, a trusted third-party provider. The sensitive guest spreadsheet data itself stays in your browser." },
+    { q:"Is my data secure?", a:"Your guest files are read and processed entirely in your browser and are never uploaded to our servers. Account sign-in is handled securely through Supabase, a trusted third-party provider, and your saved projects are stored locally in your browser. The sensitive guest spreadsheet data itself stays in your browser." },
     { q:"Who is GroupGrid for?", a:"Any event or meeting planner who manages attendee travel, from a small board retreat to a large multi-day conference. If people are registering and you're booking their flights and hotels, GroupGrid makes sure the two lists match." },
     { q:"How much does it cost?", a:"$249/month for full access — unlimited events, unlimited guests, every feature. Create an account to get started." },
     { q:"Do I need to install anything?", a:"No. GroupGrid runs in your web browser. There's nothing to download or install." },
@@ -3029,26 +3040,26 @@ function PrivacyPage({ onBack, nav }) {
     <PageShell title="Privacy Policy" onBack={onBack} nav={nav}>
       <div style={{ marginBottom:"40px" }}>
         <h1 style={{ fontSize:"32px", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 8px", letterSpacing:"-0.03em" }}>Privacy Policy</h1>
-        <p style={{ fontSize:"14px", color:P.grey400, fontFamily:font, margin:"0 0 16px" }}>Last updated: February 2026</p>
+        <p style={{ fontSize:"14px", color:P.grey400, fontFamily:font, margin:"0 0 16px" }}>Last updated: June 2026</p>
         <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, margin:0 }}>GroupGrid is built with privacy as a core design principle — not an afterthought. Here's exactly what we do and don't do with your data.</p>
       </div>
       <Section title="Data we collect">
-        <strong>We never collect your guest data.</strong> GroupGrid processes all spreadsheet data entirely within your browser. Your guest names, emails, flight details, hotel records, and any other information in your uploaded files are never transmitted to our servers — we have no access to this data, ever. The only personal data we hold is your account information (your email address) and the projects you choose to save, both handled through Supabase, our third-party infrastructure provider.
+        <strong>We never collect your guest data.</strong> GroupGrid processes all spreadsheet data entirely within your browser. Your guest names, emails, flight details, hotel records, and any other information in your uploaded files are never transmitted to our servers — we have no access to this data, ever. The limited personal data we do handle is: your account email address, for sign-in (via Supabase); the projects you choose to save, which are stored locally on your own device and not on our servers; and, if you join our early-access list, the email address you submit (via HubSpot, our email and CRM provider).
       </Section>
       <Section title="Saved projects & storage">
-        When you are signed out, GroupGrid uses your browser's local storage to save session data (event names, notes, resolved flags) on your device. When you are signed in, your saved projects are stored securely through Supabase, our third-party infrastructure provider, so you can access them across sessions. In all cases, your guest spreadsheet files are read and processed in your browser and are never uploaded to our servers. You can clear local data at any time by clearing your browser storage or using the app's built-in reset.
+        Your saved projects — event names, notes, and resolved flags — are stored in your browser's local storage, on the device you are using. They are not uploaded to our servers and are not synced across devices or browsers: projects saved on one device will not appear on another, and clearing your browser storage will remove them. In all cases, your guest spreadsheet files are read and processed in your browser and are never uploaded to our servers. You can clear local data at any time by clearing your browser storage or using the app's built-in reset.
       </Section>
       <Section title="Cookies">
         GroupGrid does not use tracking cookies, advertising cookies, or any third-party analytics. We do not use Google Analytics, Meta Pixel, or similar tools.
       </Section>
       <Section title="Account data">
-        To sign in, we collect your email address and a password, which are handled securely through Supabase, our third-party authentication and infrastructure provider. Passwords are stored in encrypted form by Supabase; we do not store them ourselves. Your saved projects are stored with Supabase so you can access them across sessions. We never sell, rent, or share your personal information with third parties.
+        To sign in, we collect your email address and a password, which are handled securely through Supabase, our third-party authentication and infrastructure provider. Passwords are stored in encrypted form by Supabase; we do not store them ourselves. Your saved projects are kept in your browser's local storage on your own device, not in your account. We never sell, rent, or share your personal information with third parties.
       </Section>
       <Section title="GDPR & CCPA">
-        The personal data we hold is limited to your account information (email) and your saved projects, handled through Supabase. You have the right to access, export, and permanently delete your account-associated data upon request.
+        The personal data we hold is limited to your account email (via Supabase) and, if you have joined our early-access list, the email you submitted (via HubSpot). Your saved projects are stored locally on your own device, not on our servers. You have the right to access, export, and permanently delete your account-associated data upon request.
       </Section>
       <Section title="Third-party services">
-        GroupGrid uses Supabase, a trusted third-party provider, for account authentication and to store your saved projects. Your guest spreadsheet files are never sent to Supabase or any other service — they are processed only in your browser. External fonts (Manrope via Google Fonts) are loaded from Google's CDN, which is subject to Google's standard font API privacy policy. We use no advertising or analytics services.
+        GroupGrid uses Supabase, a trusted third-party provider, for account authentication. Your saved projects are stored locally in your browser, not on Supabase. If you join our early-access list, the email address you submit is sent to HubSpot, our email and CRM provider, so we can contact you about early access; our signup form posts directly to HubSpot's API and does not load HubSpot's tracking script, so no HubSpot tracking cookie is set. Your guest spreadsheet files are never sent to Supabase, HubSpot, or any other service — they are processed only in your browser. External fonts (Manrope and Poppins via Google Fonts) are loaded from Google's CDN, which is subject to Google's standard font API privacy policy. We use no advertising or analytics services.
       </Section>
       <Section title="Changes to this policy">
         We will notify users of any material changes to this policy via in-app notification and email. Continued use after notification constitutes acceptance of the updated policy.
@@ -3057,6 +3068,104 @@ function PrivacyPage({ onBack, nav }) {
         Questions about privacy? Email us at <a href="mailto:groupgrid@outlook.com" style={{ color:P.periwinkleD, fontWeight:600 }}>groupgrid@outlook.com</a>.
       </Section>
     </PageShell>
+  );
+}
+
+// ── Early-access capture ──────────────────────────────────────────────────────
+// Renders our own branded UI and posts to the published HubSpot form, so none of
+// HubSpot's styling or free-tier branding appears. IDs come from the form's
+// submissions URL. To collect company + events-per-year, add matching fields in
+// the HubSpot form editor, then set HS_ENABLE_QUALIFIERS true.
+const HS_PORTAL_ID = "246592315";
+const HS_FORM_GUID = "640bb175-27b8-4971-80ad-c5639a63dd6a";
+const HS_SUBMIT_URL = `https://api.hsforms.com/submissions/v3/integration/submit/${HS_PORTAL_ID}/${HS_FORM_GUID}`;
+const HS_ENABLE_QUALIFIERS = false;
+const HS_PRIVACY_URL = "https://groupgrid.io/privacy";
+
+function getCookie(name) {
+  if (typeof document === "undefined") return undefined;
+  const m = document.cookie.match("(^|;)\\s*" + name + "\\s*=\\s*([^;]+)");
+  return m ? m.pop() : undefined;
+}
+
+function EarlyAccessForm() {
+  const [email, setEmail] = useState("");
+  const [company, setCompany] = useState("");
+  const [eventsPerYear, setEventsPerYear] = useState("");
+  const [status, setStatus] = useState("idle"); // idle | submitting | success | error
+  const [errorMsg, setErrorMsg] = useState("");
+  const [focused, setFocused] = useState(false);
+  const [hovered, setHovered] = useState(false);
+
+  const validEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+
+  async function submit() {
+    if (!validEmail(email)) { setStatus("error"); setErrorMsg("Enter a valid email so we can reach you."); return; }
+    setStatus("submitting"); setErrorMsg("");
+    const fields = [{ objectTypeId:"0-1", name:"email", value:email.trim() }];
+    if (HS_ENABLE_QUALIFIERS) {
+      if (company.trim()) fields.push({ objectTypeId:"0-1", name:"company", value:company.trim() });
+      if (eventsPerYear) fields.push({ objectTypeId:"0-1", name:"events_per_year", value:eventsPerYear });
+    }
+    const ctx = { pageUri: typeof window!=="undefined"?window.location.href:"", pageName: typeof document!=="undefined"?document.title:"" };
+    const hutk = getCookie("hubspotutk"); if (hutk) ctx.hutk = hutk;
+    try {
+      const res = await fetch(HS_SUBMIT_URL, { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify({ fields, context:ctx }) });
+      if (res.ok) { setStatus("success"); return; }
+      let detail = ""; try { const d = await res.json(); detail = (d.errors&&d.errors[0]&&d.errors[0].message)||d.message||""; } catch(_){}
+      setStatus("error"); setErrorMsg(/email/i.test(detail) ? "That email looks invalid — mind double-checking it?" : "Something went wrong on our end. Please try again in a moment.");
+    } catch(_) { setStatus("error"); setErrorMsg("We couldn't reach the server. Check your connection and try again."); }
+  }
+  const onKey = e => { if (e.key === "Enter") submit(); };
+
+  const card = { boxSizing:"border-box", width:"100%", maxWidth:"440px", background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"20px", padding:"32px 30px", fontFamily:font, boxShadow:"0 14px 40px rgba(12,30,63,0.10)" };
+  const inputBase = { boxSizing:"border-box", width:"100%", padding:"12px 14px", fontSize:"15px", fontFamily:font, color:P.navy, background:P.white, borderRadius:"11px", outline:"none" };
+
+  if (status === "success") {
+    return (
+      <div style={card}>
+        <div style={{ width:44, height:44, borderRadius:12, background:P.accent, display:"flex", alignItems:"center", justifyContent:"center", marginBottom:16 }}>
+          <span style={{ color:P.white, fontSize:22, fontWeight:800, lineHeight:1 }}>✓</span>
+        </div>
+        <h3 style={{ margin:"0 0 8px", fontFamily:fontDisplay, fontWeight:700, fontSize:22, color:P.navy }}>You're on the list</h3>
+        <p style={{ margin:0, fontSize:15, lineHeight:1.55, color:P.grey600 }}>Thanks for signing up for early access to GroupGrid. We'll reach out as soon as your access is ready, with a quick guide to load your first event.</p>
+      </div>
+    );
+  }
+  return (
+    <div style={card}>
+      <div aria-hidden="true" style={{ display:"grid", gridTemplateColumns:"repeat(3, 7px)", gap:"5px", marginBottom:"18px" }}>
+        {[0,1,2,3,4,5,6,7,8].map(i => <span key={i} style={{ width:7, height:7, borderRadius:2, background:i===4?P.accent:P.periwinkle, opacity:i===4?1:0.55 }} />)}
+      </div>
+      <h3 style={{ margin:"0 0 8px", fontFamily:fontDisplay, fontWeight:700, fontSize:24, lineHeight:1.2, color:P.navy }}>Get early access to GroupGrid</h3>
+      <p style={{ margin:"0 0 22px", fontSize:15, lineHeight:1.55, color:P.grey600 }}>Catch travel and logistics issues before they reach your attendees. Join the list and we'll be in touch when your spot opens.</p>
+      <label htmlFor="gg-ea-email" style={{ display:"block", fontSize:13, fontWeight:700, color:P.navyLight, marginBottom:6 }}>Work email</label>
+      <input id="gg-ea-email" type="email" autoComplete="email" value={email} onKeyDown={onKey}
+        onChange={e => { setEmail(e.target.value); if (status==="error") { setStatus("idle"); setErrorMsg(""); } }}
+        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} placeholder="you@company.com"
+        style={{ ...inputBase, border:`1.5px solid ${status==="error"?P.red:focused?P.accent:P.grey200}`, transition:"border-color 0.15s" }} />
+      {HS_ENABLE_QUALIFIERS && (
+        <div style={{ marginTop:14 }}>
+          <label htmlFor="gg-ea-company" style={{ display:"block", fontSize:13, fontWeight:700, color:P.navyLight, marginBottom:6 }}>Company</label>
+          <input id="gg-ea-company" type="text" value={company} onChange={e => setCompany(e.target.value)} onKeyDown={onKey} placeholder="Where you run events" style={{ ...inputBase, border:`1.5px solid ${P.grey200}` }} />
+          <label htmlFor="gg-ea-events" style={{ display:"block", fontSize:13, fontWeight:700, color:P.navyLight, margin:"14px 0 6px" }}>Events per year</label>
+          <select id="gg-ea-events" value={eventsPerYear} onChange={e => setEventsPerYear(e.target.value)} style={{ ...inputBase, color:eventsPerYear?P.navy:P.grey600, border:`1.5px solid ${P.grey200}` }}>
+            <option value="">Select a range</option>
+            <option value="1-5">1 to 5</option>
+            <option value="6-15">6 to 15</option>
+            <option value="16-50">16 to 50</option>
+            <option value="50+">50+</option>
+          </select>
+        </div>
+      )}
+      {status === "error" && <p role="alert" style={{ margin:"10px 0 0", fontSize:13, fontWeight:600, color:P.red }}>{errorMsg}</p>}
+      <button type="button" onClick={submit} disabled={status==="submitting"}
+        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+        style={{ width:"100%", marginTop:18, padding:"13px 16px", fontSize:15, fontWeight:700, fontFamily:font, color:P.white, background:status==="submitting"?P.navyLight:hovered?P.accentD:P.accent, border:"none", borderRadius:11, cursor:status==="submitting"?"default":"pointer", transition:"background 0.15s" }}>
+        {status === "submitting" ? "Joining…" : "Get early access"}
+      </button>
+      <p style={{ margin:"14px 0 0", fontSize:12, lineHeight:1.5, color:P.grey600, textAlign:"center" }}>We respect your privacy. No spam, ever. <a href={HS_PRIVACY_URL} style={{ color:P.navyLight, textDecoration:"underline" }}>Privacy</a></p>
+    </div>
   );
 }
 
@@ -3611,6 +3720,20 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
           </div>
         );
       })()}
+      {/* ── Early access ── */}
+      <div style={{ background:P.offWhite, padding:"72px 40px", display:"flex", justifyContent:"center" }}>
+        <div style={{ width:"100%", maxWidth:"960px", display:"flex", gap:"48px", alignItems:"center", flexWrap:"wrap", justifyContent:"center" }}>
+          <div style={{ flex:"1 1 320px", minWidth:"280px" }}>
+            <div style={{ fontSize:"13px", fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:P.accentD, fontFamily:font, marginBottom:"12px" }}>Early access</div>
+            <h2 style={{ fontSize:"clamp(28px,4vw,40px)", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 14px", letterSpacing:"-0.03em", lineHeight:1.15 }}>Be first to run a cleaner event</h2>
+            <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.6, margin:0, maxWidth:"420px" }}>Not ready to upload your files yet? Join the early access list and we'll reach out when your spot opens, with a quick guide to load your first event.</p>
+          </div>
+          <div style={{ flex:"0 1 440px", minWidth:"300px", width:"100%", display:"flex", justifyContent:"center" }}>
+            <EarlyAccessForm />
+          </div>
+        </div>
+      </div>
+
       <div style={{ background:`linear-gradient(135deg, ${P.navy}, #0D1E40)`, padding:"96px 40px", textAlign:"center", position:"relative", overflow:"hidden" }}>
         <div style={{ position:"absolute", top:-120, left:"50%", transform:"translateX(-50%)", width:600, height:600, borderRadius:"50%", background:`radial-gradient(circle, ${P.accent}10, transparent 65%)`, pointerEvents:"none" }} />
         <div style={{ position:"relative" }}>
@@ -3916,9 +4039,120 @@ function UploadSquare({ label, icon, accent, file, setter, required, sub, compac
   );
 }
 
+// ── Downloadable upload templates ─────────────────────────────────────────────
+// Builds a correctly formatted .xlsx (header row + one example row) entirely in the
+// browser, using the exact column names the parsers recognize.
+const TEMPLATE_DEFS = {
+  registration: { file:"GroupGrid_Registration_Template.xlsx", sheet:"Registration", rows:[
+    ["First Name","Last Name","Email"],
+    ["Jane","Doe","jane.doe@example.com"],
+  ]},
+  flight: { file:"GroupGrid_Flight_Template.xlsx", sheet:"Flights", rows:[
+    ["Name","Email","Arrival Date","Arrival Time","Arrival Airport","Inbound Flight","Departure Date","Departure Time","Departure Airport","Outbound Flight"],
+    ["Jane Doe","jane.doe@example.com","2026-09-14","6:15 AM","JFK","DL1234","2026-09-17","5:40 PM","JFK","DL5678"],
+  ]},
+  hotel: { file:"GroupGrid_Hotel_Template.xlsx", sheet:"Hotel", rows:[
+    ["Name","Email","Hotel","Check-In","Check-Out","Confirmation"],
+    ["Jane Doe","jane.doe@example.com","Grand Plaza Hotel","2026-09-14","2026-09-17","ABC12345"],
+  ]},
+  car: { file:"GroupGrid_Car_Template.xlsx", sheet:"Car Transfers", rows:[
+    ["Name","Email","Pickup Date","Pickup Time","Dropoff Date","Dropoff Time"],
+    ["Jane Doe","jane.doe@example.com","2026-09-14","7:00 AM","2026-09-17","6:30 PM"],
+  ]},
+  dietary: { file:"GroupGrid_Dietary_Template.xlsx", sheet:"Dietary", rows:[
+    ["Name","Email","Dietary Restriction","Notes"],
+    ["Jane Doe","jane.doe@example.com","Vegetarian","No nuts"],
+  ]},
+};
+function downloadTemplate(type) {
+  const def = TEMPLATE_DEFS[type]; if (!def) return;
+  const ws = XLSX.utils.aoa_to_sheet(def.rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, def.sheet);
+  XLSX.writeFile(wb, def.file);
+}
+
+// ── PDF table extraction (beta) ───────────────────────────────────────────────
+// Loads pdf.js on demand (only when a PDF is uploaded), extracts text with its
+// position, reconstructs rows by line, and assigns each value to the nearest
+// header column. Runs entirely in the browser, so files never leave the device.
+// Best for clean, digital, table-style PDFs (e.g. hotel rooming lists); scanned
+// or irregular PDFs may extract imperfectly, which is why results are shown for
+// review before anything is sent.
+const PDFJS_VERSION = "3.11.174";
+let _pdfjsPromise = null;
+function loadPdfJs() {
+  if (typeof window !== "undefined" && window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if (_pdfjsPromise) return _pdfjsPromise;
+  _pdfjsPromise = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.min.js`;
+    s.onload = () => {
+      try {
+        const lib = window.pdfjsLib;
+        lib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.js`;
+        resolve(lib);
+      } catch (e) { reject(e); }
+    };
+    s.onerror = () => { _pdfjsPromise = null; reject(new Error("Could not load the PDF reader. Check your connection and try again, or upload an Excel or CSV file.")); };
+    document.head.appendChild(s);
+  });
+  return _pdfjsPromise;
+}
+function buildAoaFromPdfLines(lines) {
+  const KW = ["name","email","check","hotel","room","arrival","depart","date","time","flight","airport","pickup","dropoff","drop off","confirmation","guest","attendee","transfer","first","last"];
+  let headerIdx = -1, best = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const txt = lines[i].items.map(x => x.str).join(" ").toLowerCase();
+    const hits = KW.reduce((a, k) => a + (txt.includes(k) ? 1 : 0), 0);
+    if (lines[i].items.length >= 2 && hits > best) { best = hits; headerIdx = i; }
+  }
+  if (headerIdx < 0 || best < 2) return null;
+  const header = lines[headerIdx].items;
+  const anchors = header.map(h => h.x);
+  const headerRow = header.map(h => h.str);
+  const headerSig = headerRow.join(" ").toLowerCase();
+  const nearest = x => { let bi = 0, bd = Infinity; for (let i = 0; i < anchors.length; i++) { const d = Math.abs(anchors[i] - x); if (d < bd) { bd = d; bi = i; } } return bi; };
+  const out = [headerRow];
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const sig = lines[i].items.map(x => x.str).join(" ").toLowerCase();
+    if (sig === headerSig) continue; // skip repeated headers on later pages
+    const cells = new Array(anchors.length).fill("");
+    for (const it of lines[i].items) { const c = nearest(it.x); cells[c] = cells[c] ? cells[c] + " " + it.str : it.str; }
+    if (cells.some(c => c && c.trim() !== "")) out.push(cells);
+  }
+  return out;
+}
+async function extractPdfToWorkbook(file) {
+  const pdfjsLib = await loadPdfJs();
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let lines = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const tc = await page.getTextContent();
+    const items = tc.items
+      .filter(it => it.str && it.str.trim() !== "")
+      .map(it => ({ x: it.transform[4], y: Math.round(it.transform[5]), str: it.str.trim() }))
+      .sort((a, b) => b.y - a.y || a.x - b.x);
+    let cur = null;
+    for (const it of items) {
+      if (!cur || Math.abs(cur.y - it.y) > 3) { cur = { y: it.y, items: [it] }; lines.push(cur); }
+      else cur.items.push(it);
+    }
+  }
+  for (const ln of lines) ln.items.sort((a, b) => a.x - b.x);
+  const aoa = buildAoaFromPdfLines(lines);
+  if (!aoa || aoa.length < 2) throw new Error("Couldn't find a readable table in this PDF. Try the Excel or CSV version, or download a template for the right format.");
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "PDF");
+  return wb;
+}
+
 // ── Two-step Setup screen (Option 1). Step 1 = project details (event name required),
-// Step 2 = file uploads (required on top, optional below). Accepts .xlsx/.xls/.csv.
-function SetupTile({ label, sub, icon, accent, file, setter, required, recommended, columns }) {
+// Step 2 = file uploads (required on top, optional below). Accepts .xlsx/.xls/.csv/.pdf.
+function SetupTile({ label, sub, icon, accent, file, setter, required, recommended, columns, templateType }) {
   const [drag, setDrag] = useState(false);
   const [hover, setHover] = useState(false);
   const onDrop = e => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) setter(f); };
@@ -3926,8 +4160,8 @@ function SetupTile({ label, sub, icon, accent, file, setter, required, recommend
     <label
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
       onDragOver={e => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)} onDrop={onDrop}
-      style={{ position:"relative", display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", justifyContent:"center", minHeight:"96px", border:`1.5px ${file?"solid":"dashed"} ${file?accent:drag?accent:P.grey200}`, borderRadius:"11px", padding:"12px 10px", cursor:"pointer", background:file?accent+"0D":drag?accent+"08":P.grey50, transition:"all 0.15s" }}>
-      <input type="file" accept=".xlsx,.xls,.csv" style={{ display:"none" }} onChange={e => e.target.files[0] && setter(e.target.files[0])} />
+      style={{ position:"relative", display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", justifyContent:"center", minHeight:"108px", border:`1.5px ${file?"solid":"dashed"} ${file?accent:drag?accent:P.grey200}`, borderRadius:"11px", padding:"12px 10px", cursor:"pointer", background:file?accent+"0D":drag?accent+"08":P.grey50, transition:"all 0.15s" }}>
+      <input type="file" accept=".xlsx,.xls,.csv,.pdf" style={{ display:"none" }} onChange={e => e.target.files[0] && setter(e.target.files[0])} />
       <span style={{ position:"absolute", top:7, left:0, right:0, display:"flex", justifyContent:"center" }}>
         {recommended
           ? <span style={{ fontSize:"9px", fontWeight:600, padding:"1px 7px", borderRadius:"20px", background:"#DCF2F2", color:"#0A7B7A", fontFamily:font }}>Source of truth</span>
@@ -3938,6 +4172,13 @@ function SetupTile({ label, sub, icon, accent, file, setter, required, recommend
       <div style={{ marginTop:"12px", marginBottom:"5px", color:file?P.green:accent }}>{file ? <Check size={20} strokeWidth={1.8} color={P.green}/> : icon}</div>
       <div style={{ fontSize:"13px", fontWeight:500, color:P.navy, fontFamily:font, marginBottom:"2px", wordBreak:"break-word", maxWidth:"130px", lineHeight:1.25 }}>{file ? file.name : label}</div>
       <div style={{ fontSize:"10px", color:file?P.green:P.grey400, fontFamily:font, fontWeight:file?500:400 }}>{file ? "Ready" : sub}</div>
+      {!file && templateType && (
+        <button onClick={e => { e.preventDefault(); e.stopPropagation(); downloadTemplate(templateType); }}
+          title="Download a correctly formatted Excel template"
+          style={{ position:"absolute", bottom:7, left:0, right:0, margin:"0 auto", width:"fit-content", background:"transparent", border:"none", color:P.periwinkleD, fontSize:"10px", fontWeight:600, fontFamily:font, cursor:"pointer", textDecoration:"underline" }}>
+          Download template
+        </button>
+      )}
       {file && <button onClick={e => { e.preventDefault(); setter(null); }} style={{ position:"absolute", top:8, right:10, background:"transparent", border:"none", color:P.grey400, cursor:"pointer", lineHeight:1 }} title="Remove"><X size={13} strokeWidth={1.8}/></button>}
       {hover && !file && columns && (
         <div style={{ position:"absolute", bottom:"calc(100% + 8px)", left:"50%", transform:"translateX(-50%)", width:"210px", background:P.navy, borderRadius:"10px", padding:"12px 14px", boxShadow:"0 8px 24px rgba(0,0,0,0.3)", zIndex:30, textAlign:"left", pointerEvents:"none" }}>
@@ -3953,6 +4194,7 @@ function SetupScreen({
   eventName, setEventName, arrivalStart, setArrivalStart, arrivalEnd, setArrivalEnd,
   departureStart, setDepartureStart, departureEnd, setDepartureEnd,
   preferredAirports, setPreferredAirports,
+  arrivalCutoff, setArrivalCutoff,
   contacts, setContactsOpen,
   registrationFile, setRegistrationFile, flightFile, setFlightFile, hotelFile, setHotelFile,
   hotelProperty, setHotelProperty, extraHotels, setExtraHotels,
@@ -4008,6 +4250,13 @@ function SetupScreen({
             </div>
           ))}
         </div>
+        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", margin:"8px 0 4px" }}>Early-arrival cutoff <span style={{ textTransform:"none", letterSpacing:0, fontWeight:400 }}>· optional</span></div>
+        <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"8px", lineHeight:1.5 }}>If a flight lands before this time, the traveler needs a room from the night before. GroupGrid flags anyone arriving before the cutoff whose hotel isn't booked for the night prior.</div>
+        <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"12px" }}>
+          <input type="time" value={arrivalCutoff} onChange={e => setArrivalCutoff(e.target.value)}
+            style={{ background:P.grey50, border:`1.5px solid ${arrivalCutoff?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:arrivalCutoff?P.navy:P.grey400, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
+          {arrivalCutoff && <button onClick={() => setArrivalCutoff("")} style={{ background:"transparent", border:"none", color:P.grey400, fontSize:"13px", fontFamily:font, cursor:"pointer", textDecoration:"underline" }}>Clear</button>}
+        </div>
         <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", margin:"8px 0 4px" }}>Preferred airport(s) <span style={{ textTransform:"none", letterSpacing:0, fontWeight:400 }}>· optional</span></div>
         <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"8px", lineHeight:1.5 }}>Enter the airport code(s) for your event city, separated by commas (e.g. JFK, LGA). GroupGrid flags anyone flying into a different airport. It recognizes common airport names too.</div>
         <input type="text" value={preferredAirports} onChange={e => setPreferredAirports(e.target.value)} placeholder="e.g. JFK, LGA"
@@ -4029,9 +4278,9 @@ function SetupScreen({
         <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"14px" }}>Upload whatever you have — registration, flights, hotels, cars. GroupGrid cross-checks any 2 or more. Excel or CSV. Hover a tile for expected columns.</div>
         <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>Upload any 2 or more</div>
         <div className="gg-setup-tiles3" style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"10px", marginBottom:"14px" }}>
-          <SetupTile label="Registration List" sub="Best anchor" icon={<PeopleIcon size={20} />} accent={P.accentD} file={registrationFile} setter={setRegistrationFile} recommended columns={["First/Last Name (or Name)","Email","Company / Job Title (opt)","Requested Check-In / Out (opt)","Flight / Hotel Request (opt)"]} />
-          <SetupTile label="Flight Manifest" sub=".xlsx, .xls, .csv" icon={<PlaneIcon size={20} />} accent={P.periwinkleD} file={flightFile} setter={setFlightFile} columns={["First/Last Name (or Name)","Email (opt)","Arrival Date","Departure Date","Flight # (opt)"]} />
-          <SetupTile label="Hotel Roster" sub=".xlsx, .xls, .csv" icon={<HotelIcon size={20} />} accent={P.navy} file={hotelFile} setter={setHotelFile} columns={["First/Last Name (or Name)","Email (opt)","Check-In Date","Check-Out Date","Hotel / Room (opt)"]} />
+          <SetupTile label="Registration List" sub="Best anchor" icon={<PeopleIcon size={20} />} accent={P.accentD} file={registrationFile} setter={setRegistrationFile} templateType="registration" recommended columns={["First/Last Name (or Name)","Email","Company / Job Title (opt)","Requested Check-In / Out (opt)","Flight / Hotel Request (opt)"]} />
+          <SetupTile label="Flight Manifest" sub=".xlsx, .csv, .pdf" icon={<PlaneIcon size={20} />} accent={P.periwinkleD} file={flightFile} setter={setFlightFile} templateType="flight" columns={["First/Last Name (or Name)","Email (opt)","Arrival Date","Departure Date","Flight # (opt)"]} />
+          <SetupTile label="Hotel Roster" sub=".xlsx, .csv, .pdf" icon={<HotelIcon size={20} />} accent={P.navy} file={hotelFile} setter={setHotelFile} templateType="hotel" columns={["First/Last Name (or Name)","Email (opt)","Check-In Date","Check-Out Date","Hotel / Room (opt)"]} />
         </div>
 
         {/* Multi-hotel: name the property and add more rooming lists */}
@@ -4067,8 +4316,8 @@ function SetupScreen({
 
         <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>More files</div>
         <div className="gg-setup-tiles2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px" }}>
-          <SetupTile label="Car Transfers" sub=".xlsx, .xls, .csv" icon={<CarIcon size={20} />} accent={P.grey600} file={carFile} setter={setCarFile} columns={["First/Last Name (or Name)","Email (opt)","Pickup Date","Dropoff Date","Pickup Location (opt)"]} />
-          {SHOW_DIETARY && <SetupTile label="Dietary & Access" sub=".xlsx, .xls, .csv" icon={<Salad size={20} strokeWidth={1.8} color="#27AE60"/>} accent={P.teal} file={dietaryFile} setter={setDietaryFile} columns={["First/Last Name (or Name)","Email (opt)","Dietary Restrictions","Accessibility Needs","Special Notes (opt)"]} />}
+          <SetupTile label="Car Transfers" sub=".xlsx, .csv, .pdf" icon={<CarIcon size={20} />} accent={P.grey600} file={carFile} setter={setCarFile} templateType="car" columns={["First/Last Name (or Name)","Email (opt)","Pickup Date","Dropoff Date","Pickup Location (opt)"]} />
+          {SHOW_DIETARY && <SetupTile label="Dietary & Access" sub=".xlsx, .csv, .pdf" icon={<Salad size={20} strokeWidth={1.8} color="#27AE60"/>} accent={P.teal} file={dietaryFile} setter={setDietaryFile} templateType="dietary" columns={["First/Last Name (or Name)","Email (opt)","Dietary Restrictions","Accessibility Needs","Special Notes (opt)"]} />}
         </div>
         <div style={{ fontSize:"13px", color:P.navyLight, fontFamily:font, marginTop:"16px", padding:"10px 13px", background:P.periwinkle+"0D", borderRadius:"9px", border:`1px solid ${P.periwinkle}22`, lineHeight:1.5 }}>
           <span style={{ background:P.periwinkle+"22", color:P.periwinkleD, borderRadius:"5px", padding:"1px 7px", fontSize:"11px", fontWeight:600, marginRight:"7px" }}>TIP</span>
@@ -4117,6 +4366,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
   const [departureStart, setDepartureStart] = useState("");
   const [departureEnd, setDepartureEnd] = useState("");
   const [preferredAirports, setPreferredAirports] = useState("");
+  const [arrivalCutoff, setArrivalCutoff] = useState(""); // "HH:MM" — early-arrival cutoff; empty = off
   const [eventName, setEventName] = useState("");
   const [emailModal, setEmailModal] = useState(null);
   const [meta, setMeta] = useState({});
@@ -4209,7 +4459,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
   // (the old bug: every note/date change reset the 60s countdown, so it rarely fired).
   const autosaveData = useRef({});
   useEffect(() => {
-    autosaveData.current = { results, meta, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, storageKey };
+    autosaveData.current = { results, meta, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, arrivalCutoff, storageKey };
   }, [results, meta, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, storageKey]);
 
   useEffect(() => {
@@ -4224,6 +4474,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
           name: d.eventName || `Session ${new Date().toLocaleDateString()}`,
           date: new Date().toISOString(),
           meta: d.meta, eventName: d.eventName, arrivalStart: d.arrivalStart, arrivalEnd: d.arrivalEnd, departureStart: d.departureStart, departureEnd: d.departureEnd,
+          preferredAirports: d.preferredAirports, arrivalCutoff: d.arrivalCutoff,
           guestCount: d.results.length,
           issueCount: d.results.filter(r => r.status !== "ok").length,
           autoSaved: true,
@@ -4250,6 +4501,8 @@ function GroupGrid({ user, onLogin, onLogout }) {
   }, []); // run once; reads live state via the ref so the timer never resets
 
   async function readXlsx(file) {
+    const isPdf = (file.type && file.type.indexOf("pdf") >= 0) || /\.pdf$/i.test(file.name || "");
+    if (isPdf) return extractPdfToWorkbook(file);
     return new Promise((res, rej) => {
       const r = new FileReader();
       r.onload = e => { try { res(XLSX.read(e.target.result, { type:"array", cellDates:true })); } catch (err) { rej(err); } };
@@ -4272,7 +4525,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
       if (carFile)          { const w = await readXlsx(carFile);          cars = parseCarSheet(w); }
       if (dietaryFile)      { const w = await readXlsx(dietaryFile);      dietary = parseDietarySheet(w); }
       if (registrationFile) { const w = await readXlsx(registrationFile); registration = parseRegistrationSheet(w); }
-      const aw = { arrivalStart:parseDate(arrivalStart), arrivalEnd:parseDate(arrivalEnd), departureStart:parseDate(departureStart), departureEnd:parseDate(departureEnd), preferredAirports: preferredAirports.split(",").map(s=>s.trim()).filter(Boolean) };
+      const aw = { arrivalStart:parseDate(arrivalStart), arrivalEnd:parseDate(arrivalEnd), departureStart:parseDate(departureStart), departureEnd:parseDate(departureEnd), preferredAirports: preferredAirports.split(",").map(s=>s.trim()).filter(Boolean), arrivalCutoff };
       const allResults = crossMatch(flights, hotels, cars, dietary, aw, meta, registration);
       setResults(allResults);
     } catch (err) { setError("Could not read files: " + err.message); }
@@ -4299,7 +4552,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
   function saveSession() {
     if (!results) return;
-    const session = { id:Date.now(), name:eventName||`Session ${new Date().toLocaleDateString()}`, date:new Date().toISOString(), meta, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, guestCount:results.length, issueCount:results.filter(r=>r.status!=="ok").length, results };
+    const session = { id:Date.now(), name:eventName||`Session ${new Date().toLocaleDateString()}`, date:new Date().toISOString(), meta, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, arrivalCutoff, guestCount:results.length, issueCount:results.filter(r=>r.status!=="ok").length, results };
     const next = [session, ...savedSessions.filter(s => s.name !== session.name)].slice(0, 50);
     setSavedSessions(next);
     try {
@@ -4841,7 +5094,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 // so warn if there's unsaved work first \u2014 the user can Save, then reopen to get notes back.
                 const hasWork = results && (Object.keys(meta||{}).length > 0 || eventName);
                 if (hasWork && !window.confirm("Start a new project? Your current notes and resolved flags will be cleared from this screen. To keep them, click Cancel, then use Save Now first \u2014 you can reopen this project anytime to get them back.")) return;
-                setResults(null); setFlightFile(null); setHotelFile(null); setCarFile(null); setDietaryFile(null); setRegistrationFile(null); setEventName(""); setMeta({}); setPreferredAirports(""); setFilter("all"); setSearch(""); setExpanded(null); setActiveTab("grid"); }}
+                setResults(null); setFlightFile(null); setHotelFile(null); setCarFile(null); setDietaryFile(null); setRegistrationFile(null); setEventName(""); setMeta({}); setPreferredAirports(""); setArrivalCutoff(""); setFilter("all"); setSearch(""); setExpanded(null); setActiveTab("grid"); }}
               style={{ width:"100%", display:"flex", alignItems:"center", gap:"8px", background:"rgba(255,255,255,0.07)", border:`1px dashed rgba(255,255,255,0.18)`, borderRadius:"8px", padding:"7px 10px", cursor:"pointer", marginBottom:"6px", fontFamily:font, transition:"all 0.15s", textAlign:"left" }}
               onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.12)"}
               onMouseLeave={e => e.currentTarget.style.background="rgba(255,255,255,0.07)"}>
@@ -4879,6 +5132,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                         setArrivalStart(s.arrivalStart||""); setArrivalEnd(s.arrivalEnd||"");
                         setDepartureStart(s.departureStart||""); setDepartureEnd(s.departureEnd||"");
                         setPreferredAirports(s.preferredAirports||"");
+                        setArrivalCutoff(s.arrivalCutoff||"");
                         if (s.results && s.results.length) { setResults(rehydrateResults(s.results)); setActiveTab("grid"); setFilter("all"); setExpanded(null); }
                         else { setResults(null); setSaveMsg("This project was saved before full data was stored — re-upload its files to view it."); setTimeout(()=>setSaveMsg(""), 5000); }
                         if (isMobile) setSidebarOpen(false);
@@ -5064,6 +5318,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
             departureStart={departureStart} setDepartureStart={setDepartureStart}
             departureEnd={departureEnd} setDepartureEnd={setDepartureEnd}
             preferredAirports={preferredAirports} setPreferredAirports={setPreferredAirports}
+            arrivalCutoff={arrivalCutoff} setArrivalCutoff={setArrivalCutoff}
             contacts={contacts} setContactsOpen={setContactsOpen}
             registrationFile={registrationFile} setRegistrationFile={setRegistrationFile}
             flightFile={flightFile} setFlightFile={setFlightFile}
