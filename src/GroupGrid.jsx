@@ -58,7 +58,15 @@ const P = {
 const font = "'Manrope', sans-serif";
 const fontDisplay = "'Poppins', sans-serif";
 // Build version — bump this whenever code is deployed so you can confirm at a glance which build is live.
-const APP_VERSION = "v6.6 · Jun 2026";
+const APP_VERSION = "v6.7 · Jun 2026";
+// Deep-linkable marketing/legal pages. Maps URL path <-> in-app page so groupgrid.io/privacy
+// loads the policy directly (and refresh/share keeps you there). Landing and app both live at "/".
+const PAGE_PATHS = { privacy:"/privacy", terms:"/terms", pricing:"/pricing", about:"/about", faq:"/faq", contact:"/contact" };
+function pathToPage(pathname) {
+  const p = (pathname || "/").replace(/\/+$/, "").toLowerCase() || "/";
+  for (const k in PAGE_PATHS) { if (PAGE_PATHS[k] === p) return k; }
+  return "landing";
+}
 // Feature flag: hide the Dietary/Access feature from the UI for now while focusing on
 // registration, flights, hotels, and cars. The parsing/engine code stays intact —
 // flip this to true to bring the dietary upload, column, and detail back everywhere.
@@ -596,9 +604,12 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
 
     const details = {};
     if (flight && hotel) {
+      // An early arrival (before the cutoff) is expected to have the night prior booked,
+      // so a check-in exactly one day before arrival is correct here, not a mismatch.
+      const earlyArr = !!(arrivalCutoff && flight.arrivalTime && flight.flightArrival && flight.arrivalTime < arrivalCutoff);
       const ad = diffDays(flight.flightArrival, hotel.checkIn), dd = diffDays(flight.flightDeparture, hotel.checkOut);
       details.arrDiff = ad; details.depDiff = dd;
-      if (ad !== null && ad !== 0) issues.push({ type:"mismatch", text: ad<0?`Arrives ${Math.abs(ad)} ${Math.abs(ad)===1?"day":"days"} before check-in`:`Arrives ${ad} ${ad===1?"day":"days"} after check-in` });
+      if (ad !== null && ad !== 0 && !(earlyArr && ad === 1)) issues.push({ type:"mismatch", text: ad<0?`Arrives ${Math.abs(ad)} ${Math.abs(ad)===1?"day":"days"} before check-in`:`Arrives ${ad} ${ad===1?"day":"days"} after check-in` });
       if (dd !== null && dd !== 0) issues.push({ type:"mismatch", text: dd<0?`Departs ${Math.abs(dd)} ${Math.abs(dd)===1?"day":"days"} before check-out`:`Departs ${dd} ${dd===1?"day":"days"} after check-out` });
     }
     if (flight && car) {
@@ -4191,7 +4202,7 @@ function SetupTile({ label, sub, icon, accent, file, setter, required, recommend
 }
 
 function SetupScreen({
-  eventName, setEventName, arrivalStart, setArrivalStart, arrivalEnd, setArrivalEnd,
+  projectName, setProjectName, eventName, setEventName, arrivalStart, setArrivalStart, arrivalEnd, setArrivalEnd,
   departureStart, setDepartureStart, departureEnd, setDepartureEnd,
   preferredAirports, setPreferredAirports,
   arrivalCutoff, setArrivalCutoff,
@@ -4201,7 +4212,7 @@ function SetupScreen({
   carFile, setCarFile, dietaryFile, setDietaryFile,
   ready, loading, error, runCheck, isMobile
 }) {
-  const hasName = !!(eventName && eventName.trim());
+  const hasName = !!(projectName && projectName.trim());
   const canRun = hasName && ready && !loading;
   const hasContacts = contacts && (contacts.hotel?.email || contacts.travel?.email || contacts.car?.email);
   return (
@@ -4228,11 +4239,18 @@ function SetupScreen({
       <div className="gg-setup-cols" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(380px, 1fr))", gap:"14px", alignItems:"start" }}>
       <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px" }}>
         <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 1 · Project details</div>
-        <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"14px" }}>Name your event and (optionally) set travel dates and contacts.</div>
+        <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"14px" }}>Name your project, set the event name used in attendee emails, and (optionally) add travel dates and contacts.</div>
         <div style={{ marginBottom:"14px" }}>
-          <label style={{ display:"block", fontSize:"13px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Event name <span style={{ color:P.red }}>required</span></label>
-          <input value={eventName} onChange={e => setEventName(e.target.value)} placeholder="e.g. Sales Summit 2026"
+          <label style={{ display:"block", fontSize:"13px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Project name <span style={{ color:P.red }}>required</span></label>
+          <input value={projectName} onChange={e => setProjectName(e.target.value)} placeholder="e.g. Sales Summit - working file"
             style={{ width:"100%", background:P.grey50, border:`1.5px solid ${hasName?P.accent+"88":P.grey100}`, borderRadius:"10px", padding:"11px 13px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+          <div style={{ fontSize:"11px", color:P.grey400, fontFamily:font, marginTop:"5px" }}>What this saved project is called in your list. Only you see it.</div>
+        </div>
+        <div style={{ marginBottom:"14px" }}>
+          <label style={{ display:"block", fontSize:"13px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Event name <span style={{ color:P.grey400, fontWeight:400 }}>· used in attendee emails</span></label>
+          <input value={eventName} onChange={e => setEventName(e.target.value)} placeholder="e.g. Sales Summit 2026"
+            style={{ width:"100%", background:P.grey50, border:`1.5px solid ${eventName&&eventName.trim()?P.accent+"88":P.grey100}`, borderRadius:"10px", padding:"11px 13px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+          <div style={{ fontSize:"11px", color:P.grey400, fontFamily:font, marginTop:"5px" }}>The name guests see in emails and on the report. Left blank, emails fall back to a generic phrase.</div>
         </div>
         <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", margin:"4px 0 4px" }}>Approved travel dates <span style={{ textTransform:"none", letterSpacing:0, fontWeight:400 }}>· optional</span></div>
         <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"12px", lineHeight:1.5 }}>Set the dates your event covers. GroupGrid flags anyone whose flight or hotel falls outside this range — e.g. arriving early or leaving late beyond what's approved.</div>
@@ -4368,10 +4386,11 @@ function GroupGrid({ user, onLogin, onLogout }) {
   const [preferredAirports, setPreferredAirports] = useState("");
   const [arrivalCutoff, setArrivalCutoff] = useState(""); // "HH:MM" — early-arrival cutoff; empty = off
   const [eventName, setEventName] = useState("");
+  const [projectName, setProjectName] = useState(""); // internal save label, distinct from eventName (used in comms)
   const [emailModal, setEmailModal] = useState(null);
   const [meta, setMeta] = useState({});
   const [activeTab, setActiveTab] = useState("grid");
-  const [page, setPage] = useState("landing"); // "landing" | "app" | "pricing" | "contact" | "about" | "privacy" | "terms"
+  const [page, setPage] = useState(() => (typeof window !== "undefined" ? pathToPage(window.location.pathname) : "landing")); // "landing" | "app" | "pricing" | "contact" | "about" | "privacy" | "terms"
   const [compareSession, setCompareSession] = useState(null); // session to diff against
   const [showDiff, setShowDiff] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
@@ -4398,6 +4417,18 @@ function GroupGrid({ user, onLogin, onLogout }) {
   useEffect(() => {
     if (!user && page === "app") { setPage("landing"); setLoginOpen(true); }
   }, [user, page]);
+  // Keep the URL in sync with the current page so deep links, refresh, and back/forward work.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const target = PAGE_PATHS[page] || "/";
+    if (window.location.pathname !== target) window.history.pushState({ page }, "", target);
+  }, [page]);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onPop = () => setPage(pathToPage(window.location.pathname));
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
   const [sortBy, setSortBy] = useState(null);       // null | "name" | "status" | "arrival" | "checkin" | "departure" | "checkout"
   const [sortDir, setSortDir] = useState("asc");    // "asc" | "desc"
   const [selectedRows, setSelectedRows] = useState(new Set()); // set of record keys
@@ -4459,7 +4490,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
   // (the old bug: every note/date change reset the 60s countdown, so it rarely fired).
   const autosaveData = useRef({});
   useEffect(() => {
-    autosaveData.current = { results, meta, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, arrivalCutoff, storageKey };
+    autosaveData.current = { results, meta, projectName, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, arrivalCutoff, storageKey };
   }, [results, meta, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, storageKey]);
 
   useEffect(() => {
@@ -4471,9 +4502,9 @@ function GroupGrid({ user, onLogin, onLogout }) {
       setTimeout(() => {
         const session = {
           id: Date.now(),
-          name: d.eventName || `Session ${new Date().toLocaleDateString()}`,
+          name: d.projectName || d.eventName || `Session ${new Date().toLocaleDateString()}`,
           date: new Date().toISOString(),
-          meta: d.meta, eventName: d.eventName, arrivalStart: d.arrivalStart, arrivalEnd: d.arrivalEnd, departureStart: d.departureStart, departureEnd: d.departureEnd,
+          meta: d.meta, projectName: d.projectName, eventName: d.eventName, arrivalStart: d.arrivalStart, arrivalEnd: d.arrivalEnd, departureStart: d.departureStart, departureEnd: d.departureEnd,
           preferredAirports: d.preferredAirports, arrivalCutoff: d.arrivalCutoff,
           guestCount: d.results.length,
           issueCount: d.results.filter(r => r.status !== "ok").length,
@@ -4552,7 +4583,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
   function saveSession() {
     if (!results) return;
-    const session = { id:Date.now(), name:eventName||`Session ${new Date().toLocaleDateString()}`, date:new Date().toISOString(), meta, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, arrivalCutoff, guestCount:results.length, issueCount:results.filter(r=>r.status!=="ok").length, results };
+    const session = { id:Date.now(), name:(projectName||eventName)||`Session ${new Date().toLocaleDateString()}`, date:new Date().toISOString(), meta, projectName, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, arrivalCutoff, guestCount:results.length, issueCount:results.filter(r=>r.status!=="ok").length, results };
     const next = [session, ...savedSessions.filter(s => s.name !== session.name)].slice(0, 50);
     setSavedSessions(next);
     try {
@@ -5092,9 +5123,9 @@ function GroupGrid({ user, onLogin, onLogout }) {
             <button onClick={() => {
                 // Notes and resolved flags live with the project. Starting fresh clears them,
                 // so warn if there's unsaved work first \u2014 the user can Save, then reopen to get notes back.
-                const hasWork = results && (Object.keys(meta||{}).length > 0 || eventName);
+                const hasWork = results && (Object.keys(meta||{}).length > 0 || eventName || projectName);
                 if (hasWork && !window.confirm("Start a new project? Your current notes and resolved flags will be cleared from this screen. To keep them, click Cancel, then use Save Now first \u2014 you can reopen this project anytime to get them back.")) return;
-                setResults(null); setFlightFile(null); setHotelFile(null); setCarFile(null); setDietaryFile(null); setRegistrationFile(null); setEventName(""); setMeta({}); setPreferredAirports(""); setArrivalCutoff(""); setFilter("all"); setSearch(""); setExpanded(null); setActiveTab("grid"); }}
+                setResults(null); setFlightFile(null); setHotelFile(null); setCarFile(null); setDietaryFile(null); setRegistrationFile(null); setEventName(""); setProjectName(""); setMeta({}); setPreferredAirports(""); setArrivalCutoff(""); setFilter("all"); setSearch(""); setExpanded(null); setActiveTab("grid"); }}
               style={{ width:"100%", display:"flex", alignItems:"center", gap:"8px", background:"rgba(255,255,255,0.07)", border:`1px dashed rgba(255,255,255,0.18)`, borderRadius:"8px", padding:"7px 10px", cursor:"pointer", marginBottom:"6px", fontFamily:font, transition:"all 0.15s", textAlign:"left" }}
               onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.12)"}
               onMouseLeave={e => e.currentTarget.style.background="rgba(255,255,255,0.07)"}>
@@ -5106,13 +5137,13 @@ function GroupGrid({ user, onLogin, onLogout }) {
             </button>
 
             {/* Current unsaved / active project */}
-            {(flightFile || results) && !savedSessions.some(s => s.name === eventName && eventName) && (
+            {(flightFile || results) && !savedSessions.some(s => s.name === (projectName||eventName) && (projectName||eventName)) && (
               <div style={{ display:"flex", alignItems:"center", gap:"8px", background:"rgba(0,201,177,0.12)", border:`1px solid rgba(0,201,177,0.3)`, borderRadius:"8px", padding:"7px 10px", marginBottom:"4px" }}>
                 <div style={{ width:24, height:24, borderRadius:"6px", background:P.accent, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                   <div style={{ width:7, height:7, borderRadius:"50%", background:P.navy }} />
                 </div>
                 <div style={{ minWidth:0, flex:1 }}>
-                  <div style={{ fontSize:"15px", fontWeight:800, color:P.white, fontFamily:font, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{eventName || "Unsaved Project"}</div>
+                  <div style={{ fontSize:"15px", fontWeight:800, color:P.white, fontFamily:font, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{projectName || eventName || "Unsaved Project"}</div>
                   <div style={{ fontSize:"14px", color:P.accent, fontFamily:font }}>{results ? `${results.length} guests · ${results.filter(r=>r.status!=="ok").length} flags` : "Active"}</div>
                 </div>
                 <span style={{ fontSize:"14px", background:P.accent, color:P.navy, padding:"2px 6px", borderRadius:"20px", fontFamily:font, fontWeight:800, flexShrink:0 }}>Active</span>
@@ -5123,12 +5154,12 @@ function GroupGrid({ user, onLogin, onLogout }) {
             {savedSessions.length > 0 && (
               <div style={{ marginTop:"4px" }}>
                 {savedSessions.map((s, idx) => {
-                  const isActive = eventName === s.eventName && s.eventName;
+                  const isActive = (projectName||eventName) === (s.projectName||s.eventName) && (s.projectName||s.eventName);
                   const color = `hsl(${(idx * 67 + 200) % 360},55%,42%)`;
                   return (
                     <button key={s.id}
                       onClick={() => {
-                        setMeta(s.meta||{}); setEventName(s.eventName||"");
+                        setMeta(s.meta||{}); setProjectName(s.projectName||s.eventName||""); setEventName(s.eventName||"");
                         setArrivalStart(s.arrivalStart||""); setArrivalEnd(s.arrivalEnd||"");
                         setDepartureStart(s.departureStart||""); setDepartureEnd(s.departureEnd||"");
                         setPreferredAirports(s.preferredAirports||"");
@@ -5312,6 +5343,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
         {/* ── Upload hero — full size when no results, compact strip when results exist ── */}
         {!results ? (
           <SetupScreen
+            projectName={projectName} setProjectName={setProjectName}
             eventName={eventName} setEventName={setEventName}
             arrivalStart={arrivalStart} setArrivalStart={setArrivalStart}
             arrivalEnd={arrivalEnd} setArrivalEnd={setArrivalEnd}
