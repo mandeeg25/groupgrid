@@ -58,7 +58,7 @@ const P = {
 const font = "'Manrope', sans-serif";
 const fontDisplay = "'Poppins', sans-serif";
 // Build version — bump this whenever code is deployed so you can confirm at a glance which build is live.
-const APP_VERSION = "v6.7 · Jun 2026";
+const APP_VERSION = "v6.8 · Jun 2026";
 // Deep-linkable marketing/legal pages. Maps URL path <-> in-app page so groupgrid.io/privacy
 // loads the policy directly (and refresh/share keeps you there). Landing and app both live at "/".
 const PAGE_PATHS = { privacy:"/privacy", terms:"/terms", pricing:"/pricing", about:"/about", faq:"/faq", contact:"/contact" };
@@ -4390,6 +4390,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
   const [emailModal, setEmailModal] = useState(null);
   const [meta, setMeta] = useState({});
   const [activeTab, setActiveTab] = useState("grid");
+  const [showSetup, setShowSetup] = useState(false); // edit setup while keeping results
   const [page, setPage] = useState(() => (typeof window !== "undefined" ? pathToPage(window.location.pathname) : "landing")); // "landing" | "app" | "pricing" | "contact" | "about" | "privacy" | "terms"
   const [compareSession, setCompareSession] = useState(null); // session to diff against
   const [showDiff, setShowDiff] = useState(false);
@@ -4558,7 +4559,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
       if (registrationFile) { const w = await readXlsx(registrationFile); registration = parseRegistrationSheet(w); }
       const aw = { arrivalStart:parseDate(arrivalStart), arrivalEnd:parseDate(arrivalEnd), departureStart:parseDate(departureStart), departureEnd:parseDate(departureEnd), preferredAirports: preferredAirports.split(",").map(s=>s.trim()).filter(Boolean), arrivalCutoff };
       const allResults = crossMatch(flights, hotels, cars, dietary, aw, meta, registration);
-      setResults(allResults);
+      setResults(allResults); setShowSetup(false);
     } catch (err) { setError("Could not read files: " + err.message); }
     setLoading(false);
   }
@@ -4968,11 +4969,13 @@ function GroupGrid({ user, onLogin, onLogout }) {
     if (filter === "mismatch") return r.issues.some(x => x.type === "mismatch");
     if (filter === "duplicate") return r.issues.some(x => x.type === "duplicate");
     if (filter === "unregistered") return r.issues.some(x => x.type === "unregistered");
+    if (filter === "airport") return r.issues.some(x => x.type === "airport");
+    if (filter === "earlyarrival") return r.issues.some(x => x.type === "earlyarrival");
     if (["ok","warn","error"].includes(filter)) return r.status === filter;
     return true;
   });
 
-  const counts = results ? { total:results.length, ok:results.filter(r=>r.status==="ok").length, flagged:results.filter(r=>r.status!=="ok").length, warn:results.filter(r=>r.status==="warn").length, error:results.filter(r=>r.status==="error").length, missing:results.filter(r=>r.issues.some(x=>x.type==="missing")).length, window:results.filter(r=>r.issues.some(x=>x.type==="window")).length, mismatch:results.filter(r=>r.issues.some(x=>x.type==="mismatch")).length, duplicate:results.filter(r=>r.issues.some(x=>x.type==="duplicate")).length, unregistered:results.filter(r=>r.issues.some(x=>x.type==="unregistered")).length, dietary:results.filter(r=>r.diet?.dietary||r.diet?.accessibility).length } : null;
+  const counts = results ? { total:results.length, ok:results.filter(r=>r.status==="ok").length, flagged:results.filter(r=>r.status!=="ok").length, warn:results.filter(r=>r.status==="warn").length, error:results.filter(r=>r.status==="error").length, missing:results.filter(r=>r.issues.some(x=>x.type==="missing")).length, window:results.filter(r=>r.issues.some(x=>x.type==="window")).length, mismatch:results.filter(r=>r.issues.some(x=>x.type==="mismatch")).length, duplicate:results.filter(r=>r.issues.some(x=>x.type==="duplicate")).length, unregistered:results.filter(r=>r.issues.some(x=>x.type==="unregistered")).length, airport:results.filter(r=>r.issues.some(x=>x.type==="airport")).length, earlyarrival:results.filter(r=>r.issues.some(x=>x.type==="earlyarrival")).length, dietary:results.filter(r=>r.diet?.dietary||r.diet?.accessibility).length } : null;
 
   const hasCars = results?.some(r => r.car);
   const hasDiet = SHOW_DIETARY && results?.some(r => r.diet);
@@ -5125,7 +5128,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 // so warn if there's unsaved work first \u2014 the user can Save, then reopen to get notes back.
                 const hasWork = results && (Object.keys(meta||{}).length > 0 || eventName || projectName);
                 if (hasWork && !window.confirm("Start a new project? Your current notes and resolved flags will be cleared from this screen. To keep them, click Cancel, then use Save Now first \u2014 you can reopen this project anytime to get them back.")) return;
-                setResults(null); setFlightFile(null); setHotelFile(null); setCarFile(null); setDietaryFile(null); setRegistrationFile(null); setEventName(""); setProjectName(""); setMeta({}); setPreferredAirports(""); setArrivalCutoff(""); setFilter("all"); setSearch(""); setExpanded(null); setActiveTab("grid"); }}
+                setResults(null); setFlightFile(null); setHotelFile(null); setCarFile(null); setDietaryFile(null); setRegistrationFile(null); setEventName(""); setProjectName(""); setMeta({}); setPreferredAirports(""); setArrivalCutoff(""); setFilter("all"); setSearch(""); setExpanded(null); setActiveTab("grid"); setShowSetup(false); }}
               style={{ width:"100%", display:"flex", alignItems:"center", gap:"8px", background:"rgba(255,255,255,0.07)", border:`1px dashed rgba(255,255,255,0.18)`, borderRadius:"8px", padding:"7px 10px", cursor:"pointer", marginBottom:"6px", fontFamily:font, transition:"all 0.15s", textAlign:"left" }}
               onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.12)"}
               onMouseLeave={e => e.currentTarget.style.background="rgba(255,255,255,0.07)"}>
@@ -5164,7 +5167,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                         setDepartureStart(s.departureStart||""); setDepartureEnd(s.departureEnd||"");
                         setPreferredAirports(s.preferredAirports||"");
                         setArrivalCutoff(s.arrivalCutoff||"");
-                        if (s.results && s.results.length) { setResults(rehydrateResults(s.results)); setActiveTab("grid"); setFilter("all"); setExpanded(null); }
+                        if (s.results && s.results.length) { setResults(rehydrateResults(s.results)); setActiveTab("grid"); setFilter("all"); setExpanded(null); setShowSetup(false); }
                         else { setResults(null); setSaveMsg("This project was saved before full data was stored — re-upload its files to view it."); setTimeout(()=>setSaveMsg(""), 5000); }
                         if (isMobile) setSidebarOpen(false);
                       }}
@@ -5292,7 +5295,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
         <div className="gg-main" style={{ flex:1, minWidth:0, padding:isMobile ? "16px 14px" : "24px 28px", overflowY:"auto" }}>
 
         {/* ── Event Info TOP BAR (results state) — moved off the sidebar so the table gets full width ── */}
-        {results && (
+        {results && !showSetup && (
           <div className="gg-eventbar" style={{ display:"flex", alignItems:"center", gap:"12px", flexWrap:"wrap", background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"12px", padding:"12px 16px", marginBottom:"16px" }}>
             <div style={{ display:"flex", alignItems:"center", gap:"11px", flex:"1 1 200px", minWidth:0 }}>
               <span style={{ width:4, height:34, background:P.accent, borderRadius:"3px", flexShrink:0 }} />
@@ -5340,8 +5343,26 @@ function GroupGrid({ user, onLogin, onLogout }) {
           </div>
         )}
 
+        {results && !showSetup && (
+          <div style={{ display:"flex", alignItems:"center", gap:"8px", flexWrap:"wrap", fontSize:"12px", color:P.grey400, fontFamily:font, margin:"-6px 0 16px", padding:"0 2px" }}>
+            <CalendarIcon size={13} line={P.grey400} accent={P.accent} />
+            <span>{hasWindow ? `${arrivalStart?fmt(parseDate(arrivalStart)):"—"} – ${departureEnd?fmt(parseDate(departureEnd)):"—"}` : "No travel window"}</span>
+            <span style={{ color:P.grey200 }}>·</span>
+            <span>{arrivalCutoff ? `Cutoff ${fmtTime(arrivalCutoff,"ampm")}` : "No cutoff"}</span>
+            <span style={{ color:P.grey200 }}>·</span>
+            <span>{preferredAirports ? preferredAirports : "Any airport"}</span>
+            <span style={{ color:P.grey200 }}>·</span>
+            <span>{[registrationFile, flightFile, hotelFile, carFile, dietaryFile].filter(Boolean).length} files</span>
+            <button onClick={() => setShowSetup(true)} style={{ marginLeft:"auto", background:"transparent", border:"none", color:P.periwinkleD, fontSize:"12px", fontWeight:600, fontFamily:font, cursor:"pointer", textDecoration:"underline" }}>Edit setup</button>
+          </div>
+        )}
+        {showSetup && results && (
+          <div style={{ marginBottom:"12px" }}>
+            <button onClick={() => setShowSetup(false)} style={{ display:"inline-flex", alignItems:"center", gap:"6px", background:P.white, border:`1.5px solid ${P.grey200}`, borderRadius:"9px", padding:"7px 13px", fontSize:"13px", fontWeight:600, color:P.grey600, fontFamily:font, cursor:"pointer" }}>← Back to results</button>
+          </div>
+        )}
         {/* ── Upload hero — full size when no results, compact strip when results exist ── */}
-        {!results ? (
+        {(!results || showSetup) ? (
           <SetupScreen
             projectName={projectName} setProjectName={setProjectName}
             eventName={eventName} setEventName={setEventName}
@@ -5381,7 +5402,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
         )}
 
         {/* Results */}
-        {results && (<>
+        {results && !showSetup && (<>
 
               {showDiff && compareSession && (() => {
                 const prevResults = Object.entries(compareSession.meta||{}).map(([k,v]) => ({
@@ -5482,6 +5503,30 @@ function GroupGrid({ user, onLogin, onLogout }) {
             const someSelected = displayRows.some(r => selectedRows.has(r.key));
             const selCount = displayRows.filter(r => selectedRows.has(r.key)).length;
             return (<>
+            {/* ── Status scorecard — leads the view and doubles as the filter ── */}
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(118px, 1fr))", gap:"8px", marginBottom:"14px" }}>
+              {[
+                { k:"all",          l:"All guests",     v:counts.total,        c:P.navy },
+                { k:"ok",           l:"Aligned",        v:counts.ok,           c:P.green },
+                { k:"issues",       l:"Action needed",  v:counts.flagged,      c:P.red },
+                { k:"earlyarrival", l:"Early arrival",  v:counts.earlyarrival, c:P.periwinkleD },
+                { k:"missing",      l:"Missing record", v:counts.missing,      c:P.amber },
+                { k:"airport",      l:"Wrong airport",  v:counts.airport,      c:"#2E6FD6" },
+                { k:"window",       l:"Outside window", v:counts.window,       c:P.purple },
+                { k:"mismatch",     l:"Date mismatch",  v:counts.mismatch,     c:P.red },
+                { k:"duplicate",    l:"Duplicate",      v:counts.duplicate,    c:"#C2410C" },
+                { k:"unregistered", l:"Unregistered",   v:counts.unregistered, c:P.grey600 },
+              ].filter(card => ["all","ok","issues"].includes(card.k) || card.v > 0).map(({ k, l, v, c }) => {
+                const on = filter === k;
+                return (
+                  <button key={k} onClick={() => setFilter(k)} aria-pressed={on} title={`Show ${l.toLowerCase()}`}
+                    style={{ textAlign:"left", background:on?c+"14":P.offWhite, border:`1.5px solid ${on?c:P.grey100}`, borderRadius:"12px", padding:"12px 14px", cursor:"pointer", transition:"all 0.12s", outline:"none" }}>
+                    <div style={{ fontSize:"24px", fontWeight:900, color:c, fontFamily:font, lineHeight:1 }}>{v}</div>
+                    <div style={{ fontSize:"12px", fontWeight:600, color:on?c:P.grey600, fontFamily:font, marginTop:"5px" }}>{l}</div>
+                  </button>
+                );
+              })}
+            </div>
             <div style={{ display:"flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", gap:"10px", marginBottom:"12px" }}>
               {/* Search */}
               <div style={{ position:"relative", flex:1 }}>
@@ -5490,24 +5535,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:P.navyLight, fontSize:"14px", pointerEvents:"none" }}>🔍</span>
                 {search && <button onClick={() => setSearch("")} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"transparent", border:"none", color:P.navyLight, fontSize:"15px", cursor:"pointer" }}>✕</button>}
               </div>
-              {/* Filter pills — hidden on mobile (use sidebar) */}
-              {!isMobile && (
-                <div style={{ display:"flex", gap:"5px", flexWrap:"wrap" }}>
-                  {[
-                    { k:"all",       l:"All" },
-                    { k:"issues",    l:"Action Needed" },
-                    { k:"ok",        l:"Aligned" },
-                    { k:"missing",   l:"Missing" },
-                    { k:"window",    l:"Window" },
-                    { k:"duplicate", l:"Dupes" },
-                  ].map(({ k, l }) => (
-                    <button key={k} onClick={() => setFilter(k)}
-                      style={{ background:filter===k?P.navy:P.white, color:filter===k?P.white:P.grey600, border:`1.5px solid ${filter===k?P.navy:P.grey200}`, borderRadius:"8px", padding:"5px 11px", fontSize:"15px", fontWeight:700, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap", transition:"all 0.12s" }}>
-                      {l}
-                    </button>
-                  ))}
-                </div>
-              )}
+              {/* Filter pills replaced by the status scorecard above */}
               {/* Sort — full width row on mobile */}
               <div style={{ display:"flex", gap:"8px", alignItems:"center" }}>
               <select value={sortBy||""} onChange={e => { setSortBy(e.target.value||null); setSortDir("asc"); }}
