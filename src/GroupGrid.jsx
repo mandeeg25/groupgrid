@@ -58,7 +58,7 @@ const P = {
 const font = "'Manrope', sans-serif";
 const fontDisplay = "'Poppins', sans-serif";
 // Build version — bump this whenever code is deployed so you can confirm at a glance which build is live.
-const APP_VERSION = "v6.8 · Jun 2026";
+const APP_VERSION = "v7.0 · Jun 2026";
 // Deep-linkable marketing/legal pages. Maps URL path <-> in-app page so groupgrid.io/privacy
 // loads the policy directly (and refresh/share keeps you there). Landing and app both live at "/".
 const PAGE_PATHS = { privacy:"/privacy", terms:"/terms", pricing:"/pricing", about:"/about", faq:"/faq", contact:"/contact" };
@@ -517,7 +517,7 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
   const hasReg = registration.length > 0;
   const hasFlights = flights.length > 0;
   const hasHotels = hotels.length > 0;
-  const { arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, arrivalCutoff } = aw || {};
+  const { arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff } = aw || {};
   const mkMaps = (arr) => { const byE = new Map(), byN = new Map(); arr.forEach(x => { if (x.email) byE.set(x.email, x); const k = normName(x.name); if (k) byN.set(k, x); }); return [byE, byN]; };
   const [fByE, fByN] = mkMaps(flights), [hByE, hByN] = mkMaps(hotels), [cByE, cByN] = mkMaps(cars), [dByE, dByN] = mkMaps(dietary), [rByE, rByN] = mkMaps(registration);
   const allLists = [...flights,...hotels,...cars,...dietary,...registration];
@@ -626,12 +626,18 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
         issues.push({ type:"earlyarrival", text:`Arrives ${fmtTime(flight.arrivalTime,"ampm")} (before ${fmtTime(arrivalCutoff,"ampm")} cutoff) \u2014 book hotel for the night prior (${fmt(prior)})` });
       }
     }
+    // ── Earliest-departure-time rule ──
+    // If a flight leaves before the planner's earliest allowed departure time, flag it.
+    if (departureCutoff && flight && flight.departureTime && flight.flightDeparture && flight.departureTime < departureCutoff) {
+      issues.push({ type:"earlydeparture", text:`Departs ${fmtTime(flight.departureTime,"ampm")} (before ${fmtTime(departureCutoff,"ampm")} earliest departure)` });
+    }
     const arrDate = flight?.flightArrival || hotel?.checkIn || reg?.regCheckIn, depDate = flight?.flightDeparture || hotel?.checkOut || reg?.regCheckOut;
     if (arrDate && isOutside(arrDate, arrivalStart, arrivalEnd)) issues.push({ type:"window", text:`Arrival ${fmt(arrDate)} outside approved window` });
     if (depDate && isOutside(depDate, departureStart, departureEnd)) issues.push({ type:"window", text:`Departure ${fmt(depDate)} outside approved window` });
     const arrApt = flight?.arrivalAirport || flight?.airport, depApt = flight?.departureAirport || flight?.airport;
+    const depAptList = (departureAirports && departureAirports.length) ? departureAirports : preferredAirports;
     if (arrApt && isWrongAirport(arrApt, preferredAirports)) issues.push({ type:"airport", text:`Arrives at ${arrApt.toUpperCase()} (not a preferred airport)` });
-    if (depApt && depApt !== arrApt && isWrongAirport(depApt, preferredAirports)) issues.push({ type:"airport", text:`Departs from ${depApt.toUpperCase()} (not a preferred airport)` });
+    if (depApt && depApt !== arrApt && isWrongAirport(depApt, depAptList)) issues.push({ type:"airport", text:`Departs from ${depApt.toUpperCase()} (not a preferred airport)` });
     if (dupNames.has(normName(displayName))) issues.push({ type:"duplicate", text:"Duplicate name detected across lists" });
     const seen = new Set(); const uniqueIssues = issues.filter(x => { if (seen.has(x.text)) return false; seen.add(x.text); return true; });
     const resolved = existing.resolved || [];
@@ -705,7 +711,7 @@ function Delta({ val }) {
 }
 
 function IssueTag({ issue, resolved, onResolve }) {
-  const cfg = { missing:{bg:P.amberLight,color:P.amber,border:`1px solid ${P.amber}44`,icon:<Circle size={11} strokeWidth={1.8}/>}, mismatch:{bg:P.redLight,color:P.red,border:`1px solid ${P.red}44`,icon:<AlertTriangle size={11} strokeWidth={1.8}/>}, window:{bg:P.purpleLight,color:P.purple,border:`1px solid ${P.purple}44`,icon:<Calendar size={11} strokeWidth={1.8}/>}, duplicate:{bg:"#FFF3E0",color:"#E65100",border:"1px solid #E6510044",icon:<AlertCircle size={11} strokeWidth={1.8}/>}, unregistered:{bg:P.purpleLight,color:P.purple,border:`1px solid ${P.purple}44`,icon:<Ban size={11} strokeWidth={1.8}/>}, airport:{bg:"#EAF2FE",color:"#4DA3FF",border:"1px solid #4DA3FF44",icon:<Plane size={11} strokeWidth={1.8}/>}, earlyarrival:{bg:"#EEF0FB",color:P.periwinkleD,border:`1px solid ${P.periwinkleD}44`,icon:<Calendar size={11} strokeWidth={1.8}/>} };
+  const cfg = { missing:{bg:P.amberLight,color:P.amber,border:`1px solid ${P.amber}44`,icon:<Circle size={11} strokeWidth={1.8}/>}, mismatch:{bg:P.redLight,color:P.red,border:`1px solid ${P.red}44`,icon:<AlertTriangle size={11} strokeWidth={1.8}/>}, window:{bg:P.purpleLight,color:P.purple,border:`1px solid ${P.purple}44`,icon:<Calendar size={11} strokeWidth={1.8}/>}, duplicate:{bg:"#FFF3E0",color:"#E65100",border:"1px solid #E6510044",icon:<AlertCircle size={11} strokeWidth={1.8}/>}, unregistered:{bg:P.purpleLight,color:P.purple,border:`1px solid ${P.purple}44`,icon:<Ban size={11} strokeWidth={1.8}/>}, airport:{bg:"#EAF2FE",color:"#4DA3FF",border:"1px solid #4DA3FF44",icon:<Plane size={11} strokeWidth={1.8}/>}, earlyarrival:{bg:"#EEF0FB",color:P.periwinkleD,border:`1px solid ${P.periwinkleD}44`,icon:<Calendar size={11} strokeWidth={1.8}/>}, earlydeparture:{bg:"#EEF0FB",color:P.periwinkleD,border:`1px solid ${P.periwinkleD}44`,icon:<Calendar size={11} strokeWidth={1.8}/>} };
   const s = cfg[issue.type] || cfg.mismatch;
   const isRes = (resolved || []).includes(issue.text);
   return (
@@ -3397,7 +3403,6 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                 <div style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"14px" }}>
                   <div style={{ width:44, height:44, borderRadius:"12px", background:box, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{StepIcon && <StepIcon size={22} line="rgba(255,255,255,0.95)" accent={iconAccent} />}</div>
                   <div>
-                    <div style={{ fontSize:"11px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em" }}>{n}</div>
                     <div style={{ fontSize:"16px", fontWeight:700, color:P.white, fontFamily:fontDisplay, letterSpacing:"-0.015em" }}>{title}</div>
                   </div>
                 </div>
@@ -4205,12 +4210,14 @@ function SetupScreen({
   projectName, setProjectName, eventName, setEventName, arrivalStart, setArrivalStart, arrivalEnd, setArrivalEnd,
   departureStart, setDepartureStart, departureEnd, setDepartureEnd,
   preferredAirports, setPreferredAirports,
+  departureAirports, setDepartureAirports,
   arrivalCutoff, setArrivalCutoff,
+  departureCutoff, setDepartureCutoff,
   contacts, setContactsOpen,
   registrationFile, setRegistrationFile, flightFile, setFlightFile, hotelFile, setHotelFile,
   hotelProperty, setHotelProperty, extraHotels, setExtraHotels,
   carFile, setCarFile, dietaryFile, setDietaryFile,
-  ready, loading, error, runCheck, isMobile
+  ready, loading, error, runCheck, isMobile, isReRun
 }) {
   const hasName = !!(projectName && projectName.trim());
   const canRun = hasName && ready && !loading;
@@ -4237,7 +4244,7 @@ function SetupScreen({
       </div>
 
       <div className="gg-setup-cols" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(380px, 1fr))", gap:"14px", alignItems:"start" }}>
-      <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px" }}>
+      <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)" }}>
         <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 1 · Project details</div>
         <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"14px" }}>Name your project, set the event name used in attendee emails, and (optionally) add travel dates and contacts.</div>
         <div style={{ marginBottom:"14px" }}>
@@ -4252,33 +4259,82 @@ function SetupScreen({
             style={{ width:"100%", background:P.grey50, border:`1.5px solid ${eventName&&eventName.trim()?P.accent+"88":P.grey100}`, borderRadius:"10px", padding:"11px 13px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
           <div style={{ fontSize:"11px", color:P.grey400, fontFamily:font, marginTop:"5px" }}>The name guests see in emails and on the report. Left blank, emails fall back to a generic phrase.</div>
         </div>
-        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", margin:"4px 0 4px" }}>Approved travel dates <span style={{ textTransform:"none", letterSpacing:0, fontWeight:400 }}>· optional</span></div>
-        <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"12px", lineHeight:1.5 }}>Set the dates your event covers. GroupGrid flags anyone whose flight or hotel falls outside this range — e.g. arriving early or leaving late beyond what's approved.</div>
-        <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px", marginBottom:"6px" }}>
+        {/* ── Travel rules: grouped Arrival / Departure ── */}
+        <div style={{ height:"1px", background:P.grey100, margin:"6px 0 14px" }} />
+        <div style={{ fontSize:"12px", fontWeight:600, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"14px" }}>Travel rules <span style={{ textTransform:"none", letterSpacing:0, fontWeight:400 }}>· all optional</span></div>
+
+        {/* Arrival */}
+        <div style={{ display:"flex", alignItems:"center", gap:"9px", marginBottom:"12px" }}>
+          <PlaneIcon size={18} line={P.periwinkleD} accent={P.accent} />
+          <span style={{ fontSize:"14px", fontWeight:600, color:P.navy, fontFamily:font }}>Arrival</span>
+        </div>
+        <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px", marginBottom:"12px" }}>
           {[
             { label:"Earliest arrival", val:arrivalStart, set:setArrivalStart },
             { label:"Latest arrival", val:arrivalEnd, set:setArrivalEnd },
-            { label:"Earliest departure", val:departureStart, set:setDepartureStart },
-            { label:"Latest departure", val:departureEnd, set:setDepartureEnd },
           ].map(({ label, val, set }) => (
-            <div key={label} style={{ marginBottom:"12px" }}>
-              <label style={{ display:"block", fontSize:"13px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>{label}</label>
+            <div key={label}>
+              <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>{label}</label>
               <input type="date" value={val} onChange={e => set(e.target.value)}
                 style={{ width:"100%", background:P.grey50, border:`1.5px solid ${val?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:val?P.navy:P.grey400, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
             </div>
           ))}
         </div>
-        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", margin:"8px 0 4px" }}>Early-arrival cutoff <span style={{ textTransform:"none", letterSpacing:0, fontWeight:400 }}>· optional</span></div>
-        <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"8px", lineHeight:1.5 }}>If a flight lands before this time, the traveler needs a room from the night before. GroupGrid flags anyone arriving before the cutoff whose hotel isn't booked for the night prior.</div>
-        <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"12px" }}>
-          <input type="time" value={arrivalCutoff} onChange={e => setArrivalCutoff(e.target.value)}
-            style={{ background:P.grey50, border:`1.5px solid ${arrivalCutoff?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:arrivalCutoff?P.navy:P.grey400, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
-          {arrivalCutoff && <button onClick={() => setArrivalCutoff("")} style={{ background:"transparent", border:"none", color:P.grey400, fontSize:"13px", fontFamily:font, cursor:"pointer", textDecoration:"underline" }}>Clear</button>}
+        <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px", marginBottom:"10px" }}>
+          <div>
+            <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Early-arrival cutoff</label>
+            <input type="time" value={arrivalCutoff} onChange={e => setArrivalCutoff(e.target.value)}
+              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${arrivalCutoff?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:arrivalCutoff?P.navy:P.grey400, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
+            <div style={{ fontSize:"11.5px", color:P.grey400, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Lands before this, needs the night before.</div>
+          </div>
+          <div>
+            <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Arrival airport(s)</label>
+            <input type="text" value={preferredAirports} onChange={e => setPreferredAirports(e.target.value)} placeholder="e.g. JFK, LGA"
+              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${preferredAirports?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:preferredAirports?P.navy:P.grey400, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
+            <div style={{ fontSize:"11.5px", color:P.grey400, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Codes for your arrival city.</div>
+          </div>
         </div>
-        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", margin:"8px 0 4px" }}>Preferred airport(s) <span style={{ textTransform:"none", letterSpacing:0, fontWeight:400 }}>· optional</span></div>
-        <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"8px", lineHeight:1.5 }}>Enter the airport code(s) for your event city, separated by commas (e.g. JFK, LGA). GroupGrid flags anyone flying into a different airport. It recognizes common airport names too.</div>
-        <input type="text" value={preferredAirports} onChange={e => setPreferredAirports(e.target.value)} placeholder="e.g. JFK, LGA"
-          style={{ width:"100%", background:P.grey50, border:`1.5px solid ${preferredAirports?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:preferredAirports?P.navy:P.grey400, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box", marginBottom:"12px" }} />
+        <div style={{ display:"flex", gap:"8px", alignItems:"flex-start", fontSize:"12px", color:P.grey600, fontFamily:font, lineHeight:1.5, background:P.amber+"12", borderRadius:"9px", padding:"9px 12px", marginBottom:"16px" }}>
+          <span style={{ flexShrink:0, marginTop:"1px" }}><FlagIcon size={14} line={P.amber} accent={P.amber} /></span>
+          <span><strong style={{ color:P.navyLight, fontWeight:600 }}>Flags</strong> arrivals outside the window, early landings with no prior-night room, or landings at other airports.</span>
+        </div>
+
+        {/* Departure */}
+        <div style={{ display:"flex", alignItems:"center", gap:"9px", marginBottom:"12px" }}>
+          <span style={{ display:"inline-flex", transform:"scaleX(-1)" }}><PlaneIcon size={18} line={P.periwinkleD} accent={P.accent} /></span>
+          <span style={{ fontSize:"14px", fontWeight:600, color:P.navy, fontFamily:font }}>Departure</span>
+        </div>
+        <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px", marginBottom:"12px" }}>
+          {[
+            { label:"Earliest departure", val:departureStart, set:setDepartureStart },
+            { label:"Latest departure", val:departureEnd, set:setDepartureEnd },
+          ].map(({ label, val, set }) => (
+            <div key={label}>
+              <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>{label}</label>
+              <input type="date" value={val} onChange={e => set(e.target.value)}
+                style={{ width:"100%", background:P.grey50, border:`1.5px solid ${val?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:val?P.navy:P.grey400, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+            </div>
+          ))}
+        </div>
+        <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px", marginBottom:"10px" }}>
+          <div>
+            <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Earliest departure time</label>
+            <input type="time" value={departureCutoff} onChange={e => setDepartureCutoff(e.target.value)}
+              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${departureCutoff?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:departureCutoff?P.navy:P.grey400, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
+            <div style={{ fontSize:"11.5px", color:P.grey400, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Earliest a flight may leave that day.</div>
+          </div>
+          <div>
+            <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Departure airport(s)</label>
+            <input type="text" value={departureAirports} onChange={e => setDepartureAirports(e.target.value)} placeholder="e.g. JFK, LGA"
+              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${departureAirports?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:departureAirports?P.navy:P.grey400, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
+            <div style={{ fontSize:"11.5px", color:P.grey400, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Codes for your departure city.</div>
+          </div>
+        </div>
+        <div style={{ display:"flex", gap:"8px", alignItems:"flex-start", fontSize:"12px", color:P.grey600, fontFamily:font, lineHeight:1.5, background:P.amber+"12", borderRadius:"9px", padding:"9px 12px", marginBottom:"4px" }}>
+          <span style={{ flexShrink:0, marginTop:"1px" }}><FlagIcon size={14} line={P.amber} accent={P.amber} /></span>
+          <span><strong style={{ color:P.navyLight, fontWeight:600 }}>Flags</strong> departures outside the window, before your earliest time, or from other airports.</span>
+        </div>
+        <div style={{ height:"1px", background:P.grey100, margin:"14px 0" }} />
         <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", margin:"8px 0 12px" }}>Contacts <span style={{ textTransform:"none", letterSpacing:0, fontWeight:400 }}>· optional — to email your hotel &amp; travel agency directly</span></div>
         <button onClick={() => setContactsOpen(true)}
           style={{ display:"flex", alignItems:"center", gap:"10px", width:"100%", background:hasContacts?P.accent+"12":P.grey50, border:`1.5px ${hasContacts?"solid":"dashed"} ${hasContacts?P.accent+"55":P.grey200}`, borderRadius:"10px", padding:"12px 14px", cursor:"pointer", fontFamily:font, textAlign:"left" }}>
@@ -4291,7 +4347,7 @@ function SetupScreen({
         </button>
       </div>
 
-      <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", opacity: hasName ? 1 : 0.55, pointerEvents: hasName ? "auto" : "none", transition:"opacity 0.2s" }}>
+      <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)", opacity: hasName ? 1 : 0.55, pointerEvents: hasName ? "auto" : "none", transition:"opacity 0.2s" }}>
         <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 2 · Upload files {!hasName && <span style={{ fontSize:"12px", fontWeight:400, color:P.grey400 }}>· name your event first</span>}</div>
         <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"14px" }}>Upload whatever you have — registration, flights, hotels, cars. GroupGrid cross-checks any 2 or more. Excel or CSV. Hover a tile for expected columns.</div>
         <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>Upload any 2 or more</div>
@@ -4352,7 +4408,7 @@ function SetupScreen({
           {error && <span style={{ fontSize:"13px", color:"#FFB3AB", fontFamily:font }}>{error}</span>}
           <button onClick={runCheck} disabled={!canRun}
             style={{ background:canRun?P.accent:"rgba(255,255,255,0.15)", color:canRun?P.white:"rgba(255,255,255,0.4)", border:"none", borderRadius:"10px", padding:"11px 24px", fontSize:"14px", fontWeight:600, fontFamily:font, cursor:canRun?"pointer":"not-allowed", transition:"all 0.18s", whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:"8px" }}>
-            <span>{loading ? "Checking…" : "Run Cross-Check"}</span>
+            <span>{loading ? "Checking…" : isReRun ? "Re-run Cross-Check" : "Run Cross-Check"}</span>
             {!loading && <CrossCheckIcon size={17} line={canRun?"rgba(255,255,255,0.92)":"rgba(255,255,255,0.4)"} accent={canRun?P.white:"rgba(255,255,255,0.4)"} />}
           </button>
         </div>
@@ -4383,8 +4439,11 @@ function GroupGrid({ user, onLogin, onLogout }) {
   const [arrivalEnd, setArrivalEnd] = useState("");
   const [departureStart, setDepartureStart] = useState("");
   const [departureEnd, setDepartureEnd] = useState("");
-  const [preferredAirports, setPreferredAirports] = useState("");
+  const [preferredAirports, setPreferredAirports] = useState(""); // arrival-side airports (key kept for saved-project compatibility)
+  const [departureAirports, setDepartureAirports] = useState(""); // departure-side airports; empty = falls back to arrival list
   const [arrivalCutoff, setArrivalCutoff] = useState(""); // "HH:MM" — early-arrival cutoff; empty = off
+  const [departureCutoff, setDepartureCutoff] = useState(""); // "HH:MM" — earliest allowed departure time; empty = off
+  const [lastRunSig, setLastRunSig] = useState(""); // snapshot of params at last run, to detect post-run edits
   const [eventName, setEventName] = useState("");
   const [projectName, setProjectName] = useState(""); // internal save label, distinct from eventName (used in comms)
   const [emailModal, setEmailModal] = useState(null);
@@ -4491,7 +4550,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
   // (the old bug: every note/date change reset the 60s countdown, so it rarely fired).
   const autosaveData = useRef({});
   useEffect(() => {
-    autosaveData.current = { results, meta, projectName, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, arrivalCutoff, storageKey };
+    autosaveData.current = { results, meta, projectName, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, storageKey };
   }, [results, meta, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, storageKey]);
 
   useEffect(() => {
@@ -4506,7 +4565,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
           name: d.projectName || d.eventName || `Session ${new Date().toLocaleDateString()}`,
           date: new Date().toISOString(),
           meta: d.meta, projectName: d.projectName, eventName: d.eventName, arrivalStart: d.arrivalStart, arrivalEnd: d.arrivalEnd, departureStart: d.departureStart, departureEnd: d.departureEnd,
-          preferredAirports: d.preferredAirports, arrivalCutoff: d.arrivalCutoff,
+          preferredAirports: d.preferredAirports, departureAirports: d.departureAirports, arrivalCutoff: d.arrivalCutoff, departureCutoff: d.departureCutoff,
           guestCount: d.results.length,
           issueCount: d.results.filter(r => r.status !== "ok").length,
           autoSaved: true,
@@ -4557,9 +4616,10 @@ function GroupGrid({ user, onLogin, onLogout }) {
       if (carFile)          { const w = await readXlsx(carFile);          cars = parseCarSheet(w); }
       if (dietaryFile)      { const w = await readXlsx(dietaryFile);      dietary = parseDietarySheet(w); }
       if (registrationFile) { const w = await readXlsx(registrationFile); registration = parseRegistrationSheet(w); }
-      const aw = { arrivalStart:parseDate(arrivalStart), arrivalEnd:parseDate(arrivalEnd), departureStart:parseDate(departureStart), departureEnd:parseDate(departureEnd), preferredAirports: preferredAirports.split(",").map(s=>s.trim()).filter(Boolean), arrivalCutoff };
+      const aw = { arrivalStart:parseDate(arrivalStart), arrivalEnd:parseDate(arrivalEnd), departureStart:parseDate(departureStart), departureEnd:parseDate(departureEnd), preferredAirports: preferredAirports.split(",").map(s=>s.trim()).filter(Boolean), departureAirports: departureAirports.split(",").map(s=>s.trim()).filter(Boolean), arrivalCutoff, departureCutoff };
       const allResults = crossMatch(flights, hotels, cars, dietary, aw, meta, registration);
       setResults(allResults); setShowSetup(false);
+      setLastRunSig(JSON.stringify({ arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, eventName }));
     } catch (err) { setError("Could not read files: " + err.message); }
     setLoading(false);
   }
@@ -4584,7 +4644,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
   function saveSession() {
     if (!results) return;
-    const session = { id:Date.now(), name:(projectName||eventName)||`Session ${new Date().toLocaleDateString()}`, date:new Date().toISOString(), meta, projectName, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, arrivalCutoff, guestCount:results.length, issueCount:results.filter(r=>r.status!=="ok").length, results };
+    const session = { id:Date.now(), name:(projectName||eventName)||`Session ${new Date().toLocaleDateString()}`, date:new Date().toISOString(), meta, projectName, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, guestCount:results.length, issueCount:results.filter(r=>r.status!=="ok").length, results };
     const next = [session, ...savedSessions.filter(s => s.name !== session.name)].slice(0, 50);
     setSavedSessions(next);
     try {
@@ -4971,13 +5031,15 @@ function GroupGrid({ user, onLogin, onLogout }) {
     if (filter === "unregistered") return r.issues.some(x => x.type === "unregistered");
     if (filter === "airport") return r.issues.some(x => x.type === "airport");
     if (filter === "earlyarrival") return r.issues.some(x => x.type === "earlyarrival");
+    if (filter === "earlydeparture") return r.issues.some(x => x.type === "earlydeparture");
     if (["ok","warn","error"].includes(filter)) return r.status === filter;
     return true;
   });
 
-  const counts = results ? { total:results.length, ok:results.filter(r=>r.status==="ok").length, flagged:results.filter(r=>r.status!=="ok").length, warn:results.filter(r=>r.status==="warn").length, error:results.filter(r=>r.status==="error").length, missing:results.filter(r=>r.issues.some(x=>x.type==="missing")).length, window:results.filter(r=>r.issues.some(x=>x.type==="window")).length, mismatch:results.filter(r=>r.issues.some(x=>x.type==="mismatch")).length, duplicate:results.filter(r=>r.issues.some(x=>x.type==="duplicate")).length, unregistered:results.filter(r=>r.issues.some(x=>x.type==="unregistered")).length, airport:results.filter(r=>r.issues.some(x=>x.type==="airport")).length, earlyarrival:results.filter(r=>r.issues.some(x=>x.type==="earlyarrival")).length, dietary:results.filter(r=>r.diet?.dietary||r.diet?.accessibility).length } : null;
+  const counts = results ? { total:results.length, ok:results.filter(r=>r.status==="ok").length, flagged:results.filter(r=>r.status!=="ok").length, warn:results.filter(r=>r.status==="warn").length, error:results.filter(r=>r.status==="error").length, missing:results.filter(r=>r.issues.some(x=>x.type==="missing")).length, window:results.filter(r=>r.issues.some(x=>x.type==="window")).length, mismatch:results.filter(r=>r.issues.some(x=>x.type==="mismatch")).length, duplicate:results.filter(r=>r.issues.some(x=>x.type==="duplicate")).length, unregistered:results.filter(r=>r.issues.some(x=>x.type==="unregistered")).length, airport:results.filter(r=>r.issues.some(x=>x.type==="airport")).length, earlyarrival:results.filter(r=>r.issues.some(x=>x.type==="earlyarrival")).length, earlydeparture:results.filter(r=>r.issues.some(x=>x.type==="earlydeparture")).length, dietary:results.filter(r=>r.diet?.dietary||r.diet?.accessibility).length } : null;
 
   const hasCars = results?.some(r => r.car);
+  const paramsDirty = !!results && !!lastRunSig && lastRunSig !== JSON.stringify({ arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, eventName });
   const hasDiet = SHOW_DIETARY && results?.some(r => r.diet);
   const hasHotelNames = results?.some(r => r.hotel?.hotel && r.hotel.hotel.trim());
   const uploadedCount = [registrationFile, flightFile, hotelFile, carFile, dietaryFile].filter(Boolean).length + extraHotels.filter(h=>h.file).length;
@@ -5128,7 +5190,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 // so warn if there's unsaved work first \u2014 the user can Save, then reopen to get notes back.
                 const hasWork = results && (Object.keys(meta||{}).length > 0 || eventName || projectName);
                 if (hasWork && !window.confirm("Start a new project? Your current notes and resolved flags will be cleared from this screen. To keep them, click Cancel, then use Save Now first \u2014 you can reopen this project anytime to get them back.")) return;
-                setResults(null); setFlightFile(null); setHotelFile(null); setCarFile(null); setDietaryFile(null); setRegistrationFile(null); setEventName(""); setProjectName(""); setMeta({}); setPreferredAirports(""); setArrivalCutoff(""); setFilter("all"); setSearch(""); setExpanded(null); setActiveTab("grid"); setShowSetup(false); }}
+                setResults(null); setFlightFile(null); setHotelFile(null); setCarFile(null); setDietaryFile(null); setRegistrationFile(null); setEventName(""); setProjectName(""); setMeta({}); setPreferredAirports(""); setDepartureAirports(""); setArrivalCutoff(""); setDepartureCutoff(""); setLastRunSig(""); setFilter("all"); setSearch(""); setExpanded(null); setActiveTab("grid"); setShowSetup(false); }}
               style={{ width:"100%", display:"flex", alignItems:"center", gap:"8px", background:"rgba(255,255,255,0.07)", border:`1px dashed rgba(255,255,255,0.18)`, borderRadius:"8px", padding:"7px 10px", cursor:"pointer", marginBottom:"6px", fontFamily:font, transition:"all 0.15s", textAlign:"left" }}
               onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.12)"}
               onMouseLeave={e => e.currentTarget.style.background="rgba(255,255,255,0.07)"}>
@@ -5166,7 +5228,9 @@ function GroupGrid({ user, onLogin, onLogout }) {
                         setArrivalStart(s.arrivalStart||""); setArrivalEnd(s.arrivalEnd||"");
                         setDepartureStart(s.departureStart||""); setDepartureEnd(s.departureEnd||"");
                         setPreferredAirports(s.preferredAirports||"");
+                        setDepartureAirports(s.departureAirports||"");
                         setArrivalCutoff(s.arrivalCutoff||"");
+                        setDepartureCutoff(s.departureCutoff||"");
                         if (s.results && s.results.length) { setResults(rehydrateResults(s.results)); setActiveTab("grid"); setFilter("all"); setExpanded(null); setShowSetup(false); }
                         else { setResults(null); setSaveMsg("This project was saved before full data was stored — re-upload its files to view it."); setTimeout(()=>setSaveMsg(""), 5000); }
                         if (isMobile) setSidebarOpen(false);
@@ -5348,12 +5412,21 @@ function GroupGrid({ user, onLogin, onLogout }) {
             <CalendarIcon size={13} line={P.grey400} accent={P.accent} />
             <span>{hasWindow ? `${arrivalStart?fmt(parseDate(arrivalStart)):"—"} – ${departureEnd?fmt(parseDate(departureEnd)):"—"}` : "No travel window"}</span>
             <span style={{ color:P.grey200 }}>·</span>
-            <span>{arrivalCutoff ? `Cutoff ${fmtTime(arrivalCutoff,"ampm")}` : "No cutoff"}</span>
+            <span>{arrivalCutoff || departureCutoff ? `${arrivalCutoff?`Arr ${fmtTime(arrivalCutoff,"ampm")}`:""}${arrivalCutoff&&departureCutoff?" / ":""}${departureCutoff?`Dep ${fmtTime(departureCutoff,"ampm")}`:""}` : "No cutoff"}</span>
             <span style={{ color:P.grey200 }}>·</span>
-            <span>{preferredAirports ? preferredAirports : "Any airport"}</span>
+            <span>{preferredAirports || departureAirports ? `${preferredAirports||"any"} → ${departureAirports||preferredAirports||"any"}` : "Any airport"}</span>
             <span style={{ color:P.grey200 }}>·</span>
             <span>{[registrationFile, flightFile, hotelFile, carFile, dietaryFile].filter(Boolean).length} files</span>
-            <button onClick={() => setShowSetup(true)} style={{ marginLeft:"auto", background:"transparent", border:"none", color:P.periwinkleD, fontSize:"12px", fontWeight:600, fontFamily:font, cursor:"pointer", textDecoration:"underline" }}>Edit setup</button>
+            <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:"12px" }}>
+              {paramsDirty && (
+                <button onClick={runCheck} disabled={loading}
+                  style={{ display:"inline-flex", alignItems:"center", gap:"7px", background:P.amber+"1A", border:`1.5px solid ${P.amber}66`, borderRadius:"9px", padding:"6px 13px", fontSize:"12px", fontWeight:600, color:"#9A6A12", fontFamily:font, cursor:loading?"wait":"pointer" }}>
+                  <CrossCheckIcon size={14} line="#9A6A12" accent={P.amber} />
+                  {loading ? "Re-running…" : "Re-run to update flags"}
+                </button>
+              )}
+              <button onClick={() => setShowSetup(true)} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"12px", fontWeight:600, fontFamily:font, cursor:"pointer", textDecoration:"underline" }}>Edit setup</button>
+            </div>
           </div>
         )}
         {showSetup && results && (
@@ -5371,7 +5444,10 @@ function GroupGrid({ user, onLogin, onLogout }) {
             departureStart={departureStart} setDepartureStart={setDepartureStart}
             departureEnd={departureEnd} setDepartureEnd={setDepartureEnd}
             preferredAirports={preferredAirports} setPreferredAirports={setPreferredAirports}
+            departureAirports={departureAirports} setDepartureAirports={setDepartureAirports}
             arrivalCutoff={arrivalCutoff} setArrivalCutoff={setArrivalCutoff}
+            departureCutoff={departureCutoff} setDepartureCutoff={setDepartureCutoff}
+            isReRun={!!results}
             contacts={contacts} setContactsOpen={setContactsOpen}
             registrationFile={registrationFile} setRegistrationFile={setRegistrationFile}
             flightFile={flightFile} setFlightFile={setFlightFile}
@@ -5510,6 +5586,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 { k:"ok",           l:"Aligned",        v:counts.ok,           c:P.green },
                 { k:"issues",       l:"Action needed",  v:counts.flagged,      c:P.red },
                 { k:"earlyarrival", l:"Early arrival",  v:counts.earlyarrival, c:P.periwinkleD },
+                { k:"earlydeparture", l:"Early departure", v:counts.earlydeparture, c:P.periwinkleD },
                 { k:"missing",      l:"Missing record", v:counts.missing,      c:P.amber },
                 { k:"airport",      l:"Wrong airport",  v:counts.airport,      c:"#2E6FD6" },
                 { k:"window",       l:"Outside window", v:counts.window,       c:P.purple },
