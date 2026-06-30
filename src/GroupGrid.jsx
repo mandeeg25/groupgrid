@@ -58,7 +58,7 @@ const P = {
 const font = "'Manrope', sans-serif";
 const fontDisplay = "'Poppins', sans-serif";
 // Build version — bump this whenever code is deployed so you can confirm at a glance which build is live.
-const APP_VERSION = "v7.0 · Jun 2026";
+const APP_VERSION = "v7.4 · Jun 2026";
 // Deep-linkable marketing/legal pages. Maps URL path <-> in-app page so groupgrid.io/privacy
 // loads the policy directly (and refresh/share keeps you there). Landing and app both live at "/".
 const PAGE_PATHS = { privacy:"/privacy", terms:"/terms", pricing:"/pricing", about:"/about", faq:"/faq", contact:"/contact" };
@@ -757,6 +757,68 @@ function Btn({ onClick, children, color, outline, small, disabled }) {
 }
 
 // ── Contacts Manager Modal ────────────────────────────────────────────────────
+function SupportModal({ user, onClose }) {
+  const [stEmail, setStEmail] = useState(user?.email || "");
+  const [stCategory, setStCategory] = useState("Question");
+  const [stSubject, setStSubject] = useState("");
+  const [stBody, setStBody] = useState("");
+  const ready = !!(stSubject.trim() && stBody.trim());
+  const send = () => {
+    if (!ready) return;
+    const subjectLine = `SUPPORT TICKET: ${stSubject.trim()}`;
+    const lines = [
+      stBody.trim(),
+      "",
+      "----",
+      `Category: ${stCategory}`,
+      stEmail.trim() ? `Reply to: ${stEmail.trim()}` : "",
+      "Sent from the GroupGrid in-app support form",
+    ].filter(Boolean);
+    window.location.href = `mailto:groupgrid@outlook.com?subject=${encodeURIComponent(subjectLine)}&body=${encodeURIComponent(lines.join("\n"))}`;
+  };
+  const inputStyle = (filled) => ({ width:"100%", background:P.grey50, border:`1.5px solid ${filled?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"11px 13px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" });
+  const labelStyle = { display:"block", fontSize:"13px", fontWeight:600, color:P.grey600, fontFamily:font, marginBottom:"6px" };
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(27,42,74,0.55)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:"20px" }}>
+      <div className="gg-modal" style={{ background:P.white, borderRadius:"22px", width:"100%", maxWidth:"560px", maxHeight:"90vh", overflow:"auto", boxShadow:"0 20px 60px rgba(27,42,74,0.3)" }}>
+        <div style={{ padding:"20px 24px", borderBottom:`1px solid ${P.grey100}`, display:"flex", alignItems:"center", justifyContent:"space-between", gap:"14px" }}>
+          <div>
+            <div style={{ fontWeight:700, fontSize:"16px", color:P.navy, fontFamily:font }}>Contact support</div>
+            <div style={{ fontSize:"13px", color:P.grey400, fontFamily:font, marginTop:"2px", lineHeight:1.5 }}>We reply within one business day. This opens a pre-filled email to groupgrid@outlook.com in your mail app.</div>
+          </div>
+          <button onClick={onClose} style={{ background:P.grey100, border:"none", borderRadius:"10px", width:30, height:30, cursor:"pointer", color:P.navy, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><X size={15} strokeWidth={1.8}/></button>
+        </div>
+        <div style={{ padding:"20px 24px" }}>
+          <div className="gg-contacts-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"14px" }}>
+            <div>
+              <label style={labelStyle}>Your email <span style={{ color:P.grey400, fontWeight:400 }}>· so we can reply</span></label>
+              <input type="email" value={stEmail} onChange={e=>setStEmail(e.target.value)} placeholder="you@company.com" style={inputStyle(stEmail.trim())} />
+            </div>
+            <div>
+              <label style={labelStyle}>Category</label>
+              <select value={stCategory} onChange={e=>setStCategory(e.target.value)} style={{ ...inputStyle(true), appearance:"none", cursor:"pointer", fontWeight:600 }}>
+                {["Question","Bug report","Feature request","Account / billing","Urgent event-day issue","Other"].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{ marginBottom:"14px" }}>
+            <label style={labelStyle}>Subject <span style={{ color:P.red }}>required</span></label>
+            <input type="text" value={stSubject} onChange={e=>setStSubject(e.target.value)} placeholder="Short summary of the issue" style={inputStyle(stSubject.trim())} />
+          </div>
+          <div style={{ marginBottom:"18px" }}>
+            <label style={labelStyle}>Description <span style={{ color:P.red }}>required</span></label>
+            <textarea value={stBody} onChange={e=>setStBody(e.target.value)} rows={5} placeholder="What happened, what you expected, and any steps to reproduce it. Include your event name if it helps." style={{ ...inputStyle(stBody.trim()), resize:"vertical", lineHeight:1.6 }} />
+          </div>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"flex-end", gap:"12px", flexWrap:"wrap" }}>
+            <button onClick={onClose} style={{ background:"transparent", border:`1.5px solid ${P.grey200}`, borderRadius:"10px", padding:"10px 18px", fontSize:"14px", fontWeight:600, color:P.grey600, fontFamily:font, cursor:"pointer" }}>Cancel</button>
+            <button onClick={send} disabled={!ready} style={{ background:ready?P.accent:P.grey100, color:ready?P.white:P.grey400, border:"none", borderRadius:"10px", padding:"11px 22px", fontSize:"14px", fontWeight:800, fontFamily:font, cursor:ready?"pointer":"not-allowed", boxShadow:ready?"0 2px 12px rgba(0,201,177,0.35)":"none", transition:"all 0.18s", whiteSpace:"nowrap" }}>Send support ticket →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ContactsModal({ contacts, onSave, onClose }) {
   const [local, setLocal] = useState(JSON.parse(JSON.stringify(contacts)));
   function update(type, field, val) {
@@ -958,7 +1020,9 @@ function EmailModal({ record, eventName, contacts, onClose }) {
   const flightOut = record.flight?.flightOut || null;
   const arrivalTimeT = record.flight?.arrivalTime ? " at " + fmtTime(record.flight.arrivalTime, "ampm") : "";
   const departureTimeT = record.flight?.departureTime ? " at " + fmtTime(record.flight.departureTime, "ampm") : "";
-  const airport = record.flight?.airport || null;
+  const arrAirport = record.flight?.arrivalAirport || record.flight?.airport || null;
+  const depAirport = record.flight?.departureAirport || record.flight?.airport || null;
+  const airport = arrAirport || depAirport || null;
   const checkIn = record.hotel?.checkIn ? record.hotel.checkIn.toLocaleDateString("en-US", { month:"long", day:"numeric", year:"numeric" }) : null;
   const checkOut = record.hotel?.checkOut ? record.hotel.checkOut.toLocaleDateString("en-US", { month:"long", day:"numeric", year:"numeric" }) : null;
   const hotel = record.hotel?.hotel || hotelName;
@@ -968,22 +1032,22 @@ function EmailModal({ record, eventName, contacts, onClose }) {
     return issues.map(issue => {
       // Flight arrives BEFORE hotel check-in (early arrival)
       if (issue.text?.includes("before check-in") && flightArrival && checkIn)
-        return `  Your flight arrives:   ${flightArrival}${airport ? " (" + airport + ")" : ""}${flightIn ? " — Flight " + flightIn : ""}\n  Your hotel check-in:   ${checkIn}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}\n\n  Your flight lands before your hotel check-in date. We want to make sure you have somewhere to stay that first night.\n  Do you need an extra night${hotel && hotel !== "the hotel" ? " at " + hotel : ""}, or do you have accommodations arranged?`;
+        return `  Your flight arrives:   ${flightArrival}${arrAirport ? " (" + arrAirport + ")" : ""}${flightIn ? " — Flight " + flightIn : ""}\n  Your hotel check-in:   ${checkIn}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}\n\n  Your flight lands before your hotel check-in date. We want to make sure you have somewhere to stay that first night.\n  Do you need an extra night${hotel && hotel !== "the hotel" ? " at " + hotel : ""}, or do you have accommodations arranged?`;
       // Flight arrives AFTER hotel check-in (late arrival)
       if (issue.text?.includes("after check-in") && flightArrival && checkIn)
-        return `  Your flight arrives:   ${flightArrival}${airport ? " (" + airport + ")" : ""}${flightIn ? " — Flight " + flightIn : ""}\n  Your hotel check-in:   ${checkIn}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}\n\n  Your flight arrives after your hotel check-in date. Your room will be held, but we wanted to flag this in case the dates need updating.\n  Could you confirm these details are correct?`;
+        return `  Your flight arrives:   ${flightArrival}${arrAirport ? " (" + arrAirport + ")" : ""}${flightIn ? " — Flight " + flightIn : ""}\n  Your hotel check-in:   ${checkIn}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}\n\n  Your flight arrives after your hotel check-in date. Your room will be held, but we wanted to flag this in case the dates need updating.\n  Could you confirm these details are correct?`;
       // Flight departs BEFORE hotel check-out (early departure)
       if (issue.text?.includes("before check-out") && checkOut && flightDeparture)
-        return `  Your hotel check-out:  ${checkOut}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}\n  Your flight departs:   ${flightDeparture}${airport ? " (" + airport + ")" : ""}${flightOut ? " — Flight " + flightOut : ""}\n\n  Your flight departs before your hotel check-out date. You may be paying for a night you won't use.\n  Would you like us to adjust your check-out, or is this intentional?`;
+        return `  Your hotel check-out:  ${checkOut}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}\n  Your flight departs:   ${flightDeparture}${depAirport ? " (" + depAirport + ")" : ""}${flightOut ? " — Flight " + flightOut : ""}\n\n  Your flight departs before your hotel check-out date. You may be paying for a night you won't use.\n  Would you like us to adjust your check-out, or is this intentional?`;
       // Flight departs AFTER hotel check-out (late departure — the common case)
       if (issue.text?.includes("after check-out") && checkOut && flightDeparture)
-        return `  Your hotel check-out:  ${checkOut}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}\n  Your flight departs:   ${flightDeparture}${airport ? " (" + airport + ")" : ""}${flightOut ? " — Flight " + flightOut : ""}\n\n  Your hotel checks out on ${checkOut}, but your flight does not depart until ${flightDeparture}. You may not have somewhere to stay on your last night.\n  Would you like to extend your stay${hotel && hotel !== "the hotel" ? " at " + hotel : ""} by one night, or do you have other arrangements?`;
+        return `  Your hotel check-out:  ${checkOut}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}\n  Your flight departs:   ${flightDeparture}${depAirport ? " (" + depAirport + ")" : ""}${flightOut ? " — Flight " + flightOut : ""}\n\n  Your hotel checks out on ${checkOut}, but your flight does not depart until ${flightDeparture}. You may not have somewhere to stay on your last night.\n  Would you like to extend your stay${hotel && hotel !== "the hotel" ? " at " + hotel : ""} by one night, or do you have other arrangements?`;
       if (issue.text === "Missing from hotel roster")
-        return `  Your flight arrives:   ${flightArrival || "—"}${airport ? " (" + airport + ")" : ""}\n  Hotel booking:         Not currently on file\n\n  We do not have a hotel booking on file for you. We want to make sure you have somewhere to stay.\n  Have you arranged your own accommodations, or would you like us to help?`;
+        return `  Your flight arrives:   ${flightArrival || "—"}${arrAirport ? " (" + arrAirport + ")" : ""}\n  Hotel booking:         Not currently on file\n\n  We do not have a hotel booking on file for you. We want to make sure you have somewhere to stay.\n  Have you arranged your own accommodations, or would you like us to help?`;
       if (issue.text === "Missing from flight manifest")
         return `  Flight details:        Not currently on file\n  Your hotel check-in:   ${checkIn || "—"}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}\n\n  We do not have your flight details on file. Could you share your inbound and outbound flight numbers and dates?`;
       if (issue.text === "Missing from car transfers")
-        return `  Your flight arrives:   ${flightArrival || "—"}${airport ? " (" + airport + ")" : ""}${flightIn ? " — Flight " + flightIn : ""}\n  Ground transfer:       Not currently on file${hotel && hotel !== "the hotel" ? "\n  Hotel:                 " + hotel : ""}\n\n  We do not have a ground transfer arranged for you. Would you like us to arrange transportation from ${airport || "the airport"} to ${hotel && hotel !== "the hotel" ? hotel : "your hotel"}?`;
+        return `  Your flight arrives:   ${flightArrival || "—"}${arrAirport ? " (" + arrAirport + ")" : ""}${flightIn ? " — Flight " + flightIn : ""}\n  Ground transfer:       Not currently on file${hotel && hotel !== "the hotel" ? "\n  Hotel:                 " + hotel : ""}\n\n  We do not have a ground transfer arranged for you. Would you like us to arrange transportation from ${arrAirport || "the airport"} to ${hotel && hotel !== "the hotel" ? hotel : "your hotel"}?`;
       if (issue.type === "window")
         return `  Your arrival:          ${flightArrival || "—"}\n  Your departure:        ${flightDeparture || "—"}\n\n  Your travel dates appear to fall outside the approved event travel window. Could you confirm these dates are correct, or let us know if any changes are needed?`;
       return `  ${issue.text}`;
@@ -1009,13 +1073,13 @@ function EmailModal({ record, eventName, contacts, onClose }) {
   function buildTravelIssueLines() {
     return issues.map(issue => {
       if (issue.text?.includes("before check-in") && flightArrival && checkIn)
-        return `  • Inbound flight ${flightIn || ""} arrives ${flightArrival}${airport ? " into " + airport : ""} — hotel check-in is ${checkIn}\n    The guest arrives before check-in. Please confirm whether this itinerary is correct.`;
+        return `  • Inbound flight ${flightIn || ""} arrives ${flightArrival}${arrAirport ? " into " + arrAirport : ""} — hotel check-in is ${checkIn}\n    The guest arrives before check-in. Please confirm whether this itinerary is correct.`;
       if (issue.text?.includes("after check-in") && flightArrival && checkIn)
-        return `  • Inbound flight ${flightIn || ""} arrives ${flightArrival}${airport ? " into " + airport : ""} — hotel check-in is ${checkIn}\n    The guest arrives after the hotel check-in date. Please confirm the booking is correctly held.`;
+        return `  • Inbound flight ${flightIn || ""} arrives ${flightArrival}${arrAirport ? " into " + arrAirport : ""} — hotel check-in is ${checkIn}\n    The guest arrives after the hotel check-in date. Please confirm the booking is correctly held.`;
       if (issue.text?.includes("before check-out") && checkOut && flightDeparture)
-        return `  • Hotel check-out is ${checkOut} — outbound flight ${flightOut || ""} departs ${flightDeparture}${airport ? " from " + airport : ""}\n    The guest departs before hotel check-out. Please confirm if the itinerary needs adjusting.`;
+        return `  • Hotel check-out is ${checkOut} — outbound flight ${flightOut || ""} departs ${flightDeparture}${depAirport ? " from " + depAirport : ""}\n    The guest departs before hotel check-out. Please confirm if the itinerary needs adjusting.`;
       if (issue.text?.includes("after check-out") && checkOut && flightDeparture)
-        return `  • Hotel check-out is ${checkOut}${hotel && hotel !== "the hotel" ? " at " + hotel : ""} — outbound flight ${flightOut || ""} departs ${flightDeparture}${airport ? " from " + airport : ""}\n    The guest's flight departs after hotel check-out. Please confirm whether the stay should be extended or a late check-out arranged.`;
+        return `  • Hotel check-out is ${checkOut}${hotel && hotel !== "the hotel" ? " at " + hotel : ""} — outbound flight ${flightOut || ""} departs ${flightDeparture}${depAirport ? " from " + depAirport : ""}\n    The guest's flight departs after hotel check-out. Please confirm whether the stay should be extended or a late check-out arranged.`;
       if (issue.text === "Missing from flight manifest")
         return `  • No flight record found on file for this guest\n    Hotel check-in${hotel && hotel !== "the hotel" ? " at " + hotel : ""} is confirmed for ${checkIn || "—"}. Could you provide the inbound and outbound itinerary?`;
       return `  • ${issue.text}`;
@@ -1064,10 +1128,10 @@ ${buildTravelIssueLines()}
 
 Here is the full travel summary we have on file for this guest:
 
-    Inbound:           ${flightArrival || "—"}${arrivalTimeT}${airport ? " into " + airport : ""}${flightIn ? " — Flight " + flightIn : ""}
+    Inbound:           ${flightArrival || "—"}${arrivalTimeT}${arrAirport ? " into " + arrAirport : ""}${flightIn ? " — Flight " + flightIn : ""}
     Hotel check-in:   ${checkIn || "—"}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}
     Hotel check-out:  ${checkOut || "—"}
-    Outbound:          ${flightDeparture || "—"}${departureTimeT}${airport ? " from " + airport : ""}${flightOut ? " — Flight " + flightOut : ""}
+    Outbound:          ${flightDeparture || "—"}${departureTimeT}${depAirport ? " from " + depAirport : ""}${flightOut ? " — Flight " + flightOut : ""}
 
 Kindly advise on the correct details and any changes needed. We really appreciate your support in making sure everything lines up perfectly for ${guestName}!
 
@@ -1094,10 +1158,10 @@ Could you take a quick look and let us know if anything needs to be updated? We 
 
 Your full travel summary on file:
 
-  Arrival:          ${flightArrival || "—"}${airport ? " (" + airport + ")" : ""}${flightIn ? " — Flight " + flightIn : ""}
+  Arrival:          ${flightArrival || "—"}${arrAirport ? " (" + arrAirport + ")" : ""}${flightIn ? " — Flight " + flightIn : ""}
   Hotel check-in:   ${checkIn || "—"}${hotel && hotel !== "the hotel" ? " at " + hotel : ""}
   Hotel check-out:  ${checkOut || "—"}
-  Departure:        ${flightDeparture || "—"}${airport ? " (" + airport + ")" : ""}${flightOut ? " — Flight " + flightOut : ""}
+  Departure:        ${flightDeparture || "—"}${depAirport ? " (" + depAirport + ")" : ""}${flightOut ? " — Flight " + flightOut : ""}
 
 Thank you so much — we truly look forward to seeing you${evName ? " at " + evName : ""}!
 
@@ -1238,7 +1302,7 @@ const DEFAULT_TEMPLATES = {
 We are reviewing travel for {{eventName}} and spotted a timing gap to confirm with you:
 
 ──────────────────────
-Flight arrives: {{flightArrival}}{{arrivalTimeTail}} into {{airport}} (Flight {{flightIn}})
+Flight arrives: {{flightArrival}}{{arrivalTimeTail}} into {{arrivalAirport}} (Flight {{flightIn}})
 Hotel check-in: {{checkIn}} at {{hotel}}
 
 Your flight lands the day before your hotel check-in.
@@ -1268,7 +1332,7 @@ We are reviewing travel for {{eventName}} and spotted a timing gap to confirm:
 
 ──────────────────────
 Hotel check-out: {{checkOut}} at {{hotel}}
-Flight departs: {{flightDeparture}}{{departureTimeTail}} from {{airport}} (Flight {{flightOut}})
+Flight departs: {{flightDeparture}}{{departureTimeTail}} from {{departureAirport}} (Flight {{flightOut}})
 
 Your hotel checks out before your flight departs.
 ──────────────────────
@@ -1296,7 +1360,7 @@ Warmly,
 We are reviewing travel for {{eventName}} and we do not have a hotel booking on file for you:
 
 ──────────────────────
-Flight arrives: {{flightArrival}}{{arrivalTimeTail}} into {{airport}} (Flight {{flightIn}})
+Flight arrives: {{flightArrival}}{{arrivalTimeTail}} into {{arrivalAirport}} (Flight {{flightIn}})
 Hotel booking: Not on file
 ──────────────────────
 
@@ -1343,13 +1407,13 @@ Warmly,
 We are arranging ground transfers for {{eventName}} and do not have one on file for you:
 
 ──────────────────────
-Flight arrives: {{flightArrival}}{{arrivalTimeTail}} into {{airport}} (Flight {{flightIn}})
+Flight arrives: {{flightArrival}}{{arrivalTimeTail}} into {{arrivalAirport}} (Flight {{flightIn}})
 Transfer: Not on file
 ──────────────────────
 
 What we need: reply with your preference.
 
-  Yes, please arrange a transfer from {{airport}} to {{hotel}}.
+  Yes, please arrange a transfer from {{arrivalAirport}} to {{hotel}}.
   No thanks, I have my own transportation.
 
 Warmly,
@@ -1417,7 +1481,7 @@ Warmly,
 We are reviewing travel for {{eventName}} and noticed your arrival airport:
 
 ──────────────────────
-Flight arrives: {{airport}} on {{flightArrival}}{{arrivalTimeTail}} (Flight {{flightIn}})
+Flight arrives: {{arrivalAirport}} on {{flightArrival}}{{arrivalTimeTail}} (Flight {{flightIn}})
 
 This is not an airport we are coordinating arrivals around.
 ──────────────────────
@@ -1440,8 +1504,8 @@ Warmly,
 We are reviewing travel for {{eventName}} and your dates fall outside the event travel window:
 
 ──────────────────────
-Flight arrives: {{flightArrival}}{{arrivalTimeTail}} into {{airport}}
-Flight departs: {{flightDeparture}}{{departureTimeTail}} from {{airport}}
+Flight arrives: {{flightArrival}}{{arrivalTimeTail}} into {{arrivalAirport}}
+Flight departs: {{flightDeparture}}{{departureTimeTail}} from {{departureAirport}}
 Event window: {{eventStart}} to {{eventEnd}}
 ──────────────────────
 
@@ -1463,9 +1527,9 @@ Warmly,
 A quick travel check for {{eventName}}. Here is what we have on file:
 
 ──────────────────────
-Arrival: {{flightArrival}}{{arrivalTimeTail}} into {{airport}} (Flight {{flightIn}})
+Arrival: {{flightArrival}}{{arrivalTimeTail}} into {{arrivalAirport}} (Flight {{flightIn}})
 Hotel: {{checkIn}} to {{checkOut}} at {{hotel}}
-Departure: {{flightDeparture}}{{departureTimeTail}} from {{airport}} (Flight {{flightOut}})
+Departure: {{flightDeparture}}{{departureTimeTail}} from {{departureAirport}} (Flight {{flightOut}})
 ──────────────────────
 
 What we need: reply to confirm it is correct, or tell us what to change.
@@ -1495,7 +1559,9 @@ function fillTemplate(template, record, extra = {}) {
     "{{carDropoffTime}}": fmtTime(record.car?.dropoffTime, "ampm") || "—",
     "{{flightIn}}": record.flight?.flightIn || "—",
     "{{flightOut}}": record.flight?.flightOut || "—",
-    "{{airport}}": record.flight?.airport || "the airport",
+    "{{arrivalAirport}}": record.flight?.arrivalAirport || record.flight?.airport || "the airport",
+    "{{departureAirport}}": record.flight?.departureAirport || record.flight?.airport || "the airport",
+    "{{airport}}": record.flight?.airport || record.flight?.arrivalAirport || record.flight?.departureAirport || "the airport",
     "{{checkIn}}": fmt(record.hotel?.checkIn) || "—",
     "{{checkOut}}": fmt(record.hotel?.checkOut) || "—",
     "{{hotel}}": record.hotel?.hotel || "the hotel",
@@ -1635,10 +1701,10 @@ I am writing about the itinerary for {{guestFullName}}{{guestEmailParen}} for {{
 
 ──────────────────────
 Guest: {{guestFullName}}
-Inbound: {{flightArrival}}{{arrivalTimeTail}} into {{airport}}{{flightInTail}}
+Inbound: {{flightArrival}}{{arrivalTimeTail}} into {{arrivalAirport}}{{flightInTail}}
 Hotel check-in: {{checkIn}} at {{hotel}}
 Hotel check-out: {{checkOut}}
-Outbound: {{flightDeparture}}{{departureTimeTail}} from {{airport}}{{flightOutTail}}
+Outbound: {{flightDeparture}}{{departureTimeTail}} from {{departureAirport}}{{flightOutTail}}
 
 Issue: {{issueSummary}}
 ──────────────────────
@@ -4213,7 +4279,7 @@ function SetupScreen({
   departureAirports, setDepartureAirports,
   arrivalCutoff, setArrivalCutoff,
   departureCutoff, setDepartureCutoff,
-  contacts, setContactsOpen,
+  contacts, setContacts, setContactsOpen,
   registrationFile, setRegistrationFile, flightFile, setFlightFile, hotelFile, setHotelFile,
   hotelProperty, setHotelProperty, extraHotels, setExtraHotels,
   carFile, setCarFile, dietaryFile, setDietaryFile,
@@ -4222,16 +4288,20 @@ function SetupScreen({
   const hasName = !!(projectName && projectName.trim());
   const canRun = hasName && ready && !loading;
   const hasContacts = contacts && (contacts.hotel?.email || contacts.travel?.email || contacts.car?.email);
+  const anyTravel = !!(arrivalStart || arrivalEnd || departureStart || departureEnd || arrivalCutoff || departureCutoff || preferredAirports || departureAirports);
+  const updateContact = (group, field, val) => setContacts(prev => ({ ...prev, [group]: { ...prev[group], [field]: val } }));
   return (
-    <div style={{ maxWidth:"1080px", margin:"0 auto", width:"100%" }}>
+    <div style={{ maxWidth:"760px", margin:"0 auto", width:"100%" }}>
       <h1 style={{ fontSize:"clamp(20px,3vw,24px)", fontWeight:600, color:P.navy, fontFamily:font, letterSpacing:"-0.02em", margin:"0 0 4px" }}>New project</h1>
-      <p style={{ fontSize:"13px", color:P.grey600, fontFamily:font, margin:"0 0 18px", lineHeight:1.5 }}>Set up your event, then upload your spreadsheets to run the cross-check.</p>
+      <p style={{ fontSize:"13.5px", color:P.grey600, fontFamily:font, margin:"0 0 18px", lineHeight:1.55 }}>Work through the four steps below, then run the cross-check. Steps 2 and 3 are optional.</p>
 
       <div style={{ display:"flex", alignItems:"center", marginBottom:"18px", flexWrap:"wrap", gap:"8px" }}>
         {[
-          { n:"1", label:"Project details", state: hasName ? "done" : "active" },
-          { n:"2", label:"Upload files", state: hasName ? (ready ? "done" : "active") : "todo" },
-          { n:"3", label:"Review results", state:"todo" },
+          { n:"1", label:"Project", state: hasName ? "done" : "active" },
+          { n:"2", label:"Travel", state: anyTravel ? "done" : "todo" },
+          { n:"3", label:"Contacts", state: hasContacts ? "done" : "todo" },
+          { n:"4", label:"Upload", state: hasName ? (ready ? "done" : "active") : "todo" },
+          { n:"5", label:"Review", state:"todo" },
         ].map(({ n, label, state }, i) => (
           <React.Fragment key={label}>
             {i > 0 && <div className="gg-step-line" style={{ flex:1, height:"1.5px", background:P.grey100, margin:"0 12px", minWidth:"20px" }} />}
@@ -4243,25 +4313,28 @@ function SetupScreen({
         ))}
       </div>
 
-      <div className="gg-setup-cols" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(380px, 1fr))", gap:"14px", alignItems:"start" }}>
+      <div className="gg-setup-cols" style={{ display:"grid", gridTemplateColumns:"1fr", gap:"14px", alignItems:"start" }}>
       <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)" }}>
-        <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 1 · Project details</div>
-        <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"14px" }}>Name your project, set the event name used in attendee emails, and (optionally) add travel dates and contacts.</div>
+        <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 1 · Project info</div>
+        <div style={{ fontSize:"12.5px", color:P.grey600, fontFamily:font, marginBottom:"14px", lineHeight:1.5 }}>Name your project and set the event name guests see in their emails.</div>
         <div style={{ marginBottom:"14px" }}>
           <label style={{ display:"block", fontSize:"13px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Project name <span style={{ color:P.red }}>required</span></label>
           <input value={projectName} onChange={e => setProjectName(e.target.value)} placeholder="e.g. Sales Summit - working file"
             style={{ width:"100%", background:P.grey50, border:`1.5px solid ${hasName?P.accent+"88":P.grey100}`, borderRadius:"10px", padding:"11px 13px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
-          <div style={{ fontSize:"11px", color:P.grey400, fontFamily:font, marginTop:"5px" }}>What this saved project is called in your list. Only you see it.</div>
+          <div style={{ fontSize:"11px", color:P.grey600, fontFamily:font, marginTop:"5px" }}>What this saved project is called in your list. Only you see it.</div>
         </div>
         <div style={{ marginBottom:"14px" }}>
           <label style={{ display:"block", fontSize:"13px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Event name <span style={{ color:P.grey400, fontWeight:400 }}>· used in attendee emails</span></label>
           <input value={eventName} onChange={e => setEventName(e.target.value)} placeholder="e.g. Sales Summit 2026"
             style={{ width:"100%", background:P.grey50, border:`1.5px solid ${eventName&&eventName.trim()?P.accent+"88":P.grey100}`, borderRadius:"10px", padding:"11px 13px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
-          <div style={{ fontSize:"11px", color:P.grey400, fontFamily:font, marginTop:"5px" }}>The name guests see in emails and on the report. Left blank, emails fall back to a generic phrase.</div>
+          <div style={{ fontSize:"11px", color:P.grey600, fontFamily:font, marginTop:"5px" }}>The name guests see in emails and on the report. Left blank, emails fall back to a generic phrase.</div>
         </div>
-        {/* ── Travel rules: grouped Arrival / Departure ── */}
-        <div style={{ height:"1px", background:P.grey100, margin:"6px 0 14px" }} />
-        <div style={{ fontSize:"12px", fontWeight:600, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"14px" }}>Travel rules <span style={{ textTransform:"none", letterSpacing:0, fontWeight:400 }}>· all optional</span></div>
+      </div>
+
+      {/* ── Box 2 · Travel parameters ── */}
+      <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)" }}>
+        <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 2 · Travel parameters <span style={{ fontSize:"12px", fontWeight:400, color:P.grey400 }}>· optional</span></div>
+        <div style={{ fontSize:"12.5px", color:P.grey600, fontFamily:font, marginBottom:"16px", lineHeight:1.5 }}>Set your approved travel window, cutoffs, and airports. GroupGrid flags anyone who falls outside them. Skip this to run without travel flags.</div>
 
         {/* Arrival */}
         <div style={{ display:"flex", alignItems:"center", gap:"9px", marginBottom:"12px" }}>
@@ -4285,13 +4358,13 @@ function SetupScreen({
             <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Early-arrival cutoff</label>
             <input type="time" value={arrivalCutoff} onChange={e => setArrivalCutoff(e.target.value)}
               style={{ width:"100%", background:P.grey50, border:`1.5px solid ${arrivalCutoff?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:arrivalCutoff?P.navy:P.grey400, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
-            <div style={{ fontSize:"11.5px", color:P.grey400, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Lands before this, needs the night before.</div>
+            <div style={{ fontSize:"11.5px", color:P.grey600, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Lands before this, needs the night before.</div>
           </div>
           <div>
             <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Arrival airport(s)</label>
             <input type="text" value={preferredAirports} onChange={e => setPreferredAirports(e.target.value)} placeholder="e.g. JFK, LGA"
               style={{ width:"100%", background:P.grey50, border:`1.5px solid ${preferredAirports?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:preferredAirports?P.navy:P.grey400, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
-            <div style={{ fontSize:"11.5px", color:P.grey400, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Codes for your arrival city.</div>
+            <div style={{ fontSize:"11.5px", color:P.grey600, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Codes for your arrival city.</div>
           </div>
         </div>
         <div style={{ display:"flex", gap:"8px", alignItems:"flex-start", fontSize:"12px", color:P.grey600, fontFamily:font, lineHeight:1.5, background:P.amber+"12", borderRadius:"9px", padding:"9px 12px", marginBottom:"16px" }}>
@@ -4321,36 +4394,54 @@ function SetupScreen({
             <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Earliest departure time</label>
             <input type="time" value={departureCutoff} onChange={e => setDepartureCutoff(e.target.value)}
               style={{ width:"100%", background:P.grey50, border:`1.5px solid ${departureCutoff?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:departureCutoff?P.navy:P.grey400, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
-            <div style={{ fontSize:"11.5px", color:P.grey400, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Earliest a flight may leave that day.</div>
+            <div style={{ fontSize:"11.5px", color:P.grey600, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Earliest a flight may leave that day.</div>
           </div>
           <div>
             <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Departure airport(s)</label>
             <input type="text" value={departureAirports} onChange={e => setDepartureAirports(e.target.value)} placeholder="e.g. JFK, LGA"
               style={{ width:"100%", background:P.grey50, border:`1.5px solid ${departureAirports?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:departureAirports?P.navy:P.grey400, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
-            <div style={{ fontSize:"11.5px", color:P.grey400, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Codes for your departure city.</div>
+            <div style={{ fontSize:"11.5px", color:P.grey600, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Codes for your departure city.</div>
           </div>
         </div>
         <div style={{ display:"flex", gap:"8px", alignItems:"flex-start", fontSize:"12px", color:P.grey600, fontFamily:font, lineHeight:1.5, background:P.amber+"12", borderRadius:"9px", padding:"9px 12px", marginBottom:"4px" }}>
           <span style={{ flexShrink:0, marginTop:"1px" }}><FlagIcon size={14} line={P.amber} accent={P.amber} /></span>
           <span><strong style={{ color:P.navyLight, fontWeight:600 }}>Flags</strong> departures outside the window, before your earliest time, or from other airports.</span>
         </div>
-        <div style={{ height:"1px", background:P.grey100, margin:"14px 0" }} />
-        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", margin:"8px 0 12px" }}>Contacts <span style={{ textTransform:"none", letterSpacing:0, fontWeight:400 }}>· optional — to email your hotel &amp; travel agency directly</span></div>
-        <button onClick={() => setContactsOpen(true)}
-          style={{ display:"flex", alignItems:"center", gap:"10px", width:"100%", background:hasContacts?P.accent+"12":P.grey50, border:`1.5px ${hasContacts?"solid":"dashed"} ${hasContacts?P.accent+"55":P.grey200}`, borderRadius:"10px", padding:"12px 14px", cursor:"pointer", fontFamily:font, textAlign:"left" }}>
-          <PeopleIcon size={18} line={P.accentD} accent={P.accent}/>
-          <div style={{ flex:1 }}>
-            <div style={{ fontSize:"14px", fontWeight:500, color:hasContacts?P.accentD:P.grey600, fontFamily:font }}>{hasContacts ? "Contacts added" : "Add hotel & travel agency contacts"}</div>
-            {hasContacts && <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginTop:"1px" }}>{[contacts.hotel?.name, contacts.travel?.name, contacts.car?.name].filter(Boolean).join(" · ")}</div>}
+      </div>
+
+      {/* ── Box 3 · Contact details (expanded inline) ── */}
+      <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)" }}>
+        <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 3 · Contact details <span style={{ fontSize:"12px", fontWeight:400, color:P.grey400 }}>· optional</span></div>
+        <div style={{ fontSize:"12.5px", color:P.grey600, fontFamily:font, marginBottom:"16px", lineHeight:1.5 }}>Add your hotel, travel agency, and transfer contacts so you can email them directly from your results.</div>
+        {[
+          { key:"hotel", label:"Hotel", color:P.navy },
+          { key:"travel", label:"Travel agency", color:P.periwinkleD },
+          { key:"car", label:"Car / transfer", color:P.accentD },
+        ].map(({ key, label, color }) => (
+          <div key={key} style={{ marginBottom:"14px" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"8px" }}>
+              <span style={{ width:3, height:14, background:color, borderRadius:"2px" }} />
+              <span style={{ fontSize:"13px", fontWeight:600, color:P.navy, fontFamily:font }}>{label}</span>
+            </div>
+            <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px" }}>
+              <input value={contacts[key]?.name || ""} onChange={e => updateContact(key, "name", e.target.value)} placeholder="Contact name"
+                style={{ width:"100%", background:P.grey50, border:`1.5px solid ${contacts[key]?.name?color+"55":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+              <input type="email" value={contacts[key]?.email || ""} onChange={e => updateContact(key, "email", e.target.value)} placeholder="email@company.com"
+                style={{ width:"100%", background:P.grey50, border:`1.5px solid ${contacts[key]?.email?color+"55":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+            </div>
           </div>
-          {hasContacts && <Check size={15} strokeWidth={2.5} color={P.accentD}/>}
+        ))}
+        <button onClick={() => setContactsOpen(true)}
+          style={{ display:"inline-flex", alignItems:"center", gap:"7px", background:"transparent", border:"none", color:P.periwinkleD, fontSize:"13px", fontWeight:600, fontFamily:font, cursor:"pointer", padding:"4px 0", marginTop:"2px" }}>
+          <PeopleIcon size={15} line={P.periwinkleD} accent={P.accent}/>
+          More contact options (multiple hotels, phone, email signature)
         </button>
       </div>
 
       <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)", opacity: hasName ? 1 : 0.55, pointerEvents: hasName ? "auto" : "none", transition:"opacity 0.2s" }}>
-        <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 2 · Upload files {!hasName && <span style={{ fontSize:"12px", fontWeight:400, color:P.grey400 }}>· name your event first</span>}</div>
-        <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"14px" }}>Upload whatever you have — registration, flights, hotels, cars. GroupGrid cross-checks any 2 or more. Excel or CSV. Hover a tile for expected columns.</div>
-        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>Upload any 2 or more</div>
+        <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 4 · Upload files {!hasName && <span style={{ fontSize:"12px", fontWeight:400, color:P.grey400 }}>· name your project first</span>}</div>
+        <div style={{ fontSize:"12px", color:P.grey600, fontFamily:font, marginBottom:"14px" }}>Upload whatever you have — registration, flights, hotels, cars. GroupGrid cross-checks any 2 or more. Excel or CSV. Hover a tile for expected columns.</div>
+        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>Upload any 2 or more</div>
         <div className="gg-setup-tiles3" style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"10px", marginBottom:"14px" }}>
           <SetupTile label="Registration List" sub="Best anchor" icon={<PeopleIcon size={20} />} accent={P.accentD} file={registrationFile} setter={setRegistrationFile} templateType="registration" recommended columns={["First/Last Name (or Name)","Email","Company / Job Title (opt)","Requested Check-In / Out (opt)","Flight / Hotel Request (opt)"]} />
           <SetupTile label="Flight Manifest" sub=".xlsx, .csv, .pdf" icon={<PlaneIcon size={20} />} accent={P.periwinkleD} file={flightFile} setter={setFlightFile} templateType="flight" columns={["First/Last Name (or Name)","Email (opt)","Arrival Date","Departure Date","Flight # (opt)"]} />
@@ -4361,7 +4452,7 @@ function SetupScreen({
         {hotelFile && (
           <div style={{ background:P.grey50, border:`1px solid ${P.grey100}`, borderRadius:"12px", padding:"14px 16px", marginBottom:"14px" }}>
             <div style={{ fontSize:"13px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Hotel properties</div>
-            <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"12px", lineHeight:1.5 }}>Running more than one hotel? Name each property and add its rooming list. If a file already has a "Hotel" column, GroupGrid uses that automatically.</div>
+            <div style={{ fontSize:"12px", color:P.grey600, fontFamily:font, marginBottom:"12px", lineHeight:1.5 }}>Running more than one hotel? Name each property and add its rooming list. If a file already has a "Hotel" column, GroupGrid uses that automatically.</div>
 
             <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"8px" }}>
               <Hotel size={16} strokeWidth={1.8} color="#F5A623" style={{ flexShrink:0 }}/>
@@ -4388,7 +4479,7 @@ function SetupScreen({
           </div>
         )}
 
-        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>More files</div>
+        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>More files</div>
         <div className="gg-setup-tiles2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px" }}>
           <SetupTile label="Car Transfers" sub=".xlsx, .csv, .pdf" icon={<CarIcon size={20} />} accent={P.grey600} file={carFile} setter={setCarFile} templateType="car" columns={["First/Last Name (or Name)","Email (opt)","Pickup Date","Dropoff Date","Pickup Location (opt)"]} />
           {SHOW_DIETARY && <SetupTile label="Dietary & Access" sub=".xlsx, .csv, .pdf" icon={<Salad size={20} strokeWidth={1.8} color="#27AE60"/>} accent={P.teal} file={dietaryFile} setter={setDietaryFile} templateType="dietary" columns={["First/Last Name (or Name)","Email (opt)","Dietary Restrictions","Accessibility Needs","Special Notes (opt)"]} />}
@@ -4465,6 +4556,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
   const [savedSessions, setSavedSessions] = useState([]);
   const [contacts, setContacts] = useState({ hotel:{name:"",email:"",phone:"",property:""}, travel:{name:"",email:"",phone:"",agency:""}, car:{name:"",email:"",phone:"",vendor:""}, hotels:[], plannerName:"" });
   const [contactsOpen, setContactsOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   // Auth gate: the app (cross-check tool) requires login. Marketing pages stay public.
   // If logged in, enter the app; otherwise open the login modal and stay on the current marketing page.
@@ -5087,6 +5179,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
         </div>
       )}
       {contactsOpen && <ContactsModal contacts={contacts} onSave={setContacts} onClose={() => setContactsOpen(false)} />}
+      {supportOpen && <SupportModal user={user} onClose={() => setSupportOpen(false)} />}
       {shareModal && <ShareModal html={shareModal.html} filename={shareModal.filename} onClose={() => setShareModal(null)} />}
 
       {/* ── Page overlays ── */}
@@ -5353,6 +5446,16 @@ function GroupGrid({ user, onLogin, onLogout }) {
               </button>
             )}
           </>}
+
+          {/* ── Contact support (signed-in users only) ── */}
+          <div style={{ marginTop:"auto", paddingTop:"16px" }}>
+            <button onClick={() => setSupportOpen(true)} style={{ width:"100%", display:"flex", alignItems:"center", gap:"8px", background:"transparent", border:`1px solid rgba(255,255,255,0.12)`, borderRadius:"9px", padding:"8px 10px", cursor:"pointer", fontFamily:font, transition:"all 0.15s" }}
+              onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.08)"}
+              onMouseLeave={e => e.currentTarget.style.background="transparent"}>
+              <PeopleIcon size={15} line="rgba(255,255,255,0.55)" accent={P.accent} />
+              <span style={{ fontSize:"15px", fontWeight:700, color:"rgba(255,255,255,0.75)" }}>Contact support</span>
+            </button>
+          </div>
         </div>
 
         {/* ── Main Content ── */}
@@ -5448,7 +5551,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
             arrivalCutoff={arrivalCutoff} setArrivalCutoff={setArrivalCutoff}
             departureCutoff={departureCutoff} setDepartureCutoff={setDepartureCutoff}
             isReRun={!!results}
-            contacts={contacts} setContactsOpen={setContactsOpen}
+            contacts={contacts} setContacts={setContacts} setContactsOpen={setContactsOpen}
             registrationFile={registrationFile} setRegistrationFile={setRegistrationFile}
             flightFile={flightFile} setFlightFile={setFlightFile}
             hotelFile={hotelFile} setHotelFile={setHotelFile}
