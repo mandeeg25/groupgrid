@@ -58,7 +58,7 @@ const P = {
 const font = "'Manrope', sans-serif";
 const fontDisplay = "'Poppins', sans-serif";
 // Build version — bump this whenever code is deployed so you can confirm at a glance which build is live.
-const APP_VERSION = "v7.4 · Jun 2026";
+const APP_VERSION = "v7.6 · Jun 2026";
 // Deep-linkable marketing/legal pages. Maps URL path <-> in-app page so groupgrid.io/privacy
 // loads the policy directly (and refresh/share keeps you there). Landing and app both live at "/".
 const PAGE_PATHS = { privacy:"/privacy", terms:"/terms", pricing:"/pricing", about:"/about", faq:"/faq", contact:"/contact" };
@@ -2615,6 +2615,13 @@ function LoginPanel({ onLogin, onClose }) {
         options: { data: { name: name.trim() } }
       });
       if (sbErr) throw sbErr;
+      // Sync the new signup to HubSpot via our serverless endpoint (token stays
+      // server-side). Fire-and-forget: never blocks or fails the signup.
+      fetch("/api/hubspot-upsert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), name: name.trim() }),
+      }).catch(() => {});
       if (data.user && !data.session) {
         // Email confirmation required
         setSuccess("Check your inbox! We sent a confirmation link to " + email.trim() + ". Click it to activate your account.");
@@ -6044,39 +6051,6 @@ function GroupGrid({ user, onLogin, onLogout }) {
         </>)}
       </div>{/* end main content */}
       </div>{/* end sidebar+main flex */}
-
-      <div style={{ borderTop:`1px solid ${P.grey100}`, padding:"12px 28px", display:"flex", alignItems:"center", justifyContent:"space-between", background:P.white, flexWrap:"wrap", gap:"10px" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
-            <BrandLogo height={26} onDark={false} />
-            <span style={{ fontSize:"13px", color:P.grey400, fontFamily:font }}>Built for event professionals · © 2026 · <span style={{ color:P.grey200 }}>{APP_VERSION}</span></span>
-          </div>
-          <div style={{ display:"flex", gap:"20px" }}>
-            {[
-              { label:"Home", pg:"landing" },
-              { label:"Pricing", pg:"pricing" },
-              { label:"About", pg:"about" },
-              { label:"Contact", pg:"contact" },
-              { label:"Privacy Policy", pg:"privacy" },
-              { label:"Terms of Service", pg:"terms" },
-            ].map(({ label, pg }) => (
-              <button key={pg} onClick={() => setPage(pg)} style={{ background:"none", border:"none", padding:0, fontSize:"13px", color:P.grey400, fontFamily:font, fontWeight:500, cursor:"pointer", textDecoration:"underline", textDecorationColor:P.grey200 }}>{label}</button>
-            ))}
-          </div>
-        </div>
-        <div style={{ display:"flex", alignItems:"center", gap:"6px", flexWrap:"wrap" }}>
-          {[
-            { icon:<Lock size={10} strokeWidth={1.8}/>,       label:"Files stay in your browser", bg:"#FFF7ED", border:"#FB923C", color:"#C2410C" },
-            { icon:<ShieldCheck size={10} strokeWidth={1.8}/>, label:"Encrypted accounts",        bg:"#F0FDF4", border:"#4ADE80", color:"#15803D" },
-            { icon:<Check size={11} strokeWidth={2.5}/>,    label:"Secure by design",          bg:"#EFF6FF", border:"#60A5FA", color:"#1D4ED8" },
-          ].map(({ icon, label, bg, border, color }) => (
-            <div key={label} style={{ display:"flex", alignItems:"center", gap:"5px", background:bg, border:`1px solid ${border}`, borderRadius:"20px", padding:"4px 10px" }}>
-              <span style={{ display:"flex", alignItems:"center", color }}>{icon}</span>
-              <span style={{ fontSize:"15px", fontWeight:600, color, fontFamily:font }}>{label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* ── Mobile bottom nav — only shown when results are loaded ── */}
       {results && (
