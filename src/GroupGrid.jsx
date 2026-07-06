@@ -58,7 +58,7 @@ const P = {
 const font = "'Manrope', sans-serif";
 const fontDisplay = "'Poppins', sans-serif";
 // Build version — bump this whenever code is deployed so you can confirm at a glance which build is live.
-const APP_VERSION = "v8.3 · Jun 2026";
+const APP_VERSION = "v9.5 · Jun 2026";
 // Deep-linkable marketing/legal pages. Maps URL path <-> in-app page so groupgrid.io/privacy
 // loads the policy directly (and refresh/share keeps you there). Landing and app both live at "/".
 const PAGE_PATHS = { privacy:"/privacy", terms:"/terms", pricing:"/pricing", about:"/about", faq:"/faq", contact:"/contact" };
@@ -492,46 +492,6 @@ function parseCarSheet(wb) {
 function parseDietarySheet(wb) {
   return parseSheet(wb, { name:["name","attendee","guest","passenger"], email:["email","e-mail","email address"], dietary:["dietary","diet","food","restriction","allergy","allergies"], accessibility:["accessibility","access","mobility","accommodation","disability","special need"], specialNotes:["notes","special","request","other","additional"] });
 }
-function ggIssueCats(issue) {
-  const t = String(issue.text||"").toLowerCase(), type = issue.type;
-  const c = new Set();
-  if (type === "duplicate") c.add("duplicate");
-  if (type === "unregistered") c.add("registration");
-  if (type === "window") { c.add("window"); if (/arrival/.test(t)) c.add("arrival"); if (/departure/.test(t)) c.add("departure"); }
-  if (type === "airport") { c.add("airport"); if (/arrives/.test(t)) c.add("arrival"); if (/departs/.test(t)) c.add("departure"); }
-  if (type === "earlyarrival") { c.add("early"); c.add("arrival"); }
-  if (type === "earlydeparture") { c.add("early"); c.add("departure"); }
-  if (type === "missing") { if (/flight/.test(t)) c.add("flight"); if (/hotel/.test(t)) c.add("hotel"); if (/car/.test(t)) c.add("car"); }
-  if (type === "mismatch") { c.add("mismatch"); if (/hotel|check-in|check-out/.test(t)) c.add("hotel"); if (/car/.test(t)) c.add("car"); if (/arriv|depart|flight/.test(t)) c.add("flight"); }
-  return c;
-}
-function ggApprovalCats(text) {
-  const a = String(text||"").toLowerCase();
-  const c = new Set();
-  if (/hotel|room|rooming|check-?in|check-?out/.test(a)) c.add("hotel");
-  if (/flight|manifest|\bair\b/.test(a)) c.add("flight");
-  if (/airport/.test(a)) c.add("airport");
-  if (/\bcar\b|transfer|transport|pickup|drop-?off/.test(a)) c.add("car");
-  if (/window/.test(a)) c.add("window");
-  if (/mismatch|differs|match/.test(a)) c.add("mismatch");
-  if (/duplicate|dupe/.test(a)) c.add("duplicate");
-  if (/regist|not on/.test(a)) c.add("registration");
-  if (/early|earliest/.test(a)) c.add("early");
-  if (/arriv|inbound/.test(a)) c.add("arrival");
-  if (/depart|outbound|return/.test(a)) c.add("departure");
-  return c;
-}
-function ggApprovalClears(text, issue) {
-  const ac = ggApprovalCats(text); if (!ac.size) return false;
-  const ic = ggIssueCats(issue);
-  const primary = ["hotel","flight","airport","car","window","mismatch","duplicate","registration","early"];
-  if (!primary.some(p => ac.has(p) && ic.has(p))) return false;
-  const dirNamed = ac.has("arrival") || ac.has("departure");
-  const issueDir = ic.has("arrival") || ic.has("departure");
-  if (dirNamed && issueDir) return (ac.has("arrival") && ic.has("arrival")) || (ac.has("departure") && ic.has("departure"));
-  return true;
-}
-
 function parseRegistrationSheet(wb) {
   return parseSheet(wb, {
     name:["name","attendee","registrant","guest","participant"],
@@ -546,8 +506,7 @@ function parseRegistrationSheet(wb) {
     departCity:["departing city","departure city","origin city","home city","city"],
     departState:["departing state","state","province","region"],
     departCountry:["departing country","country","nation"],
-    regNotes:["notes","note","registration notes","reg notes","comments","comment","special requests","remark","remarks"],
-    approval:["approval","approved","exception","exceptions","exception approved","waived","waiver","override","cleared"],
+    regNotes:["notes","note","registration notes","reg notes","comments","comment","special requests","remark","remarks","exception","exceptions","approval","approvals","approved"],
     reason:["reason","justification","exception reason","no travel reason","opt out reason","explanation"],
     assignedHotel:["assigned hotel","hotel assignment","assigned property","designated hotel","hotel block","room block","expected hotel"],
   });
@@ -566,8 +525,13 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
   const nameKeys = new Set(allLists.map(x => normName(x.name)).filter(Boolean));
   const emailMatchedNames = new Set();
   emailKeys.forEach(ek => [fByE.get(ek),hByE.get(ek),cByE.get(ek),dByE.get(ek),rByE.get(ek)].forEach(r => { if (r) emailMatchedNames.add(normName(r.name)); }));
-  const dupNames = new Set();
-  [flights,hotels,cars].forEach(list => { const seen = new Map(); list.forEach(x => { const k = normName(x.name); seen.set(k,(seen.get(k)||0)+1); }); seen.forEach((v,k) => { if (v>1) dupNames.add(k); }); });
+  const dupSources = new Map();
+  [flights,hotels,cars,dietary,registration].forEach(list => {
+    const seen = new Map();
+    list.forEach(x => { const k = normName(x.name); if (!k) return; if (!seen.has(k)) seen.set(k, []); seen.get(k).push(x.source || ""); });
+    seen.forEach((srcs, k) => { if (srcs.length > 1) { if (!dupSources.has(k)) dupSources.set(k, new Set()); srcs.forEach(sc => { if (sc) dupSources.get(k).add(sc); }); } });
+  });
+  const dupNames = new Set([...dupSources.keys()]);
 
   // Helper: does this registration row have a noted reason (in notes OR a dedicated reason column)?
   const hasReason = (reg) => {
@@ -679,21 +643,17 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
     const depAptList = (departureAirports && departureAirports.length) ? departureAirports : preferredAirports;
     if (arrApt && isWrongAirport(arrApt, preferredAirports)) issues.push({ type:"airport", text:`Arrives at ${arrApt.toUpperCase()} (not a preferred airport)` });
     if (depApt && depApt !== arrApt && isWrongAirport(depApt, depAptList)) issues.push({ type:"airport", text:`Departs from ${depApt.toUpperCase()} (not a preferred airport)` });
-    if (dupNames.has(normName(displayName))) issues.push({ type:"duplicate", text:"Duplicate name detected across lists" });
+    if (dupNames.has(normName(displayName))) { const _srcs = [...(dupSources.get(normName(displayName)) || [])]; issues.push({ type:"duplicate", text: _srcs.length ? `Appears in multiple files (${_srcs.join(", ")})` : "Appears in more than one file" }); }
     const seen = new Set(); const uniqueIssues = issues.filter(x => { if (seen.has(x.text)) return false; seen.add(x.text); return true; });
-    // Notes are informational only. A separate Approval / Exception value clears ONLY the flags it
-    // names (matched by category and direction), recorded as resolved so status recomputes and the
-    // export keeps an audit trail. Uploaded values win over in-app edits.
+    // Notes from the registration file are informational only. Flags are cleared in-app with Resolve.
     const fileNote = (reg?.regNotes && String(reg.regNotes).trim()) ? String(reg.regNotes).trim() : "";
-    const approvalText = (reg?.approval && String(reg.approval).trim()) ? String(reg.approval).trim() : "";
-    const approvalResolved = approvalText ? uniqueIssues.filter(iss => ggApprovalClears(approvalText, iss)).map(x => x.text) : [];
-    const resolved = Array.from(new Set([...(existing.resolved || []), ...approvalResolved]));
+    const resolved = existing.resolved || [];
     const active = uniqueIssues.filter(x => !resolved.includes(x.text));
     const status = active.length === 0 ? "ok" : active.length === 1 ? "warn" : "error";
     const { firstName, lastName } = splitName(displayName);
     const resolvedFirstName = reg?.firstName || flight?.firstName || hotel?.firstName || car?.firstName || diet?.firstName || firstName;
     const resolvedLastName  = reg?.lastName  || flight?.lastName  || hotel?.lastName  || car?.lastName  || diet?.lastName  || lastName;
-    return { key, displayName, firstName:resolvedFirstName, lastName:resolvedLastName, email, matchedBy, flight, hotel, car, diet, reg, registered: !!reg, issues:uniqueIssues, status, details, note: fileNote || existing.note || "", approval: approvalText, resolved };
+    return { key, displayName, firstName:resolvedFirstName, lastName:resolvedLastName, email, matchedBy, flight, hotel, car, diet, reg, registered: !!reg, issues:uniqueIssues, status, details, note: fileNote || existing.note || "", noteBy: existing.noteBy || "", noteAt: existing.noteAt || "", resolved };
   }
 
   const results = [];
@@ -729,13 +689,13 @@ function DropZone({ label, icon, sub, onFile, fileName, accent, optional }) {
     <label onDragOver={e => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)} onDrop={onDrop}
       style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", border:`2px dashed ${drag ? accent : fileName ? accent+"88" : P.grey200}`, borderRadius:"10px", padding:"18px 12px", cursor:"pointer", minHeight:"110px", background: fileName ? accent+"07" : P.white, transition:"all 0.2s", position:"relative" }}>
       <input type="file" accept=".xlsx,.xls,.csv" style={{ display:"none" }} onChange={e => e.target.files[0] && onFile(e.target.files[0])} />
-      {optional && !fileName && <span style={{ position:"absolute", top:7, right:10, fontSize:"13px", color:P.grey400, fontFamily:font, fontWeight:500, textTransform:"uppercase" }}>Optional</span>}
-      <div style={{ marginBottom:"6px", color:P.grey400, display:"flex", alignItems:"center", justifyContent:"center" }}>{icon}</div>
+      {optional && !fileName && <span style={{ position:"absolute", top:7, right:10, fontSize:"15px", color:P.grey600, fontFamily:font, fontWeight:500, textTransform:"uppercase" }}>Optional</span>}
+      <div style={{ marginBottom:"6px", color:P.grey600, display:"flex", alignItems:"center", justifyContent:"center" }}>{icon}</div>
       {fileName ? <>
         <div style={{ color:accent, fontSize:"15px", fontWeight:700, textAlign:"center", maxWidth:"120px", wordBreak:"break-word", fontFamily:font }}>{fileName}</div>
         <div style={{ marginTop:"5px", background:P.greenLight, color:P.green, fontSize:"15px", fontWeight:800, padding:"2px 10px", borderRadius:"20px", fontFamily:font }}><Check size={10} strokeWidth={2.5} style={{display:"inline",marginRight:3}}/>Ready</div>
       </> : <>
-        <div style={{ color:P.navy, fontWeight:800, fontSize:"14px", marginBottom:"2px", fontFamily:font }}>{label}</div>
+        <div style={{ color:P.navy, fontWeight:800, fontSize:"15px", marginBottom:"2px", fontFamily:font }}>{label}</div>
         <div style={{ color:P.navyLight, fontSize:"15px", fontFamily:font, textAlign:"center" }}>{sub}</div>
       </>}
     </label>
@@ -749,7 +709,7 @@ function StatusChip({ status }) {
 }
 
 function Delta({ val }) {
-  if (val === null || val === undefined) return <span style={{ color:P.grey400 }}>—</span>;
+  if (val === null || val === undefined) return <span style={{ color:P.grey600 }}>—</span>;
   if (val === 0) return <span style={{ color:P.green, fontWeight:700, fontFamily:font, fontSize:"15px" }}>On time</span>;
   const days = Math.abs(val);
   const word = days === 1 ? "day" : "days";
@@ -762,10 +722,10 @@ function IssueTag({ issue, resolved, onResolve }) {
   const s = cfg[issue.type] || cfg.mismatch;
   const isRes = (resolved || []).includes(issue.text);
   return (
-    <div style={{ background:isRes?"#f8f8f8":s.bg, border:isRes?`1px solid ${P.grey100}`:s.border, borderRadius:"8px", padding:"7px 11px", fontSize:"15px", color:isRes?P.grey400:s.color, fontWeight:700, fontFamily:font, marginBottom:"6px", display:"flex", alignItems:"flex-start", gap:"6px", opacity:isRes?0.6:1 }}>
+    <div style={{ background:isRes?"#f8f8f8":s.bg, border:isRes?`1px solid ${P.grey100}`:s.border, borderRadius:"8px", padding:"7px 11px", fontSize:"15px", color:isRes?P.grey600:s.color, fontWeight:700, fontFamily:font, marginBottom:"6px", display:"flex", alignItems:"flex-start", gap:"6px", opacity:isRes?0.6:1 }}>
       <span style={{ flexShrink:0, display:"flex", alignItems:"center" }}>{isRes?<Check size={11} strokeWidth={2.5}/>:s.icon}</span>
       <span style={{ flex:1, textDecoration:isRes?"line-through":"none" }}>{issue.text}</span>
-      <button onClick={e => { e.stopPropagation(); onResolve(issue.text); }} style={{ background:"transparent", border:`1px solid ${isRes?P.grey200:s.color}`, borderRadius:"6px", padding:"2px 8px", fontSize:"15px", color:isRes?P.grey400:s.color, fontWeight:700, fontFamily:font, cursor:"pointer", flexShrink:0 }}>{isRes?"Unresolve":"Resolve"}</button>
+      <button onClick={e => { e.stopPropagation(); onResolve(issue.text); }} style={{ background:"transparent", border:`1px solid ${isRes?P.grey200:s.color}`, borderRadius:"6px", padding:"2px 8px", fontSize:"15px", color:isRes?P.grey600:s.color, fontWeight:700, fontFamily:font, cursor:"pointer", flexShrink:0 }}>{isRes?"Unresolve":"Resolve"}</button>
     </div>
   );
 }
@@ -781,7 +741,7 @@ function Card({ title, color, children }) {
 
 function DR({ label, val, accent, warn }) {
   return (
-    <div style={{ display:"flex", justifyContent:"space-between", gap:"8px", fontSize:"14px", fontFamily:font, marginBottom:"4px" }}>
+    <div style={{ display:"flex", justifyContent:"space-between", gap:"8px", fontSize:"15px", fontFamily:font, marginBottom:"4px" }}>
       <span style={{ color:P.navy, fontWeight:600, flexShrink:0 }}>{label}</span>
       <span style={{ color:warn?P.red:accent?P.periwinkleD:P.navy, fontWeight:accent||warn?700:500, textAlign:"right", wordBreak:"break-all" }}>{val||"—"}</span>
     </div>
@@ -792,14 +752,14 @@ function DateInput({ label, value, onChange }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:"4px" }}>
       <label style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font }}>{label}</label>
-      <input type="date" value={value} onChange={e => onChange(e.target.value)} style={{ background:P.white, border:`1.5px solid ${P.grey200}`, borderRadius:"10px", padding:"7px 10px", color:value?P.navy:P.grey400, fontSize:"14px", fontFamily:font, fontWeight:600, outline:"none" }} />
+      <input type="date" value={value} onChange={e => onChange(e.target.value)} style={{ background:P.white, border:`1.5px solid ${P.grey200}`, borderRadius:"10px", padding:"7px 10px", color:value?P.navy:P.grey600, fontSize:"15px", fontFamily:font, fontWeight:600, outline:"none" }} />
     </div>
   );
 }
 
 function Btn({ onClick, children, color, outline, small, disabled }) {
   return (
-    <button onClick={onClick} disabled={disabled} style={{ background:disabled?P.grey100:outline?"transparent":(color||P.navy), color:disabled?P.grey400:outline?(color||P.navy):P.white, border:`1.5px solid ${disabled?P.grey200:(color||P.navy)}`, borderRadius:"7px", padding:small?"4px 11px":"8px 18px", fontSize:small?"11px":"12px", fontWeight:500, fontFamily:font, cursor:disabled?"not-allowed":"pointer", whiteSpace:"nowrap" }}>{children}</button>
+    <button onClick={onClick} disabled={disabled} style={{ background:disabled?P.grey100:outline?"transparent":(color||P.navy), color:disabled?P.grey600:outline?(color||P.navy):P.white, border:`1.5px solid ${disabled?P.grey200:(color||P.navy)}`, borderRadius:"7px", padding:small?"4px 11px":"8px 18px", fontSize:small?"11px":"12px", fontWeight:500, fontFamily:font, cursor:disabled?"not-allowed":"pointer", whiteSpace:"nowrap" }}>{children}</button>
   );
 }
 
@@ -823,7 +783,7 @@ function SupportModal({ user, onClose }) {
     ].filter(Boolean);
     window.location.href = `mailto:groupgrid@outlook.com?subject=${encodeURIComponent(subjectLine)}&body=${encodeURIComponent(lines.join("\n"))}`;
   };
-  const inputStyle = (filled) => ({ width:"100%", background:P.grey50, border:`1.5px solid ${filled?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"11px 13px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" });
+  const inputStyle = (filled) => ({ width:"100%", background:P.grey50, border:`1.5px solid ${filled?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"11px 13px", fontSize:"15px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" });
   const labelStyle = { display:"block", fontSize:"16px", fontWeight:600, color:P.grey600, fontFamily:font, marginBottom:"6px" };
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(27,42,74,0.55)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:"20px" }}>
@@ -831,14 +791,14 @@ function SupportModal({ user, onClose }) {
         <div style={{ padding:"20px 24px", borderBottom:`1px solid ${P.grey100}`, display:"flex", alignItems:"center", justifyContent:"space-between", gap:"14px" }}>
           <div>
             <div style={{ fontWeight:700, fontSize:"16px", color:P.navy, fontFamily:font }}>Contact support</div>
-            <div style={{ fontSize:"16px", color:P.grey400, fontFamily:font, marginTop:"2px", lineHeight:1.5 }}>We reply within one business day. This opens a pre-filled email to groupgrid@outlook.com in your mail app.</div>
+            <div style={{ fontSize:"16px", color:P.grey600, fontFamily:font, marginTop:"2px", lineHeight:1.5 }}>We reply within one business day. This opens a pre-filled email to groupgrid@outlook.com in your mail app.</div>
           </div>
           <button onClick={onClose} style={{ background:P.grey100, border:"none", borderRadius:"10px", width:30, height:30, cursor:"pointer", color:P.navy, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><X size={15} strokeWidth={1.8}/></button>
         </div>
         <div style={{ padding:"20px 24px" }}>
           <div className="gg-contacts-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"14px" }}>
             <div>
-              <label style={labelStyle}>Your email <span style={{ color:P.grey400, fontWeight:400 }}>· so we can reply</span></label>
+              <label style={labelStyle}>Your email <span style={{ color:P.grey600, fontWeight:400 }}>· so we can reply</span></label>
               <input type="email" value={stEmail} onChange={e=>setStEmail(e.target.value)} placeholder="you@company.com" style={inputStyle(stEmail.trim())} />
             </div>
             <div>
@@ -858,7 +818,7 @@ function SupportModal({ user, onClose }) {
           </div>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"flex-end", gap:"12px", flexWrap:"wrap" }}>
             <button onClick={onClose} style={{ background:"transparent", border:`1.5px solid ${P.grey200}`, borderRadius:"10px", padding:"10px 18px", fontSize:"17px", fontWeight:600, color:P.grey600, fontFamily:font, cursor:"pointer" }}>Cancel</button>
-            <button onClick={send} disabled={!ready} style={{ background:ready?P.accent:P.grey100, color:ready?P.white:P.grey400, border:"none", borderRadius:"10px", padding:"11px 22px", fontSize:"14px", fontWeight:800, fontFamily:font, cursor:ready?"pointer":"not-allowed", boxShadow:ready?"0 2px 12px rgba(0,201,177,0.35)":"none", transition:"all 0.18s", whiteSpace:"nowrap" }}>Send support ticket →</button>
+            <button onClick={send} disabled={!ready} style={{ background:ready?P.accent:P.grey100, color:ready?P.white:P.grey600, border:"none", borderRadius:"10px", padding:"11px 22px", fontSize:"15px", fontWeight:800, fontFamily:font, cursor:ready?"pointer":"not-allowed", boxShadow:ready?"0 2px 12px rgba(0,201,177,0.35)":"none", transition:"all 0.18s", whiteSpace:"nowrap" }}>Send support ticket →</button>
           </div>
         </div>
       </div>
@@ -881,14 +841,14 @@ function ContactsModal({ contacts, onSave, onClose }) {
         <div style={{ padding:"20px 24px", borderBottom:`1px solid ${P.grey100}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
           <div>
             <div style={{ fontWeight:600, fontSize:"15px", color:P.navy, fontFamily:font }}>Event Contacts</div>
-            <div style={{ fontSize:"14px", color:P.navyLight, fontFamily:font, marginTop:"2px" }}>Pre-load contacts so emails auto-populate and reports can be shared directly</div>
+            <div style={{ fontSize:"15px", color:P.navyLight, fontFamily:font, marginTop:"2px" }}>Pre-load contacts so emails auto-populate and reports can be shared directly</div>
           </div>
-          <button onClick={onClose} style={{ background:P.grey100, border:"none", borderRadius:"10px", width:30, height:30, cursor:"pointer", fontSize:"14px", color:P.navy, display:"flex", alignItems:"center", justifyContent:"center" }}><X size={15} strokeWidth={1.8}/></button>
+          <button onClick={onClose} style={{ background:P.grey100, border:"none", borderRadius:"10px", width:30, height:30, cursor:"pointer", fontSize:"15px", color:P.navy, display:"flex", alignItems:"center", justifyContent:"center" }}><X size={15} strokeWidth={1.8}/></button>
         </div>
         <div style={{ padding:"20px 24px" }}>
           {fields.map(({ key, label, color, fields: flds }) => (
             <div key={key} style={{ marginBottom:"24px" }}>
-              <div style={{ fontSize:"14px", fontWeight:600, color, marginBottom:"12px", fontFamily:font, display:"flex", alignItems:"center", gap:"8px" }}>
+              <div style={{ fontSize:"15px", fontWeight:600, color, marginBottom:"12px", fontFamily:font, display:"flex", alignItems:"center", gap:"8px" }}>
                 <div style={{ width:3, height:16, background:color, borderRadius:"2px" }} />{label}
               </div>
               <div className="gg-contacts-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px" }}>
@@ -904,30 +864,30 @@ function ContactsModal({ contacts, onSave, onClose }) {
           ))}
           {/* Per-property hotel contacts (multi-hotel) */}
           <div style={{ marginBottom:"24px" }}>
-            <div style={{ fontSize:"14px", fontWeight:600, color:P.navy, marginBottom:"4px", fontFamily:font, display:"flex", alignItems:"center", gap:"8px" }}>
+            <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, marginBottom:"4px", fontFamily:font, display:"flex", alignItems:"center", gap:"8px" }}>
               <div style={{ width:3, height:16, background:"#F5A623", borderRadius:"2px" }} />Additional hotel properties
             </div>
-            <div style={{ fontSize:"13px", color:P.navyLight, fontFamily:font, marginBottom:"12px" }}>Running multiple hotels? Add a contact per property. Emails about each guest's room route to the matching property automatically.</div>
+            <div style={{ fontSize:"15px", color:P.navyLight, fontFamily:font, marginBottom:"12px" }}>Running multiple hotels? Add a contact per property. Emails about each guest's room route to the matching property automatically.</div>
             {(local.hotels||[]).map((h, idx) => (
               <div key={idx} style={{ display:"flex", gap:"8px", marginBottom:"8px", alignItems:"center", flexWrap:"wrap" }}>
                 <input value={h.property||""} onChange={e => setLocal(prev => ({ ...prev, hotels: prev.hotels.map((x,i)=>i===idx?{...x,property:e.target.value}:x) }))} placeholder="Property name"
-                  style={{ flex:"1 1 140px", background:P.offWhite, border:`1.5px solid ${h.property?"#F5A62344":P.grey100}`, borderRadius:"9px", padding:"9px 11px", fontSize:"14px", fontFamily:font, fontWeight:500, color:P.navy, outline:"none", minWidth:0 }} />
+                  style={{ flex:"1 1 140px", background:P.offWhite, border:`1.5px solid ${h.property?"#F5A62344":P.grey100}`, borderRadius:"9px", padding:"9px 11px", fontSize:"15px", fontFamily:font, fontWeight:500, color:P.navy, outline:"none", minWidth:0 }} />
                 <input value={h.name||""} onChange={e => setLocal(prev => ({ ...prev, hotels: prev.hotels.map((x,i)=>i===idx?{...x,name:e.target.value}:x) }))} placeholder="Contact name"
-                  style={{ flex:"1 1 120px", background:P.offWhite, border:`1.5px solid ${P.grey100}`, borderRadius:"9px", padding:"9px 11px", fontSize:"14px", fontFamily:font, fontWeight:500, color:P.navy, outline:"none", minWidth:0 }} />
+                  style={{ flex:"1 1 120px", background:P.offWhite, border:`1.5px solid ${P.grey100}`, borderRadius:"9px", padding:"9px 11px", fontSize:"15px", fontFamily:font, fontWeight:500, color:P.navy, outline:"none", minWidth:0 }} />
                 <input value={h.email||""} onChange={e => setLocal(prev => ({ ...prev, hotels: prev.hotels.map((x,i)=>i===idx?{...x,email:e.target.value}:x) }))} placeholder="email@hotel.com"
-                  style={{ flex:"2 1 160px", background:P.offWhite, border:`1.5px solid ${h.email?"#F5A62344":P.grey100}`, borderRadius:"9px", padding:"9px 11px", fontSize:"14px", fontFamily:font, fontWeight:500, color:P.navy, outline:"none", minWidth:0 }} />
-                <button onClick={() => setLocal(prev => ({ ...prev, hotels: prev.hotels.filter((_,i)=>i!==idx) }))} style={{ background:"transparent", border:"none", color:P.grey400, cursor:"pointer", flexShrink:0, padding:"4px" }} title="Remove"><X size={15} strokeWidth={1.8}/></button>
+                  style={{ flex:"2 1 160px", background:P.offWhite, border:`1.5px solid ${h.email?"#F5A62344":P.grey100}`, borderRadius:"9px", padding:"9px 11px", fontSize:"15px", fontFamily:font, fontWeight:500, color:P.navy, outline:"none", minWidth:0 }} />
+                <button onClick={() => setLocal(prev => ({ ...prev, hotels: prev.hotels.filter((_,i)=>i!==idx) }))} style={{ background:"transparent", border:"none", color:P.grey600, cursor:"pointer", flexShrink:0, padding:"4px" }} title="Remove"><X size={15} strokeWidth={1.8}/></button>
               </div>
             ))}
             <button onClick={() => setLocal(prev => ({ ...prev, hotels:[...(prev.hotels||[]), {property:"",name:"",email:""}] }))}
-              style={{ background:"transparent", border:"none", color:P.accentD, fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer", marginTop:"4px", padding:"4px 0" }}>+ Add hotel property contact</button>
+              style={{ background:"transparent", border:"none", color:P.accentD, fontSize:"15px", fontWeight:500, fontFamily:font, cursor:"pointer", marginTop:"4px", padding:"4px 0" }}>+ Add hotel property contact</button>
           </div>
           <div style={{ marginBottom:"24px" }}>
-            <div style={{ fontSize:"14px", fontWeight:800, color:P.navy, marginBottom:"12px", fontFamily:font, display:"flex", alignItems:"center", gap:"8px" }}>
-              <div style={{ width:3, height:16, background:P.grey400, borderRadius:"2px" }} />✍ Your Name (used in email signatures)
+            <div style={{ fontSize:"15px", fontWeight:800, color:P.navy, marginBottom:"12px", fontFamily:font, display:"flex", alignItems:"center", gap:"8px" }}>
+              <div style={{ width:3, height:16, background:P.grey600, borderRadius:"2px" }} />✍ Your Name (used in email signatures)
             </div>
             <input value={local.plannerName||""} onChange={e => setLocal(prev => ({...prev, plannerName:e.target.value}))} placeholder="e.g. Your name, Events Team"
-              style={{ width:"100%", background:P.offWhite, border:`1.5px solid ${local.plannerName?P.grey400+"44":P.grey100}`, borderRadius:"10px", padding:"9px 12px", fontSize:"15px", fontFamily:font, fontWeight:600, color:P.navy, outline:"none", boxSizing:"border-box" }} />
+              style={{ width:"100%", background:P.offWhite, border:`1.5px solid ${local.plannerName?P.grey600+"44":P.grey100}`, borderRadius:"10px", padding:"9px 12px", fontSize:"15px", fontFamily:font, fontWeight:600, color:P.navy, outline:"none", boxSizing:"border-box" }} />
           </div>
           <div style={{ display:"flex", gap:"10px", paddingTop:"8px", borderTop:`1px solid ${P.grey100}` }}>
             <Btn onClick={() => { onSave(local); onClose(); }} color={P.accent}>Save Contacts <Save size={13} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></Btn>
@@ -975,14 +935,14 @@ function ShareModal({ html, filename, onClose }) {
           <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
             <div>
               <div style={{ fontWeight:800, fontSize:"15px", color:P.white, fontFamily:font }}>Share Report</div>
-              <div style={{ fontSize:"12px", color:"rgba(255,255,255,0.45)", fontFamily:font, marginTop:"1px" }}>{filename}</div>
+              <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.45)", fontFamily:font, marginTop:"1px" }}>{filename}</div>
             </div>
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
             {/* Tab toggle */}
             <div style={{ display:"flex", background:"rgba(255,255,255,0.08)", borderRadius:"8px", padding:"3px", gap:"3px" }}>
               {[["options","Options"],["preview","Preview"]].map(([t,label]) => (
-                <button key={t} onClick={() => setTab(t)} style={{ padding:"4px 12px", borderRadius:"6px", border:"none", cursor:"pointer", fontFamily:font, fontSize:"12px", fontWeight:700, background:tab===t?"rgba(255,255,255,0.15)":"transparent", color:tab===t?P.white:"rgba(255,255,255,0.45)", transition:"all 0.15s" }}>{label}</button>
+                <button key={t} onClick={() => setTab(t)} style={{ padding:"4px 12px", borderRadius:"6px", border:"none", cursor:"pointer", fontFamily:font, fontSize:"15px", fontWeight:700, background:tab===t?"rgba(255,255,255,0.15)":"transparent", color:tab===t?P.white:"rgba(255,255,255,0.45)", transition:"all 0.15s" }}>{label}</button>
               ))}
             </div>
             <button onClick={onClose} style={{ background:"rgba(255,255,255,0.1)", border:"none", borderRadius:"8px", width:28, height:28, cursor:"pointer", color:"rgba(255,255,255,0.6)", display:"flex", alignItems:"center", justifyContent:"center" }}><X size={14} strokeWidth={1.8}/></button>
@@ -998,8 +958,8 @@ function ShareModal({ html, filename, onClose }) {
                 <Download size={17} strokeWidth={1.8} color="white"/>
               </div>
               <div>
-                <div style={{ fontSize:"14px", fontWeight:700, color:downloaded?P.green:P.navy, fontFamily:font }}>{downloaded ? "✓ Downloaded!" : "Download HTML File"}</div>
-                <div style={{ fontSize:"15px", color:P.grey400, fontFamily:font, marginTop:"2px" }}>Save to your device. Email it, or upload to Google Drive to share with your team.</div>
+                <div style={{ fontSize:"15px", fontWeight:700, color:downloaded?P.green:P.navy, fontFamily:font }}>{downloaded ? "✓ Downloaded!" : "Download HTML File"}</div>
+                <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginTop:"2px" }}>Save to your device. Email it, or upload to Google Drive to share with your team.</div>
               </div>
             </button>
 
@@ -1009,12 +969,12 @@ function ShareModal({ html, filename, onClose }) {
                 <Copy size={17} strokeWidth={1.8} color="white"/>
               </div>
               <div>
-                <div style={{ fontSize:"14px", fontWeight:700, color:copied?P.periwinkleD:P.navy, fontFamily:font }}>{copied ? "✓ HTML copied!" : "Copy HTML Source"}</div>
-                <div style={{ fontSize:"15px", color:P.grey400, fontFamily:font, marginTop:"2px" }}>Copy the full HTML to paste into an email, CMS, or any editor that accepts HTML.</div>
+                <div style={{ fontSize:"15px", fontWeight:700, color:copied?P.periwinkleD:P.navy, fontFamily:font }}>{copied ? "✓ HTML copied!" : "Copy HTML Source"}</div>
+                <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginTop:"2px" }}>Copy the full HTML to paste into an email, CMS, or any editor that accepts HTML.</div>
               </div>
             </button>
 
-            <div style={{ background:P.offWhite, borderRadius:"8px", padding:"10px 14px", fontSize:"15px", color:P.grey400, fontFamily:font, lineHeight:1.6 }}>
+            <div style={{ background:P.offWhite, borderRadius:"8px", padding:"10px 14px", fontSize:"15px", color:P.grey600, fontFamily:font, lineHeight:1.6 }}>
               🔒 All guest data is embedded in the file only — nothing is uploaded anywhere.
             </div>
           </div>
@@ -1023,8 +983,8 @@ function ShareModal({ html, filename, onClose }) {
         {tab === "preview" && (
           <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
             <div style={{ padding:"8px 16px", background:P.offWhite, borderBottom:`1px solid ${P.grey100}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-              <span style={{ fontSize:"15px", color:P.grey400, fontFamily:font }}>Report preview — scroll to explore</span>
-              <button onClick={download} style={{ display:"flex", alignItems:"center", gap:"6px", background:P.navy, border:"none", borderRadius:"8px", padding:"6px 14px", cursor:"pointer", fontFamily:font, fontSize:"12px", fontWeight:700, color:P.white }}>
+              <span style={{ fontSize:"15px", color:P.grey600, fontFamily:font }}>Report preview</span>
+              <button onClick={download} style={{ display:"flex", alignItems:"center", gap:"6px", background:P.navy, border:"none", borderRadius:"8px", padding:"6px 14px", cursor:"pointer", fontFamily:font, fontSize:"15px", fontWeight:700, color:P.white }}>
                 <Download size={13} strokeWidth={1.8} color="white"/> Download
               </button>
             </div>
@@ -1264,15 +1224,15 @@ ${evName ? evName + " Planning Team" : "Planning Team"}`,
         <div style={{ padding:"20px 24px", borderBottom:`1px solid ${P.grey100}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
           <div>
             <div style={{ fontWeight:600, fontSize:"15px", color:P.navy, fontFamily:font }}>Draft Email</div>
-            <div style={{ fontSize:"14px", color:P.navyLight, fontFamily:font, marginTop:"2px" }}>{record.displayName} · {issues.length} flag{issues.length !== 1 ? "s" : ""}</div>
+            <div style={{ fontSize:"15px", color:P.navyLight, fontFamily:font, marginTop:"2px" }}>{record.displayName} · {issues.length} flag{issues.length !== 1 ? "s" : ""}</div>
           </div>
-          <button onClick={onClose} style={{ background:P.grey100, border:"none", borderRadius:"10px", width:30, height:30, cursor:"pointer", fontSize:"14px", color:P.navy, display:"flex", alignItems:"center", justifyContent:"center" }}><X size={15} strokeWidth={1.8}/></button>
+          <button onClick={onClose} style={{ background:P.grey100, border:"none", borderRadius:"10px", width:30, height:30, cursor:"pointer", fontSize:"15px", color:P.navy, display:"flex", alignItems:"center", justifyContent:"center" }}><X size={15} strokeWidth={1.8}/></button>
         </div>
         <div style={{ padding:"18px 24px" }}>
           {/* Tabs with contact indicator */}
           <div style={{ display:"flex", gap:"8px", marginBottom:"18px" }}>
             {tabs.map(({ k, l, hasContact: hc }) => (
-              <button key={k} onClick={() => setType(k)} style={{ background:type===k?P.navy:P.offWhite, color:type===k?P.white:P.grey600, border:`1px solid ${type===k?P.navy:P.grey200}`, borderRadius:"7px", padding:"5px 12px", fontSize:"14px", fontWeight:500, fontFamily:font, cursor:"pointer", position:"relative", display:"flex", alignItems:"center", gap:"6px" }}>
+              <button key={k} onClick={() => setType(k)} style={{ background:type===k?P.navy:P.offWhite, color:type===k?P.white:P.grey600, border:`1px solid ${type===k?P.navy:P.grey200}`, borderRadius:"7px", padding:"5px 12px", fontSize:"15px", fontWeight:500, fontFamily:font, cursor:"pointer", position:"relative", display:"flex", alignItems:"center", gap:"6px" }}>
                 {l}
                 {hc
                   ? <span style={{ width:7, height:7, borderRadius:"50%", background:type===k?"rgba(255,255,255,0.7)":P.green, display:"inline-block" }} title="Contact saved" />
@@ -1283,7 +1243,7 @@ ${evName ? evName + " Planning Team" : "Planning Team"}`,
 
           {/* No contact warning */}
           {!hasContact && (
-            <div style={{ background:P.amberLight, border:`1px solid ${P.amber}44`, borderRadius:"10px", padding:"10px 14px", marginBottom:"14px", fontSize:"14px", color:P.amber, fontWeight:700, fontFamily:font, display:"flex", alignItems:"center", gap:"8px" }}>
+            <div style={{ background:P.amberLight, border:`1px solid ${P.amber}44`, borderRadius:"10px", padding:"10px 14px", marginBottom:"14px", fontSize:"15px", color:P.amber, fontWeight:700, fontFamily:font, display:"flex", alignItems:"center", gap:"8px" }}>
               <AlertTriangle size={13} strokeWidth={1.8}/>
               <span>No {type === "hotel" ? "hotel" : type === "travel" ? "travel agency" : "guest"} email on file.
                 {type !== "guest" && <span style={{ fontWeight:400, color:P.amber }}> Close this and click <strong>📇 Contacts</strong> to add one.</span>}
@@ -1311,18 +1271,18 @@ ${evName ? evName + " Planning Team" : "Planning Team"}`,
               <div style={{ fontSize:"16px", fontWeight:700, color:P.navyLight, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em" }}>Body</div>
               {isDirtyEmail && (
                 <div style={{ display:"flex", gap:"6px" }}>
-                  <button onClick={saveEdits} style={{ background:saved?P.greenLight:P.periwinkleD, color:saved?P.green:P.white, border:"none", borderRadius:"6px", padding:"3px 10px", fontSize:"12px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>{saved ? <>Saved <Check size={12} strokeWidth={2.5} style={{verticalAlign:"-2px"}}/></> : <>Save <Save size={12} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></>}</button>
-                  <button onClick={resetEdits} style={{ background:P.offWhite, color:P.grey400, border:`1px solid ${P.grey200}`, borderRadius:"6px", padding:"3px 10px", fontSize:"15px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>Reset</button>
+                  <button onClick={saveEdits} style={{ background:saved?P.greenLight:P.periwinkleD, color:saved?P.green:P.white, border:"none", borderRadius:"6px", padding:"3px 10px", fontSize:"15px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>{saved ? <>Saved <Check size={12} strokeWidth={2.5} style={{verticalAlign:"-2px"}}/></> : <>Save <Save size={12} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></>}</button>
+                  <button onClick={resetEdits} style={{ background:P.offWhite, color:P.grey600, border:`1px solid ${P.grey200}`, borderRadius:"6px", padding:"3px 10px", fontSize:"15px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>Reset</button>
                 </div>
               )}
             </div>
             <textarea value={currentBody} onChange={e => setEditedBody(e.target.value)}
-              style={{ width:"100%", height:"220px", background:editedBody!==null?P.white:P.offWhite, border:`1.5px solid ${editedBody!==null?P.periwinkle+"66":P.grey100}`, borderRadius:"10px", padding:"12px", fontSize:"14px", fontFamily:font, color:P.navy, resize:"vertical", outline:"none", boxSizing:"border-box", lineHeight:1.6 }} />
+              style={{ width:"100%", height:"220px", background:editedBody!==null?P.white:P.offWhite, border:`1.5px solid ${editedBody!==null?P.periwinkle+"66":P.grey100}`, borderRadius:"10px", padding:"12px", fontSize:"15px", fontFamily:font, color:P.navy, resize:"vertical", outline:"none", boxSizing:"border-box", lineHeight:1.6 }} />
           </div>
 
           {/* Actions */}
           <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
-            <Btn onClick={openMailto} color={hasContact || toEmail ? P.navy : P.grey400} disabled={!hasContact && !toEmail}>
+            <Btn onClick={openMailto} color={hasContact || toEmail ? P.navy : P.grey600} disabled={!hasContact && !toEmail}>
               {hasContact || toEmail ? "Open in Mail App ↗" : "Open in Mail App ↗"}
             </Btn>
             <Btn onClick={copy} color={copied?P.green:P.periwinkleD} outline>{copied?"Copied!":"Copy to Clipboard"}</Btn>
@@ -1831,9 +1791,9 @@ function NewTemplateModal({ onSave, onClose }) {
         <div style={{ padding:"20px 26px", borderBottom:`1px solid ${P.grey100}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
           <div>
             <div style={{ fontWeight:600, fontSize:"15px", color:P.navy, fontFamily:font }}>New Template</div>
-            <div style={{ fontSize:"14px", color:P.navyLight, marginTop:"2px", fontFamily:font }}>Create a custom email template for your event</div>
+            <div style={{ fontSize:"15px", color:P.navyLight, marginTop:"2px", fontFamily:font }}>Create a custom email template for your event</div>
           </div>
-          <button onClick={onClose} style={{ background:P.grey100, border:"none", borderRadius:"10px", width:30, height:30, cursor:"pointer", fontSize:"14px", color:P.navy, display:"flex", alignItems:"center", justifyContent:"center" }}><X size={15} strokeWidth={1.8}/></button>
+          <button onClick={onClose} style={{ background:P.grey100, border:"none", borderRadius:"10px", width:30, height:30, cursor:"pointer", fontSize:"15px", color:P.navy, display:"flex", alignItems:"center", justifyContent:"center" }}><X size={15} strokeWidth={1.8}/></button>
         </div>
 
         <div style={{ padding:"22px 26px", display:"flex", flexDirection:"column", gap:"18px" }}>
@@ -1893,7 +1853,7 @@ function NewTemplateModal({ onSave, onClose }) {
           <div>
             <div style={{ fontSize:"16px", fontWeight:700, color:P.navyLight, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px", fontFamily:font }}>Email Body *</div>
             <textarea value={body} onChange={e => setBody(e.target.value)} placeholder={`Hi {{guestName}},\n\nWe're looking forward to seeing you at {{eventName}}!\n\n{{plannerName}}\n{{eventName}} Planning Team`}
-              style={{ width:"100%", height:"240px", background:errors.body?P.redLight:P.offWhite, border:`1.5px solid ${errors.body?P.red:P.grey200}`, borderRadius:"10px", padding:"14px", fontSize:"14px", fontFamily:font, color:P.navy, resize:"vertical", outline:"none", boxSizing:"border-box", lineHeight:1.7 }} />
+              style={{ width:"100%", height:"240px", background:errors.body?P.redLight:P.offWhite, border:`1.5px solid ${errors.body?P.red:P.grey200}`, borderRadius:"10px", padding:"14px", fontSize:"15px", fontFamily:font, color:P.navy, resize:"vertical", outline:"none", boxSizing:"border-box", lineHeight:1.7 }} />
             {errors.body && <div style={{ fontSize:"15px", color:P.red, fontFamily:font, marginTop:"4px" }}>{errors.body}</div>}
           </div>
 
@@ -2212,9 +2172,9 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
             <div style={{ padding:"20px 26px", borderBottom:`1px solid ${P.grey100}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
               <div>
                 <div style={{ fontWeight:600, fontSize:"15px", color:P.navy }}>Edit Template</div>
-                <div style={{ fontSize:"14px", color:P.navyLight, marginTop:"2px" }}>{templates[editingTemplate]?.label}</div>
+                <div style={{ fontSize:"15px", color:P.navyLight, marginTop:"2px" }}>{templates[editingTemplate]?.label}</div>
               </div>
-              <button onClick={() => setEditingTemplate(null)} style={{ background:P.grey100, border:"none", borderRadius:"10px", width:30, height:30, cursor:"pointer", fontSize:"14px", color:P.navy, display:"flex", alignItems:"center", justifyContent:"center" }}><X size={15} strokeWidth={1.8}/></button>
+              <button onClick={() => setEditingTemplate(null)} style={{ background:P.grey100, border:"none", borderRadius:"10px", width:30, height:30, cursor:"pointer", fontSize:"15px", color:P.navy, display:"flex", alignItems:"center", justifyContent:"center" }}><X size={15} strokeWidth={1.8}/></button>
             </div>
             <div style={{ padding:"20px 26px" }}>
               <div style={{ background:P.offWhite, borderRadius:"10px", padding:"10px 14px", marginBottom:"16px", fontSize:"15px", color:P.navy }}>
@@ -2228,11 +2188,11 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
               <div style={{ marginBottom:"16px" }}>
                 <div style={{ fontSize:"16px", fontWeight:700, color:P.navyLight, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px" }}>Email Body</div>
                 <textarea value={editBody} onChange={e => setEditBody(e.target.value)}
-                  style={{ width:"100%", height:"300px", background:P.offWhite, border:`1.5px solid ${P.grey200}`, borderRadius:"10px", padding:"14px", fontSize:"14px", fontFamily:font, color:P.navy, resize:"vertical", outline:"none", boxSizing:"border-box", lineHeight:1.7 }} />
+                  style={{ width:"100%", height:"300px", background:P.offWhite, border:`1.5px solid ${P.grey200}`, borderRadius:"10px", padding:"14px", fontSize:"15px", fontFamily:font, color:P.navy, resize:"vertical", outline:"none", boxSizing:"border-box", lineHeight:1.7 }} />
               </div>
               <div style={{ display:"flex", gap:"10px" }}>
                 <Btn onClick={saveEdit} color={P.accent}>Save Template <Save size={13} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></Btn>
-                <Btn onClick={() => { setTemplates(prev => ({...prev, [editingTemplate]: DEFAULT_TEMPLATES[editingTemplate]})); setEditSubject(DEFAULT_TEMPLATES[editingTemplate].subject); setEditBody(DEFAULT_TEMPLATES[editingTemplate].body); }} outline color={P.grey400}>↺ Reset to Default</Btn>
+                <Btn onClick={() => { setTemplates(prev => ({...prev, [editingTemplate]: DEFAULT_TEMPLATES[editingTemplate]})); setEditSubject(DEFAULT_TEMPLATES[editingTemplate].subject); setEditBody(DEFAULT_TEMPLATES[editingTemplate].body); }} outline color={P.grey600}>↺ Reset to Default</Btn>
                 <Btn onClick={() => setEditingTemplate(null)} outline>Cancel</Btn>
               </div>
             </div>
@@ -2255,7 +2215,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
             <div style={{ display:"flex", gap:"10px", marginBottom:"18px", flexWrap:"wrap" }}>
               {[
                 { n: flaggedWithEmail.length, l:"flagged, with email", c:P.amber },
-                { n: (results||[]).filter(r=>!r.email&&r.issues.length>0).length, l:"flagged, no email", c:P.grey400 },
+                { n: (results||[]).filter(r=>!r.email&&r.issues.length>0).length, l:"flagged, no email", c:P.grey600 },
                 { n: (results||[]).length, l:"total guests", c:P.periwinkleD },
               ].map(({n,l,c}) => (
                 <div key={l} style={{ display:"flex", alignItems:"center", gap:"8px", background:P.grey50, border:`1px solid ${P.grey100}`, borderRadius:"10px", padding:"8px 13px" }}>
@@ -2266,12 +2226,12 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:"16px", flexWrap:"wrap" }}>
               {flaggedWithEmail.length > 0
-                ? <button onClick={buildQueue} style={{ background:P.accent, color:P.white, border:"none", borderRadius:"11px", padding:"12px 24px", fontSize:"14px", fontWeight:600, fontFamily:font, cursor:"pointer" }}>Review &amp; send {flaggedWithEmail.length} message{flaggedWithEmail.length!==1?"s":""} <Mail size={14} strokeWidth={1.8} style={{verticalAlign:"-2px",marginLeft:"2px"}}/></button>
-                : <span style={{ fontSize:"16px", color:P.grey400, fontFamily:font }}>Run a cross-check to generate messages.</span>}
-              <button onClick={() => setShowTemplateConfig(v=>!v)} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>{showTemplateConfig ? "Hide send settings" : "Send settings"}</button>
+                ? <button onClick={buildQueue} style={{ background:P.accent, color:P.white, border:"none", borderRadius:"11px", padding:"12px 24px", fontSize:"15px", fontWeight:600, fontFamily:font, cursor:"pointer" }}>Review &amp; send {flaggedWithEmail.length} message{flaggedWithEmail.length!==1?"s":""} <Mail size={14} strokeWidth={1.8} style={{verticalAlign:"-2px",marginLeft:"2px"}}/></button>
+                : <span style={{ fontSize:"16px", color:P.grey600, fontFamily:font }}>Run a cross-check to generate messages.</span>}
+              <button onClick={() => setShowTemplateConfig(v=>!v)} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"15px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>{showTemplateConfig ? "Hide send settings" : "Send settings"}</button>
             </div>
           </div>
-          {queue && <button onClick={() => setActiveView("queue")} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer", marginBottom:"14px" }}>← Back to your send queue ({pendingCount} pending)</button>}
+          {queue && <button onClick={() => setActiveView("queue")} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"15px", fontWeight:500, fontFamily:font, cursor:"pointer", marginBottom:"14px" }}>← Back to your send queue ({pendingCount} pending)</button>}
         </>
       )}
 
@@ -2280,7 +2240,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
         <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"16px", flexWrap:"wrap" }}>
           <button onClick={() => setActiveView("templates")} style={{ background:P.white, color:P.grey600, border:`1px solid ${P.grey100}`, borderRadius:"8px", padding:"7px 14px", fontSize:"16px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>← Back</button>
           <div style={{ fontSize:"16px", color:P.grey600, fontFamily:font }}>{sentCount} sent · {skippedCount} skipped · {pendingCount} pending</div>
-          {sendMsg && <span style={{ fontSize:"13px", color:P.green, fontWeight:600, fontFamily:font }}>{sendMsg}</span>}
+          {sendMsg && <span style={{ fontSize:"15px", color:P.green, fontWeight:600, fontFamily:font }}>{sendMsg}</span>}
           {pendingCount > 0 && <div style={{ marginLeft:"auto", display:"flex", gap:"8px" }}>
             <button onClick={() => {
               const text = (queue||[]).filter(x=>x.status==="pending").map(item =>
@@ -2290,8 +2250,8 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
               const blob = new Blob([text], {type:"text/plain"});
               const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
               a.download = `groupgrid-email-queue-${new Date().toISOString().slice(0,10)}.txt`; a.click();
-            }} style={{ background:P.white, color:P.periwinkleD, border:`1px solid ${P.grey200}`, borderRadius:"8px", padding:"7px 14px", fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>Download .txt <Download size={13} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></button>
-            <button onClick={sendAll} style={{ background:P.accent, color:P.white, border:"none", borderRadius:"8px", padding:"7px 16px", fontSize:"13px", fontWeight:600, fontFamily:font, cursor:"pointer" }}>Open all {pendingCount} in mail app <Mail size={13} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></button>
+            }} style={{ background:P.white, color:P.periwinkleD, border:`1px solid ${P.grey200}`, borderRadius:"8px", padding:"7px 14px", fontSize:"15px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>Download .txt <Download size={13} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></button>
+            <button onClick={sendAll} style={{ background:P.accent, color:P.white, border:"none", borderRadius:"8px", padding:"7px 16px", fontSize:"15px", fontWeight:600, fontFamily:font, cursor:"pointer" }}>Open all {pendingCount} in mail app <Mail size={13} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></button>
           </div>}
         </div>
       )}
@@ -2303,7 +2263,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
           <div style={{ background:P.white, borderRadius:"10px", padding:"16px 20px", border:`1px solid ${P.grey100}`, marginBottom:"20px", display:"flex", alignItems:"center", gap:"20px" }}>
             <div>
               <div style={{ fontSize:"15px", fontWeight:600, color:P.navy }}>Send Mode</div>
-              <div style={{ fontSize:"13px", color:P.navyLight, marginTop:"2px" }}>Controls how emails are handled when the queue is built</div>
+              <div style={{ fontSize:"15px", color:P.navyLight, marginTop:"2px" }}>Controls how emails are handled when the queue is built</div>
             </div>
             <div style={{ display:"flex", gap:"8px", marginLeft:"auto" }}>
               {[
@@ -2312,8 +2272,8 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                 { k:"auto", l:"⚡ Build & Send", sub:"Open all in mail app at once" },
               ].map(({k,l,sub}) => (
                 <button key={k} onClick={() => setSendMode(k)} style={{ background:sendMode===k?P.navy:P.offWhite, color:sendMode===k?P.white:P.grey600, border:`1px solid ${sendMode===k?P.navy:P.grey100}`, borderRadius:"8px", padding:"9px 14px", cursor:"pointer", textAlign:"left", fontFamily:font }}>
-                  <div style={{ fontSize:"14px", fontWeight:500, color:sendMode===k?P.white:P.navy }}>{l}</div>
-                  <div style={{ fontSize:"15px", color:sendMode===k?"rgba(255,255,255,0.6)":P.grey400, marginTop:"2px", maxWidth:"140px" }}>{sub}</div>
+                  <div style={{ fontSize:"15px", fontWeight:500, color:sendMode===k?P.white:P.navy }}>{l}</div>
+                  <div style={{ fontSize:"15px", color:sendMode===k?"rgba(255,255,255,0.6)":P.grey600, marginTop:"2px", maxWidth:"140px" }}>{sub}</div>
                 </button>
               ))}
             </div>
@@ -2328,8 +2288,8 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
             ].map(({label,val,sub,color}) => (
               <div key={label} style={{ background:P.white, borderRadius:"8px", padding:"12px 16px", border:`1px solid ${P.grey100}` }}>
                 <div style={{ fontSize:"22px", fontWeight:600, color, fontFamily:font }}>{val}</div>
-                <div style={{ fontSize:"13px", fontWeight:600, color:P.navy, marginTop:"3px" }}>{label}</div>
-                <div style={{ fontSize:"12px", color:P.navyLight, marginTop:"2px" }}>{sub}</div>
+                <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, marginTop:"3px" }}>{label}</div>
+                <div style={{ fontSize:"15px", color:P.navyLight, marginTop:"2px" }}>{sub}</div>
               </div>
             ))}
           </div>
@@ -2341,7 +2301,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
         <>
           {/* Templates grid */}
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"12px" }}>
-            <div style={{ fontSize:"14px", fontWeight:600, color:P.navy }}>Email Templates</div>
+            <div style={{ fontSize:"15px", fontWeight:600, color:P.navy }}>Email Templates</div>
             <Btn onClick={() => setNewTemplateOpen(true)} outline color={P.periwinkleD} small>New Template <Plus size={12} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></Btn>
           </div>
           {(() => {
@@ -2362,21 +2322,21 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                       <div style={{ width:36, height:36, borderRadius:"10px", background:tmpl.color+"18", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><TemplateIcon tmpl={tmpl} size={20} /></div>
                       <div>
                         <div style={{ fontSize:"15px", fontWeight:600, color:P.navy }}>{tmpl.label}</div>
-                        <div style={{ fontSize:"13px", color:P.navyLight, marginTop:"2px" }}>{tmpl.description}</div>
+                        <div style={{ fontSize:"15px", color:P.navyLight, marginTop:"2px" }}>{tmpl.description}</div>
                       </div>
                     </div>
-                    {isCustomized && <span style={{ background:P.periwinkle+"22", color:P.periwinkleD, fontSize:"12px", fontWeight:500, padding:"2px 8px", borderRadius:"20px", flexShrink:0, marginLeft:"8px" }}>Edited</span>}
-                    {tmpl.isCustom && <span style={{ background:P.periwinkleD+"18", color:P.periwinkleD, fontSize:"12px", fontWeight:500, padding:"2px 8px", borderRadius:"20px", flexShrink:0, marginLeft:"4px" }}>Custom</span>}
+                    {isCustomized && <span style={{ background:P.periwinkle+"22", color:P.periwinkleD, fontSize:"15px", fontWeight:500, padding:"2px 8px", borderRadius:"20px", flexShrink:0, marginLeft:"8px" }}>Edited</span>}
+                    {tmpl.isCustom && <span style={{ background:P.periwinkleD+"18", color:P.periwinkleD, fontSize:"15px", fontWeight:500, padding:"2px 8px", borderRadius:"20px", flexShrink:0, marginLeft:"4px" }}>Custom</span>}
                   </div>
                   <div style={{ background:P.offWhite, borderRadius:"8px", padding:"10px 12px", marginBottom:"12px" }}>
-                    <div style={{ fontSize:"14px", fontWeight:500, color:P.grey400, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"4px" }}>Subject preview</div>
-                    <div style={{ fontSize:"14px", color:P.navy, fontWeight:600 }}>{tmpl.subject.replace(/\{\{[^}]+\}\}/g, "…")}</div>
+                    <div style={{ fontSize:"15px", fontWeight:500, color:P.grey600, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"4px" }}>Subject preview</div>
+                    <div style={{ fontSize:"15px", color:P.navy, fontWeight:600 }}>{tmpl.subject.replace(/\{\{[^}]+\}\}/g, "…")}</div>
                   </div>
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
                       {applicable.length > 0
-                        ? <span style={{ background:tmpl.color+"18", color:tmpl.color, fontSize:"12px", fontWeight:500, padding:"3px 10px", borderRadius:"20px" }}>Applies to {applicable.length} guest{applicable.length!==1?"s":""}</span>
-                        : <span style={{ background:P.grey50, color:P.navyLight, fontSize:"12px", fontWeight:500, padding:"3px 10px", borderRadius:"20px" }}>No guests currently</span>}
+                        ? <span style={{ background:tmpl.color+"18", color:tmpl.color, fontSize:"15px", fontWeight:500, padding:"3px 10px", borderRadius:"20px" }}>Applies to {applicable.length} guest{applicable.length!==1?"s":""}</span>
+                        : <span style={{ background:P.grey50, color:P.navyLight, fontSize:"15px", fontWeight:500, padding:"3px 10px", borderRadius:"20px" }}>No guests currently</span>}
                     </div>
                     <div style={{ display:"flex", gap:"6px" }}>
                       {tmpl.isCustom && (
@@ -2432,10 +2392,10 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                 {/* Select all checkbox */}
                 <label style={{ display:"flex", alignItems:"center", gap:"8px", cursor:"pointer", flexShrink:0 }}>
                   <div onClick={toggleCheckAll} style={{ width:20, height:20, borderRadius:"6px", border:`2px solid ${allChecked ? P.periwinkleD : someChecked ? P.periwinkle : P.grey200}`, background:allChecked ? P.periwinkleD : someChecked ? P.periwinkle+"33" : P.white, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", transition:"all 0.15s", flexShrink:0 }}>
-                    {allChecked && <span style={{ color:P.white, fontSize:"14px", lineHeight:1, fontWeight:900 }}>✓</span>}
+                    {allChecked && <span style={{ color:P.white, fontSize:"15px", lineHeight:1, fontWeight:900 }}>✓</span>}
                     {!allChecked && someChecked && <span style={{ color:P.periwinkleD, fontSize:"15px", lineHeight:1, fontWeight:900 }}>—</span>}
                   </div>
-                  <span style={{ fontSize:"14px", fontWeight:700, color:P.navy, fontFamily:font }}>
+                  <span style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font }}>
                     {someChecked ? `${checkedPending.length} selected` : `Select all (${pendingItems.length} pending)`}
                   </span>
                 </label>
@@ -2456,16 +2416,16 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                       title={!available ? "Add this contact first" : ""}
                       style={{ background:bulkRecipient===k ? P.navy : available ? P.offWhite : P.grey50, color:bulkRecipient===k ? P.white : available ? P.navy : P.grey300, border:`1.5px solid ${bulkRecipient===k ? P.navy : available ? P.grey200 : P.grey100}`, borderRadius:"8px", padding:"5px 12px", fontSize:"15px", fontWeight:800, fontFamily:font, cursor:available?"pointer":"not-allowed", transition:"all 0.15s", opacity: available ? 1 : 0.5 }}>
                       {l}
-                      {!available && <span style={{ fontSize:"14px", marginLeft:"4px" }}>⚠</span>}
+                      {!available && <span style={{ fontSize:"15px", marginLeft:"4px" }}>⚠</span>}
                     </button>
                   ))}
                 </div>
 
                 <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:"8px", flexWrap:"wrap" }}>
-                  {sendMsg && <span style={{ fontSize:"14px", color:P.green, fontWeight:700 }}>{sendMsg}</span>}
+                  {sendMsg && <span style={{ fontSize:"15px", color:P.green, fontWeight:700 }}>{sendMsg}</span>}
                   {unsavedCount > 0 && (
                     <button onClick={saveAllEdits}
-                      style={{ background:P.amber+"18", border:`1.5px solid ${P.amber}66`, borderRadius:"9px", padding:"7px 14px", fontSize:"13px", fontWeight:800, fontFamily:font, color:P.amber, cursor:"pointer", display:"flex", alignItems:"center", gap:"6px" }}>
+                      style={{ background:P.amber+"18", border:`1.5px solid ${P.amber}66`, borderRadius:"9px", padding:"7px 14px", fontSize:"15px", fontWeight:800, fontFamily:font, color:P.amber, cursor:"pointer", display:"flex", alignItems:"center", gap:"6px" }}>
                       💾 Save All Edits ({unsavedCount})
                     </button>
                   )}
@@ -2495,7 +2455,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                       {/* Checkbox — only for pending items */}
                       {item.status === "pending" ? (
                         <div onClick={() => toggleCheck(item.id)} style={{ width:20, height:20, borderRadius:"6px", border:`2px solid ${isChecked ? P.periwinkleD : P.grey200}`, background:isChecked ? P.periwinkleD : P.white, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", transition:"all 0.15s", flexShrink:0 }}>
-                          {isChecked && <span style={{ color:P.white, fontSize:"14px", lineHeight:1, fontWeight:900 }}>✓</span>}
+                          {isChecked && <span style={{ color:P.white, fontSize:"15px", lineHeight:1, fontWeight:900 }}>✓</span>}
                         </div>
                       ) : (
                         <div style={{ width:20, height:20, flexShrink:0 }} />
@@ -2512,19 +2472,19 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                             {item.status==="sent" && <span style={{ background:P.greenLight, color:P.green, fontSize:"15px", fontWeight:800, padding:"1px 8px", borderRadius:"20px" }}>✓ Sent</span>}
                             {item.status==="skipped" && <span style={{ background:P.grey50, color:P.navyLight, fontSize:"15px", fontWeight:800, padding:"1px 8px", borderRadius:"20px" }}>Skipped</span>}
                             {editedIds.has(item.id) && item.status==="pending" && <span style={{ background:P.amber+"22", color:P.amber, fontSize:"15px", fontWeight:800, padding:"1px 8px", borderRadius:"20px" }}>Edited</span>}
-                            {hasUnsavedEdits(item.id) && <span style={{ background:P.amber+"22", color:P.amber, fontSize:"13px", fontWeight:800, padding:"1px 8px", borderRadius:"20px" }}>⚠ Unsaved</span>}
+                            {hasUnsavedEdits(item.id) && <span style={{ background:P.amber+"22", color:P.amber, fontSize:"15px", fontWeight:800, padding:"1px 8px", borderRadius:"20px" }}>⚠ Unsaved</span>}
                           </div>
-                          <div style={{ fontSize:"14px", color:P.navy, marginTop:"2px", fontWeight:600 }}>{item.subject}</div>
+                          <div style={{ fontSize:"15px", color:P.navy, marginTop:"2px", fontWeight:600 }}>{item.subject}</div>
                         </div>
                       </div>
                       {item.status === "pending" && (
                         <div style={{ display:"flex", gap:"6px", flexShrink:0 }}>
                           <Btn onClick={e => { e.stopPropagation(); openMailto(item); }} small color={P.navy}>Open in Mail ↗</Btn>
-                          <Btn onClick={e => { e.stopPropagation(); markSkipped(item.id); }} small outline color={P.grey400}>Skip</Btn>
+                          <Btn onClick={e => { e.stopPropagation(); markSkipped(item.id); }} small outline color={P.grey600}>Skip</Btn>
                         </div>
                       )}
                       {item.status === "sent" && (
-                        <Btn onClick={e => { e.stopPropagation(); updateQueueItem(item.id, {status:"pending"}); setSentIds(prev => { const n = new Set(prev); n.delete(item.id); return n; }); }} small outline color={P.grey400}>Undo</Btn>
+                        <Btn onClick={e => { e.stopPropagation(); updateQueueItem(item.id, {status:"pending"}); setSentIds(prev => { const n = new Set(prev); n.delete(item.id); return n; }); }} small outline color={P.grey600}>Undo</Btn>
                       )}
                     </div>
 
@@ -2532,12 +2492,12 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                     {isActive && item.status === "pending" && (
                       <div style={{ borderTop:`1px solid ${P.grey100}`, padding:"18px 20px", background:P.grey50 }} onClick={e => e.stopPropagation()}>
                         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"14px" }}>
-                          <div style={{ fontSize:"14px", fontWeight:800, color:P.navy }}>
+                          <div style={{ fontSize:"15px", fontWeight:800, color:P.navy }}>
                             Edit Email
                             {editedIds.has(item.id) && <span style={{ marginLeft:"8px", background:P.amber+"22", color:P.amber, fontSize:"15px", fontWeight:800, padding:"2px 8px", borderRadius:"20px" }}>Edited — will use your version on bulk send</span>}
                           </div>
                           {editedIds.has(item.id) && (
-                            <button onClick={() => resetToOriginal(item)} style={{ background:"transparent", border:`1px solid ${P.grey200}`, borderRadius:"7px", padding:"4px 10px", fontSize:"15px", fontWeight:700, color:P.grey500||P.grey400, fontFamily:font, cursor:"pointer" }}>
+                            <button onClick={() => resetToOriginal(item)} style={{ background:"transparent", border:`1px solid ${P.grey200}`, borderRadius:"7px", padding:"4px 10px", fontSize:"15px", fontWeight:700, color:P.grey500||P.grey600, fontFamily:font, cursor:"pointer" }}>
                               Reset to original
                             </button>
                           )}
@@ -2547,40 +2507,40 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                           <div>
                             <div style={{ fontSize:"16px", fontWeight:700, color:P.navy, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px" }}>To</div>
                             <input value={getStagedField(item, "to")} onChange={e => stageEdit(item.id, "to", e.target.value)}
-                              style={{ width:"100%", background:P.white, border:`1.5px solid ${localEdits[item.id]?.to !== undefined ? P.amber+"88" : P.grey200}`, borderRadius:"9px", padding:"8px 12px", fontSize:"14px", fontFamily:font, fontWeight:600, color:P.navy, outline:"none", boxSizing:"border-box" }} />
+                              style={{ width:"100%", background:P.white, border:`1.5px solid ${localEdits[item.id]?.to !== undefined ? P.amber+"88" : P.grey200}`, borderRadius:"9px", padding:"8px 12px", fontSize:"15px", fontFamily:font, fontWeight:600, color:P.navy, outline:"none", boxSizing:"border-box" }} />
                           </div>
                           <div>
                             <div style={{ fontSize:"16px", fontWeight:700, color:P.navy, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px" }}>Subject</div>
                             <input value={getStagedField(item, "subject")} onChange={e => stageEdit(item.id, "subject", e.target.value)}
-                              style={{ width:"100%", background:P.white, border:`1.5px solid ${localEdits[item.id]?.subject !== undefined ? P.amber+"88" : P.grey200}`, borderRadius:"9px", padding:"8px 12px", fontSize:"14px", fontFamily:font, fontWeight:600, color:P.navy, outline:"none", boxSizing:"border-box" }} />
+                              style={{ width:"100%", background:P.white, border:`1.5px solid ${localEdits[item.id]?.subject !== undefined ? P.amber+"88" : P.grey200}`, borderRadius:"9px", padding:"8px 12px", fontSize:"15px", fontFamily:font, fontWeight:600, color:P.navy, outline:"none", boxSizing:"border-box" }} />
                           </div>
                         </div>
 
                         <div style={{ marginBottom:"12px" }}>
                           <div style={{ fontSize:"16px", fontWeight:700, color:P.navy, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px" }}>Email Body</div>
                           <textarea value={getStagedField(item, "body")} onChange={e => stageEdit(item.id, "body", e.target.value)}
-                            style={{ width:"100%", height:"240px", background:P.white, border:`1.5px solid ${localEdits[item.id]?.body !== undefined ? P.amber+"88" : P.grey200}`, borderRadius:"10px", padding:"12px 14px", fontSize:"14px", fontFamily:font, color:P.navy, resize:"vertical", outline:"none", boxSizing:"border-box", lineHeight:1.7 }} />
+                            style={{ width:"100%", height:"240px", background:P.white, border:`1.5px solid ${localEdits[item.id]?.body !== undefined ? P.amber+"88" : P.grey200}`, borderRadius:"10px", padding:"12px 14px", fontSize:"15px", fontFamily:font, color:P.navy, resize:"vertical", outline:"none", boxSizing:"border-box", lineHeight:1.7 }} />
                         </div>
 
                         <div style={{ display:"flex", gap:"8px", alignItems:"center" }}>
                           {hasUnsavedEdits(item.id) ? (
                             <button onClick={() => { saveEdits(item.id); setReviewIdx(-1); }}
-                              style={{ background:P.green, border:"none", borderRadius:"10px", padding:"9px 20px", fontSize:"14px", fontWeight:800, fontFamily:font, color:P.white, cursor:"pointer", boxShadow:"0 2px 8px rgba(34,197,94,0.3)", display:"flex", alignItems:"center", gap:"7px" }}>
+                              style={{ background:P.green, border:"none", borderRadius:"10px", padding:"9px 20px", fontSize:"15px", fontWeight:800, fontFamily:font, color:P.white, cursor:"pointer", boxShadow:"0 2px 8px rgba(34,197,94,0.3)", display:"flex", alignItems:"center", gap:"7px" }}>
                               ✓ Save Changes
                             </button>
                           ) : (
                             <button onClick={() => openMailto({ ...item, to: getStagedField(item,"to"), subject: getStagedField(item,"subject"), body: getStagedField(item,"body") })}
-                              style={{ background:P.navy, border:"none", borderRadius:"10px", padding:"9px 20px", fontSize:"14px", fontWeight:800, fontFamily:font, color:P.white, cursor:"pointer" }}>
+                              style={{ background:P.navy, border:"none", borderRadius:"10px", padding:"9px 20px", fontSize:"15px", fontWeight:800, fontFamily:font, color:P.white, cursor:"pointer" }}>
                               Open in Mail App ↗
                             </button>
                           )}
                           {hasUnsavedEdits(item.id) && (
                             <button onClick={() => openMailto({ ...item, to: getStagedField(item,"to"), subject: getStagedField(item,"subject"), body: getStagedField(item,"body") })}
-                              style={{ background:"transparent", border:`1.5px solid ${P.navy}`, borderRadius:"10px", padding:"9px 20px", fontSize:"14px", fontWeight:800, fontFamily:font, color:P.navy, cursor:"pointer" }}>
+                              style={{ background:"transparent", border:`1.5px solid ${P.navy}`, borderRadius:"10px", padding:"9px 20px", fontSize:"15px", fontWeight:800, fontFamily:font, color:P.navy, cursor:"pointer" }}>
                               Send without saving ↗
                             </button>
                           )}
-                          <Btn onClick={() => markSkipped(item.id)} outline color={P.grey400}>Skip</Btn>
+                          <Btn onClick={() => markSkipped(item.id)} outline color={P.grey600}>Skip</Btn>
                           {hasUnsavedEdits(item.id) && <span style={{ fontSize:"15px", color:P.amber, fontFamily:font, fontWeight:700 }}>⚠ Save to include in bulk send — or use "Save All Edits" above</span>}
                         </div>
                       </div>
@@ -2610,7 +2570,7 @@ class ErrorBoundary extends React.Component {
             <pre style={{ background:"white", borderRadius:"10px", padding:"12px", fontSize:"15px", color:"#C53B3B", overflowX:"auto", whiteSpace:"pre-wrap", wordBreak:"break-all" }}>
               {this.state.error?.message}{"\n\n"}{this.state.error?.stack}
             </pre>
-            <button onClick={() => this.setState({error:null})} style={{ marginTop:"14px", background:"#1B2A4A", color:"white", border:"none", borderRadius:"10px", padding:"8px 20px", fontSize:"14px", fontWeight:800, fontFamily:"'Manrope',sans-serif", cursor:"pointer" }}>Try Again</button>
+            <button onClick={() => this.setState({error:null})} style={{ marginTop:"14px", background:"#1B2A4A", color:"white", border:"none", borderRadius:"10px", padding:"8px 20px", fontSize:"15px", fontWeight:800, fontFamily:"'Manrope',sans-serif", cursor:"pointer" }}>Try Again</button>
           </div>
         </div>
       );
@@ -2723,7 +2683,7 @@ function LoginPanel({ onLogin, onClose }) {
           <div style={{ display:"flex", background:"rgba(255,255,255,0.06)", borderRadius:"10px", padding:"3px", gap:"2px", marginBottom:"28px" }}>
             {[["signin","Sign In"],["signup","Create Account"]].map(([k,l]) => (
               <button key={k} onClick={() => { setMode(k); clearForm(); }}
-                style={{ flex:1, padding:"8px", borderRadius:"8px", border:"none", cursor:"pointer", fontFamily:font, fontSize:"13px", fontWeight:700, transition:"all 0.15s", background:mode===k?"rgba(255,255,255,0.12)":"transparent", color:mode===k?P.white:"rgba(255,255,255,0.4)" }}>
+                style={{ flex:1, padding:"8px", borderRadius:"8px", border:"none", cursor:"pointer", fontFamily:font, fontSize:"15px", fontWeight:700, transition:"all 0.15s", background:mode===k?"rgba(255,255,255,0.12)":"transparent", color:mode===k?P.white:"rgba(255,255,255,0.4)" }}>
                 {l}
               </button>
             ))}
@@ -2735,7 +2695,7 @@ function LoginPanel({ onLogin, onClose }) {
           <div style={{ fontSize:"22px", fontWeight:900, color:P.white, marginBottom:"6px" }}>
             {mode==="signin" ? "Welcome back" : mode==="signup" ? "Create your account" : "Reset your password"}
           </div>
-          <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.4)", lineHeight:1.5 }}>
+          <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.4)", lineHeight:1.5 }}>
             {mode==="signin" ? "Sign in to access your saved projects and event history." :
              mode==="signup" ? "Save projects, sync across devices, and access your event history." :
              "Enter your email and we'll send you a reset link."}
@@ -2744,14 +2704,14 @@ function LoginPanel({ onLogin, onClose }) {
 
         {/* Success message */}
         {success && (
-          <div style={{ background:"rgba(0,201,177,0.12)", border:"1px solid rgba(0,201,177,0.3)", borderRadius:"10px", padding:"12px 14px", fontSize:"14px", color:P.accent, fontWeight:600, marginBottom:"20px", lineHeight:1.5 }}>
+          <div style={{ background:"rgba(0,201,177,0.12)", border:"1px solid rgba(0,201,177,0.3)", borderRadius:"10px", padding:"12px 14px", fontSize:"15px", color:P.accent, fontWeight:600, marginBottom:"20px", lineHeight:1.5 }}>
             ✓ {success}
           </div>
         )}
 
         {/* Error message */}
         {error && (
-          <div style={{ background:"rgba(197,59,59,0.15)", border:"1px solid rgba(197,59,59,0.35)", borderRadius:"10px", padding:"10px 14px", fontSize:"14px", color:"#F08080", fontWeight:700, marginBottom:"20px" }}>
+          <div style={{ background:"rgba(197,59,59,0.15)", border:"1px solid rgba(197,59,59,0.35)", borderRadius:"10px", padding:"10px 14px", fontSize:"15px", color:"#F08080", fontWeight:700, marginBottom:"20px" }}>
             ⚠ {error}
           </div>
         )}
@@ -2766,7 +2726,7 @@ function LoginPanel({ onLogin, onClose }) {
             <div>
               <div style={{ display:"flex", justifyContent:"space-between", marginBottom:"7px" }}>
                 <label style={{ fontSize:"15px", fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:"0.07em" }}>Password</label>
-                <button type="button" onClick={() => { setMode("reset"); clearForm(); }} style={{ background:"transparent", border:"none", color:P.periwinkleL, fontSize:"13px", fontWeight:700, cursor:"pointer", padding:0 }}>Forgot password?</button>
+                <button type="button" onClick={() => { setMode("reset"); clearForm(); }} style={{ background:"transparent", border:"none", color:P.periwinkleL, fontSize:"15px", fontWeight:700, cursor:"pointer", padding:0 }}>Forgot password?</button>
               </div>
               <div style={{ position:"relative" }}>
                 <input type={showPw?"text":"password"} value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onFocus={() => setFocused("password")} onBlur={() => setFocused("")} placeholder="••••••••" style={{ ...inputStyle("password"), paddingRight:"42px" }} />
@@ -2798,7 +2758,7 @@ function LoginPanel({ onLogin, onClose }) {
                 <button type="button" onClick={() => setShowPw(s => !s)} style={{ position:"absolute", right:13, top:"50%", transform:"translateY(-50%)", background:"transparent", border:"none", color:"rgba(255,255,255,0.3)", cursor:"pointer", fontSize:"15px", padding:0 }}>{showPw?"🙈":"👁"}</button>
               </div>
               {password.length > 0 && password.length < 8 && (
-                <div style={{ fontSize:"12px", color:"rgba(197,59,59,0.8)", marginTop:"5px" }}>Password too short ({password.length}/8)</div>
+                <div style={{ fontSize:"15px", color:"rgba(197,59,59,0.8)", marginTop:"5px" }}>Password too short ({password.length}/8)</div>
               )}
             </div>
             <button type="submit" disabled={loading}
@@ -2820,7 +2780,7 @@ function LoginPanel({ onLogin, onClose }) {
               {loading ? "Sending…" : "Send Reset Link →"}
             </button>
             <button type="button" onClick={() => { setMode("signin"); clearForm(); }}
-              style={{ background:"transparent", border:"none", color:"rgba(255,255,255,0.35)", fontSize:"14px", fontWeight:600, cursor:"pointer", fontFamily:font, padding:"4px" }}>
+              style={{ background:"transparent", border:"none", color:"rgba(255,255,255,0.35)", fontSize:"15px", fontWeight:600, cursor:"pointer", fontFamily:font, padding:"4px" }}>
               ← Back to Sign In
             </button>
           </form>
@@ -2838,7 +2798,7 @@ function LoginPanel({ onLogin, onClose }) {
             ].map(({ icon, label }) => (
               <div key={label} style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"12px" }}>
                 <div style={{ width:30, height:30, borderRadius:"9px", background:"rgba(123,143,212,0.15)", border:"1px solid rgba(123,143,212,0.25)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{icon}</div>
-                <span style={{ fontSize:"14px", color:"rgba(255,255,255,0.45)", fontWeight:600, lineHeight:1.4 }}>{label}</span>
+                <span style={{ fontSize:"15px", color:"rgba(255,255,255,0.45)", fontWeight:600, lineHeight:1.4 }}>{label}</span>
               </div>
             ))}
           </div>
@@ -2847,7 +2807,7 @@ function LoginPanel({ onLogin, onClose }) {
 
       {/* Footer */}
       <div style={{ padding:"16px 28px", borderTop:"1px solid rgba(255,255,255,0.07)", flexShrink:0 }}>
-        <div style={{ fontSize:"12px", color:"rgba(255,255,255,0.18)", textAlign:"center" }}>© 2026 GroupGrid · Built for event professionals · {APP_VERSION}</div>
+        <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.18)", textAlign:"center" }}>© 2026 GroupGrid · Built for event professionals · {APP_VERSION}</div>
       </div>
     </div>
   );
@@ -2861,7 +2821,7 @@ function PageShell({ title, onBack, nav, children }) {
     <div style={{ minHeight:"100vh", background:P.offWhite, fontFamily:font }}>
       {nav ? <MarketingNav nav={nav} /> : (
       <div style={{ background:P.navy, padding:"0 32px", height:"52px", display:"flex", alignItems:"center", gap:"16px", boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
-        <button onClick={onBack} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:"8px", padding:"5px 12px", color:"rgba(255,255,255,0.7)", fontSize:"13px", fontFamily:font, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:"6px" }}>← Back</button>
+        <button onClick={onBack} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:"8px", padding:"5px 12px", color:"rgba(255,255,255,0.7)", fontSize:"15px", fontFamily:font, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:"6px" }}>← Back</button>
         <span style={{ color:P.white, fontSize:"15px", fontWeight:700, fontFamily:font }}>{title}</span>
       </div>
       )}
@@ -2901,11 +2861,11 @@ function MarketingNav({ nav }) {
         {tabs.map(t => {
           const active = nav?.current === t.key;
           return (
-            <button key={t.key} onClick={t.go} style={{ background: active ? "rgba(0,201,177,0.15)" : "transparent", border:"none", borderRadius:"7px", padding:"6px 12px", color: active ? P.accent : "rgba(255,255,255,0.7)", fontSize:"13px", fontWeight: active ? 700 : 500, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>{t.label}</button>
+            <button key={t.key} onClick={t.go} style={{ background: active ? "rgba(0,201,177,0.15)" : "transparent", border:"none", borderRadius:"7px", padding:"6px 12px", color: active ? P.accent : "rgba(255,255,255,0.7)", fontSize:"15px", fontWeight: active ? 700 : 500, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>{t.label}</button>
           );
         })}
         </div>
-        <button onClick={nav?.onApp} style={{ marginLeft:"4px", background:P.accent, border:"none", borderRadius:"8px", padding:"8px 14px", fontSize:"13px", fontWeight:700, color:P.white, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 }}>Open App →</button>
+        <button onClick={nav?.onApp} style={{ marginLeft:"4px", background:P.accent, border:"none", borderRadius:"8px", padding:"8px 14px", fontSize:"15px", fontWeight:700, color:P.white, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 }}>Open App →</button>
       </div>
     </div>
   );
@@ -2916,8 +2876,8 @@ function TermsPage({ onBack, nav }) {
     <PageShell title="Terms of Service" onBack={onBack} nav={nav}>
       <div style={{ marginBottom:"40px" }}>
         <h1 style={{ fontSize:"32px", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 8px", letterSpacing:"-0.03em" }}>Terms of Service</h1>
-        <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, margin:"0 0 16px" }}>Last updated: February 2026</p>
-        <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, margin:0 }}>By using GroupGrid, you agree to these terms. Please read them carefully.</p>
+        <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, margin:"0 0 16px" }}>Last updated: February 2026</p>
+        <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, margin:0 }}>By using GroupGrid, you agree to these terms. Please read them carefully.</p>
       </div>
       <Section title="1. Acceptance of Terms">
         By accessing or using GroupGrid ("the Service"), you agree to be bound by these Terms of Service. If you do not agree to these terms, do not use the Service. We reserve the right to update these terms at any time with notice provided via the Service.
@@ -2976,7 +2936,7 @@ function AboutPage({ onBack, nav }) {
     <div style={{ minHeight:"100vh", background:P.offWhite, fontFamily:font }}>
       {nav ? <MarketingNav nav={nav} /> : (
       <div style={{ background:P.navy, padding:"0 32px", height:"52px", display:"flex", alignItems:"center", gap:"16px", boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
-        <button onClick={onBack} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:"8px", padding:"5px 12px", color:"rgba(255,255,255,0.7)", fontSize:"13px", fontFamily:font, fontWeight:600, cursor:"pointer" }}>← Back</button>
+        <button onClick={onBack} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:"8px", padding:"5px 12px", color:"rgba(255,255,255,0.7)", fontSize:"15px", fontFamily:font, fontWeight:600, cursor:"pointer" }}>← Back</button>
         <span style={{ color:P.white, fontSize:"15px", fontWeight:700, fontFamily:font }}>About GroupGrid</span>
       </div>
       )}
@@ -2984,7 +2944,7 @@ function AboutPage({ onBack, nav }) {
       {/* Hero */}
       <div style={{ background:`linear-gradient(160deg, ${P.navy} 0%, ${P.navyLight} 100%)`, padding:"64px 28px 56px", textAlign:"center" }}>
         <div style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:"rgba(0,201,177,0.12)", border:"1px solid rgba(0,201,177,0.3)", borderRadius:"20px", padding:"5px 16px", marginBottom:"20px" }}>
-          <span style={{ fontSize:"13px", fontWeight:700, color:P.accent, fontFamily:font, letterSpacing:"0.05em" }}>BUILT BY A PLANNER, FOR PLANNERS</span>
+          <span style={{ fontSize:"15px", fontWeight:700, color:P.accent, fontFamily:font, letterSpacing:"0.05em" }}>BUILT BY A PLANNER, FOR PLANNERS</span>
         </div>
         <h1 style={{ fontSize:"42px", fontWeight:700, color:P.white, fontFamily:fontDisplay, margin:"0 0 16px", letterSpacing:"-0.04em", lineHeight:1.1, maxWidth:"680px", marginLeft:"auto", marginRight:"auto" }}>
           The tool I wish I had<br/><span style={{ color:P.accent }}>for every event I've ever run.</span>
@@ -3030,7 +2990,7 @@ function AboutPage({ onBack, nav }) {
                 </div>
                 <div>
                   <div style={{ fontSize:"15px", fontWeight:700, color:P.white, fontFamily:font, marginBottom:"3px", letterSpacing:"-0.01em" }}>{title}</div>
-                  <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.55)", fontFamily:font, lineHeight:1.55 }}>{body}</div>
+                  <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.55)", fontFamily:font, lineHeight:1.55 }}>{body}</div>
                 </div>
               </div>
               );
@@ -3051,7 +3011,7 @@ function AboutPage({ onBack, nav }) {
               return (
               <div key={label} style={{ display:"flex", alignItems:"center", gap:"12px", background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"12px", padding:"12px 14px" }}>
                 <div style={{ width:36, height:36, borderRadius:"10px", background:box, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon size={19} line="rgba(255,255,255,0.95)" accent={iconAccent} /></div>
-                <span style={{ fontSize:"14px", fontWeight:600, color:P.navy, fontFamily:font }}>{label}</span>
+                <span style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font }}>{label}</span>
               </div>
               );
             })}
@@ -3070,7 +3030,7 @@ function AboutPage({ onBack, nav }) {
             ].map(({ n, title, body }) => (
               <div key={n} style={{ display:"flex", gap:"16px", alignItems:"flex-start" }}>
                 <div style={{ width:32, height:32, borderRadius:"50%", background:P.navy, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:"1px" }}>
-                  <span style={{ fontSize:"14px", fontWeight:800, color:P.accent, fontFamily:font }}>{n}</span>
+                  <span style={{ fontSize:"15px", fontWeight:800, color:P.accent, fontFamily:font }}>{n}</span>
                 </div>
                 <div>
                   <div style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"4px" }}>{title}</div>
@@ -3095,10 +3055,10 @@ function AboutPage({ onBack, nav }) {
         {/* Community */}
         <div style={{ background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"14px", padding:"24px 28px", textAlign:"center" }}>
           <div style={{ fontSize:"15px", fontWeight:800, color:P.navy, fontFamily:font, marginBottom:"8px" }}>Part of the events community</div>
-          <div style={{ fontSize:"16px", color:P.grey400, fontFamily:font, lineHeight:1.7, marginBottom:"16px" }}>
+          <div style={{ fontSize:"16px", color:P.grey600, fontFamily:font, lineHeight:1.7, marginBottom:"16px" }}>
             GroupGrid is built by an active member of the event marketing community, including CEMA and PCMA. Have a question or want to connect? Reach out anytime.
           </div>
-          <a href="mailto:groupgrid@outlook.com" style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:P.navy, borderRadius:"10px", padding:"10px 22px", fontSize:"14px", fontWeight:700, color:P.white, fontFamily:font, textDecoration:"none" }}>
+          <a href="mailto:groupgrid@outlook.com" style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:P.navy, borderRadius:"10px", padding:"10px 22px", fontSize:"15px", fontWeight:700, color:P.white, fontFamily:font, textDecoration:"none" }}>
             Get in touch →
           </a>
         </div>
@@ -3113,19 +3073,19 @@ function ContactPage({ onBack, nav }) {
     <PageShell title="Contact Us" onBack={onBack} nav={nav}>
       <div style={{ marginBottom:"40px" }}>
         <h1 style={{ fontSize:"32px", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 12px", letterSpacing:"-0.03em" }}>Get in touch.</h1>
-        <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, margin:0 }}>Have a question, found a bug, or want to share feedback? We'd love to hear from you.</p>
+        <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, margin:0 }}>Have a question, found a bug, or want to share feedback? We'd love to hear from you.</p>
       </div>
       <div className="gg-card-grid-3" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"16px", marginBottom:"36px" }}>
         {[
-          { icon:"✉", label:"General Inquiries", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.periwinkleD, bg:P.grey50 },
-          { icon:"🐛", label:"Bug Reports", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.red, bg:"#FFF5F5" },
-          { icon:"💡", label:"Feature Requests", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.teal, bg:P.accentLight },
-          { icon:"🤝", label:"Partnerships", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.amber, bg:P.amberLight },
-        ].map(({ icon, label, value, href, color, bg }) => (
+          { Icon:Mail, label:"General Inquiries", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.periwinkleD, bg:P.grey50 },
+          { Icon:AlertTriangle, label:"Bug Reports", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.red, bg:P.redLight },
+          { Icon:Plus, label:"Feature Requests", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.accentD, bg:P.accentLight },
+          { Icon:Users, label:"Partnerships", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.amber, bg:P.amberLight },
+        ].map(({ Icon, label, value, href, color, bg }) => (
           <a key={label} href={href} style={{ display:"flex", alignItems:"center", gap:"14px", background:bg, border:`1.5px solid ${color}22`, borderRadius:"12px", padding:"18px 20px", textDecoration:"none" }}>
-            <span style={{ fontSize:"22px" }}>{icon}</span>
+            <span style={{ display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon size={22} strokeWidth={1.8} color={color} /></span>
             <div>
-              <div style={{ fontSize:"16px", fontWeight:700, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"3px" }}>{label}</div>
+              <div style={{ fontSize:"16px", fontWeight:700, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"3px" }}>{label}</div>
               <div style={{ fontSize:"15px", fontWeight:600, color, fontFamily:font }}>{value}</div>
             </div>
           </a>
@@ -3156,7 +3116,7 @@ function FAQPage({ onBack, nav }) {
     <PageShell title="FAQ" onBack={onBack} nav={nav}>
       <div style={{ marginBottom:"32px" }}>
         <h1 style={{ fontSize:"32px", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 8px", letterSpacing:"-0.03em" }}>Frequently asked questions</h1>
-        <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, margin:0 }}>Everything you need to know about how GroupGrid works.</p>
+        <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, margin:0 }}>Everything you need to know about how GroupGrid works.</p>
       </div>
       {faqs.map(({ q, a }) => (
         <div key={q} style={{ background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"14px", padding:"22px 26px", marginBottom:"14px" }}>
@@ -3177,8 +3137,8 @@ function PrivacyPage({ onBack, nav }) {
     <PageShell title="Privacy Policy" onBack={onBack} nav={nav}>
       <div style={{ marginBottom:"40px" }}>
         <h1 style={{ fontSize:"32px", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 8px", letterSpacing:"-0.03em" }}>Privacy Policy</h1>
-        <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, margin:"0 0 16px" }}>Last updated: June 2026</p>
-        <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, margin:0 }}>GroupGrid is built with privacy as a core design principle — not an afterthought. Here's exactly what we do and don't do with your data.</p>
+        <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, margin:"0 0 16px" }}>Last updated: June 2026</p>
+        <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, margin:0 }}>GroupGrid is built with privacy as a core design principle — not an afterthought. Here's exactly what we do and don't do with your data.</p>
       </div>
       <Section title="Data we collect">
         <strong>We never collect your guest data.</strong> GroupGrid processes all spreadsheet data entirely within your browser. Your guest names, emails, flight details, hotel records, and any other information in your uploaded files are never transmitted to our servers — we have no access to this data, ever. The limited personal data we do handle is: your account email address, for sign-in (via Supabase); the projects you choose to save, which are stored locally on your own device and not on our servers; and, if you join our early-access list, the email address you submit (via HubSpot, our email and CRM provider).
@@ -3301,7 +3261,7 @@ function EarlyAccessForm() {
         style={{ width:"100%", marginTop:18, padding:"13px 16px", fontSize:15, fontWeight:700, fontFamily:font, color:P.white, background:status==="submitting"?P.navyLight:hovered?P.accentD:P.accent, border:"none", borderRadius:11, cursor:status==="submitting"?"default":"pointer", transition:"background 0.15s" }}>
         {status === "submitting" ? "Joining…" : "Get early access"}
       </button>
-      <p style={{ margin:"14px 0 0", fontSize:12, lineHeight:1.5, color:P.grey600, textAlign:"center" }}>We respect your privacy. No spam, ever. <a href={HS_PRIVACY_URL} style={{ color:P.navyLight, textDecoration:"underline" }}>Privacy</a></p>
+      <p style={{ margin:"14px 0 0", fontSize:12, lineHeight:1.5, color:P.grey600, textAlign:"center" }}>We respect your privacy. <a href={HS_PRIVACY_URL} style={{ color:P.navyLight, textDecoration:"underline" }}>Privacy</a></p>
     </div>
   );
 }
@@ -3310,7 +3270,7 @@ function EarlyAccessForm() {
 function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerms, onFaq }) {
 
   const problems = [
-    { time:"Day 1", label:"You export your registration list", sub:"300 people signed up — names, dates, requests", color:P.navy, Icon:SpreadsheetIcon },
+    { time:"Day 1", label:"You export your registration list", sub:"Everyone who signed up, names, dates, requests", color:P.navy, Icon:SpreadsheetIcon },
     { time:"Day 3", label:"Flight manifest arrives", sub:"280 names — different format, different spelling", color:P.accentD, Icon:PlaneIcon },
     { time:"Day 7", label:"Hotel roster comes in separately", sub:"294 rooms — do they all match who registered?", color:P.navy, Icon:HotelIcon },
     { time:"Day 14", label:"You're still cross-checking", sub:"VLOOKUPs, filters, manual row-by-row scanning…", color:P.accentD, Icon:MagnifierIcon },
@@ -3342,11 +3302,11 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:"28px" }}>
           <div className="gg-landing-navlinks" style={{ display:"flex", alignItems:"center", gap:"28px" }}>
-            <button onClick={onAbout} style={{ background:"none", border:"none", fontSize:"14px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>About</button>
-            <button onClick={onFaq} style={{ background:"none", border:"none", fontSize:"14px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>FAQ</button>
-            <button onClick={onPricing} style={{ background:"none", border:"none", fontSize:"14px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>Pricing</button>
+            <button onClick={onAbout} style={{ background:"none", border:"none", fontSize:"15px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>About</button>
+            <button onClick={onFaq} style={{ background:"none", border:"none", fontSize:"15px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>FAQ</button>
+            <button onClick={onPricing} style={{ background:"none", border:"none", fontSize:"15px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>Pricing</button>
           </div>
-          <button onClick={onEnter} style={{ background:P.accent, border:"none", borderRadius:"8px", padding:"8px 18px", fontSize:"14px", fontWeight:700, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 2px 12px rgba(0,201,177,0.35)", whiteSpace:"nowrap", flexShrink:0 }}>Open App →</button>
+          <button onClick={onEnter} style={{ background:P.accent, border:"none", borderRadius:"8px", padding:"8px 18px", fontSize:"15px", fontWeight:700, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 2px 12px rgba(0,201,177,0.35)", whiteSpace:"nowrap", flexShrink:0 }}>Open App →</button>
         </div>
       </nav>
 
@@ -3417,13 +3377,13 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               </div>
             </div>
             <h1 style={{ fontSize:"clamp(28px, 4.5vw, 44px)", fontWeight:700, color:P.white, fontFamily:fontDisplay, lineHeight:1.1, margin:"0 0 18px", maxWidth:"540px", letterSpacing:"-0.035em" }}>
-              300 people registered.<br/><span style={{ color:P.accent }}>Did all 300 actually get booked?</span>
+              Your attendees registered.<br/><span style={{ color:P.accent }}>But did they book their travel?</span>
             </h1>
             <p style={{ fontSize:"18px", color:"rgba(255,255,255,0.6)", fontFamily:font, lineHeight:1.75, margin:"0 0 12px", maxWidth:"520px" }}>
-              One missing flight. One hotel room booked for the wrong person. One attendee arriving with nowhere to stay.
+              When you're managing group travel for attendees who need flights, hotels, and car transfers, the mistakes are easy to miss.
             </p>
             <p style={{ fontSize:"18px", color:"rgba(255,255,255,0.85)", fontFamily:font, lineHeight:1.75, margin:"0 0 36px", maxWidth:"520px", fontWeight:600 }}>
-              GroupGrid checks your registration list against flights, hotels, and transfers to show you exactly what needs attention — <span style={{ color:P.accent }}>in minutes.</span>
+              GroupGrid catches them early, saving you thousands of dollars and hours, and saving you and your attendees from mismatched travel dates and <span style={{ color:P.red }}>red flags.</span>
             </p>
             <div style={{ display:"flex", gap:"12px", flexWrap:"wrap", alignItems:"center" }}>
               <button onClick={onEnter} style={{ background:`linear-gradient(135deg, ${P.accent}, ${P.accentD})`, border:"none", borderRadius:"12px", padding:"14px 32px", fontSize:"16px", fontWeight:800, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 4px 20px rgba(0,201,177,0.4)", letterSpacing:"-0.02em" }}>
@@ -3433,7 +3393,6 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                 See pricing
               </button>
             </div>
-            <p style={{ fontSize:"13px", color:"rgba(255,255,255,0.3)", fontFamily:font, marginTop:"14px" }}>No setup · Upload spreadsheets · Get answers</p>
           </div>
 
           {/* Right — live mismatch demo card */}
@@ -3442,10 +3401,10 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               <div style={{ display:"flex", gap:"5px" }}>
                 {["#FF5F57","#FFBD2E","#28C840"].map(c => <div key={c} style={{ width:10, height:10, borderRadius:"50%", background:c }} />)}
               </div>
-              <span style={{ fontSize:"12px", color:"rgba(255,255,255,0.35)", fontFamily:font, fontWeight:600 }}>GroupGrid — Annual Sales Summit 2025</span>
+              <span style={{ fontSize:"15px", color:"rgba(255,255,255,0.35)", fontFamily:font, fontWeight:600 }}>GroupGrid — Annual Sales Summit 2025</span>
             </div>
             <div style={{ padding:"16px" }}>
-              <div style={{ fontSize:"14px", fontWeight:700, color:"rgba(255,255,255,0.35)", fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"10px" }}>Cross-check complete · 300 reviewed · <span style={{ color:"#FF8A80" }}>4 need action</span></div>
+              <div style={{ fontSize:"15px", fontWeight:700, color:"rgba(255,255,255,0.35)", fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"10px" }}>Cross-check complete · 300 reviewed · <span style={{ color:"#FF8A80" }}>4 need action</span></div>
               {[
                 { name:"Sarah Solomon", issue:"Registered but no flight booked", type:"error", badge:"No Flight" },
                 { name:"Marcus Williams", issue:"Has a hotel room but never registered", type:"error", badge:"Not Registered" },
@@ -3454,15 +3413,15 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               ].map(({ name, issue, type, badge }) => (
                 <div key={name} style={{ background: type==="error" ? "rgba(192,57,43,0.15)" : "rgba(201,122,10,0.15)", border:`1px solid ${type==="error" ? "rgba(192,57,43,0.3)" : "rgba(201,122,10,0.3)"}`, borderRadius:"10px", padding:"12px 14px", marginBottom:"8px" }}>
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"4px" }}>
-                    <span style={{ fontSize:"13px", fontWeight:700, color:P.white, fontFamily:font }}>{name}</span>
-                    <span style={{ fontSize:"10px", fontWeight:800, color: type==="error" ? "#FF8A80" : "#FFD54F", background: type==="error" ? "rgba(192,57,43,0.3)" : "rgba(201,122,10,0.3)", padding:"2px 8px", borderRadius:"20px", fontFamily:font }}>{badge}</span>
+                    <span style={{ fontSize:"15px", fontWeight:700, color:P.white, fontFamily:font }}>{name}</span>
+                    <span style={{ fontSize:"15px", fontWeight:800, color: type==="error" ? "#FF8A80" : "#FFD54F", background: type==="error" ? "rgba(192,57,43,0.3)" : "rgba(201,122,10,0.3)", padding:"2px 8px", borderRadius:"20px", fontFamily:font }}>{badge}</span>
                   </div>
-                  <div style={{ fontSize:"12px", color:"rgba(255,255,255,0.5)", fontFamily:font, lineHeight:1.5 }}>{issue}</div>
+                  <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.5)", fontFamily:font, lineHeight:1.5 }}>{issue}</div>
                 </div>
               ))}
               <div style={{ marginTop:"12px", background:"rgba(0,201,177,0.1)", border:"1px solid rgba(0,201,177,0.2)", borderRadius:"8px", padding:"10px 12px", display:"flex", alignItems:"center", gap:"8px" }}>
                 <Check size={14} strokeWidth={2.5} color={P.accent} style={{flexShrink:0}}/>
-                <span style={{ fontSize:"12px", color:"rgba(255,255,255,0.6)", fontFamily:font }}>296 registered guests fully booked · <span style={{ color:P.accent, fontWeight:700 }}>✓ No action needed</span></span>
+                <span style={{ fontSize:"15px", color:"rgba(255,255,255,0.6)", fontFamily:font }}>296 registered guests fully booked · <span style={{ color:P.accent, fontWeight:700 }}>✓ No action needed</span></span>
               </div>
             </div>
           </div>
@@ -3477,7 +3436,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
             <h2 style={{ fontSize:"clamp(30px, 5vw, 44px)", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 16px", letterSpacing:"-0.035em", lineHeight:1.1 }}>
               Event Data Shouldn&rsquo;t<br/>Need a Detective.
             </h2>
-            <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, maxWidth:"560px", margin:"0 auto" }}>
+            <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, maxWidth:"560px", margin:"0 auto" }}>
               When attendee information lives in separate spreadsheets, mistakes are inevitable. Keep registrations, travel, and accommodations connected in one place.
             </p>
           </div>
@@ -3485,9 +3444,9 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
             {problems.map(({ time, label, sub, color, bg, Icon }, i) => (
               <div key={time} className="gg-timeline-card" style={{ background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"16px", padding:"24px", position:"relative", overflow:"visible", boxShadow:"0 1px 3px rgba(12,30,63,0.04)" }}>
                 <div style={{ width:"44px", height:"44px", borderRadius:"12px", background:color, display:"flex", alignItems:"center", justifyContent:"center", marginBottom:"16px" }}>{Icon && <Icon size={22} line="rgba(255,255,255,0.95)" accent={P.white} />}</div>
-                <div style={{ fontSize:"14px", fontWeight:800, color, fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"8px" }}>{time}</div>
+                <div style={{ fontSize:"15px", fontWeight:800, color, fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"8px" }}>{time}</div>
                 <div style={{ fontSize:"16px", fontWeight:700, color:P.navy, fontFamily:fontDisplay, marginBottom:"8px", lineHeight:1.3, letterSpacing:"-0.01em" }}>{label}</div>
-                <div style={{ fontSize:"16px", color:P.grey400, fontFamily:font, lineHeight:1.6 }}>{sub}</div>
+                <div style={{ fontSize:"16px", color:P.grey600, fontFamily:font, lineHeight:1.6 }}>{sub}</div>
                 {i < 3 && <div className="gg-timeline-arrow" style={{ position:"absolute", top:"50%", right:"-12px", transform:"translateY(-50%)", fontSize:"16px", color:P.grey200, zIndex:2 }}>→</div>}
               </div>
             ))}
@@ -3496,7 +3455,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
             <div style={{ width:46, height:46, borderRadius:"12px", background:P.navyLight, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><AlertIcon size={24} line="rgba(255,255,255,0.95)" accent={P.amber} /></div>
             <div>
               <div style={{ fontSize:"15px", fontWeight:700, color:P.white, fontFamily:fontDisplay, marginBottom:"5px", letterSpacing:"-0.01em" }}>Meanwhile, your event is in <span style={{ color:P.amber }}>3 days</span></div>
-              <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.62)", fontFamily:font, lineHeight:1.65 }}>You've checked the lists more than once, and they look right. But the person who registered late and never booked a flight, the hotel room held for someone who isn't on your list, the name spelled two different ways: those are the ones that surface at check-in.</div>
+              <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.62)", fontFamily:font, lineHeight:1.65 }}>You've checked the lists more than once, and they look right. But the person who registered late and never booked a flight, the hotel room held for someone who isn't on your list, the name spelled two different ways: those are the ones that surface at check-in.</div>
             </div>
           </div>
         </div>
@@ -3510,7 +3469,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
             <h2 style={{ fontSize:"clamp(30px, 5vw, 44px)", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 16px", letterSpacing:"-0.035em", lineHeight:1.1 }}>
               Days of work.<br/><span style={{ color:P.accent }}>Done in minutes.</span>
             </h2>
-            <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, maxWidth:"520px", margin:"0 auto" }}>
+            <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, maxWidth:"520px", margin:"0 auto" }}>
               Upload your registration list and your travel files, run the check, see every gap instantly — then communicate fixes directly to your hotel and travel agency without switching tabs.
             </p>
           </div>
@@ -3526,7 +3485,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                     <div style={{ fontSize:"16px", fontWeight:700, color:P.white, fontFamily:fontDisplay, letterSpacing:"-0.015em" }}>{title}</div>
                   </div>
                 </div>
-                <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.62)", fontFamily:font, lineHeight:1.75 }}>{body}</div>
+                <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.62)", fontFamily:font, lineHeight:1.75 }}>{body}</div>
               </div>
               );
             })}
@@ -3542,7 +3501,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
             <h2 style={{ fontSize:"clamp(28px, 4.5vw, 42px)", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 14px", letterSpacing:"-0.035em", lineHeight:1.1 }}>
               The gaps that cause<br/><span style={{ color:P.accent }}>day-of disasters.</span>
             </h2>
-            <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, maxWidth:"520px", margin:"0 auto" }}>
+            <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, maxWidth:"520px", margin:"0 auto" }}>
               Add your registration list and GroupGrid checks it against every travel file, person by person.
             </p>
           </div>
@@ -3575,12 +3534,12 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
           <h2 style={{ fontSize:"clamp(28px, 4.5vw, 42px)", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 12px", letterSpacing:"-0.035em", lineHeight:1.1 }}>
             Built for event planners<br/><span style={{ color:P.accent }}>running events of any size</span>
           </h2>
-          <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, maxWidth:"520px", margin:"0 auto 40px" }}>
+          <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, maxWidth:"520px", margin:"0 auto 40px" }}>
             Anywhere you need to make sure attendees arrive on time, have a confirmed room, and won't be stranded at the wrong airport.
           </p>
           <div style={{ display:"flex", flexWrap:"wrap", gap:"10px", justifyContent:"center", marginBottom:"48px" }}>
             {eventTypes.map(tag => (
-              <span key={tag} style={{ background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"20px", padding:"8px 18px", fontSize:"14px", fontWeight:600, color:P.navy, fontFamily:font, boxShadow:"0 1px 4px rgba(15,29,53,0.06)" }}>{tag}</span>
+              <span key={tag} style={{ background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"20px", padding:"8px 18px", fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, boxShadow:"0 1px 4px rgba(15,29,53,0.06)" }}>{tag}</span>
             ))}
           </div>
         </div>
@@ -3665,8 +3624,8 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                 <h2 style={{ fontSize:"clamp(28px, 4.5vw, 42px)", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 14px", letterSpacing:"-0.035em", lineHeight:1.1 }}>
                   From files to flags<br/><span style={{ color:P.accent }}>in minutes, not days.</span>
                 </h2>
-                <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, maxWidth:"460px", margin:"0 auto" }}>
-                  Watch GroupGrid check a 300-person registration list against the travel files and surface every gap instantly.
+                <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, maxWidth:"460px", margin:"0 auto" }}>
+                  Watch GroupGrid check your full registration list against the travel files and surface every gap instantly.
                 </p>
               </div>
 
@@ -3679,7 +3638,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                     {["#FF5F57","#FFBD2E","#28C840"].map(c => <div key={c} style={{ width:11, height:11, borderRadius:"50%", background:c }}/>)}
                   </div>
                   <div style={{ flex:1, display:"flex", justifyContent:"center" }}>
-                    <div style={{ background:"rgba(255,255,255,0.08)", borderRadius:"6px", padding:"4px 20px", fontSize:"12px", color:"rgba(255,255,255,0.45)", fontFamily:font }}>groupgrid.io — Annual Sales Summit · Dec 2026</div>
+                    <div style={{ background:"rgba(255,255,255,0.08)", borderRadius:"6px", padding:"4px 20px", fontSize:"15px", color:"rgba(255,255,255,0.45)", fontFamily:font }}>groupgrid.io — Annual Sales Summit · Dec 2026</div>
                   </div>
                 </div>
 
@@ -3695,16 +3654,16 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                     ].map(({ Icon, label, count, active, color }) => (
                       <div key={label} style={{ display:"flex", alignItems:"center", gap:"6px", padding:"5px 8px", borderRadius:"6px", background:active?"rgba(0,201,177,0.15)":"transparent" }}>
                         <span style={{ width:12, display:"inline-flex", alignItems:"center", justifyContent:"center" }}><Icon size={12} line={active?P.accent:(color||"rgba(255,255,255,0.4)")} accent={active?P.accent:(color||"rgba(255,255,255,0.4)")} /></span>
-                        <span style={{ flex:1, fontSize:"11px", color:active?P.accent:"rgba(255,255,255,0.55)", fontFamily:font, fontWeight:active?700:400 }}>{label}</span>
-                        <span style={{ fontSize:"11px", fontWeight:700, color:color||"rgba(255,255,255,0.4)", fontFamily:font }}>{count}</span>
+                        <span style={{ flex:1, fontSize:"15px", color:active?P.accent:"rgba(255,255,255,0.55)", fontFamily:font, fontWeight:active?700:400 }}>{label}</span>
+                        <span style={{ fontSize:"15px", fontWeight:700, color:color||"rgba(255,255,255,0.4)", fontFamily:font }}>{count}</span>
                       </div>
                     ))}
                     <div style={{ height:1, background:"rgba(255,255,255,0.08)", margin:"8px 0" }}/>
-                    <div style={{ fontSize:"13px", fontWeight:800, color:"rgba(255,255,255,0.3)", fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"4px" }}>Files</div>
+                    <div style={{ fontSize:"15px", fontWeight:800, color:"rgba(255,255,255,0.3)", fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"4px" }}>Files</div>
                     {fileInfo.map(({ label, color, Icon }, i) => (
                       <div key={label} style={{ display:"flex", alignItems:"center", gap:"6px", padding:"4px 8px" }}>
                         <span style={{ width:12, display:"inline-flex", alignItems:"center", justifyContent:"center" }}>{filesLoaded[i] ? <ClearedIcon size={12} line={P.accent} accent={P.accent}/> : <Icon size={12} line="rgba(255,255,255,0.35)" accent="rgba(255,255,255,0.35)"/>}</span>
-                        <span style={{ fontSize:"10px", color:filesLoaded[i]?color:"rgba(255,255,255,0.25)", fontFamily:font, fontWeight:filesLoaded[i]?600:400, lineHeight:1.3 }}>{label}</span>
+                        <span style={{ fontSize:"15px", color:filesLoaded[i]?color:"rgba(255,255,255,0.25)", fontFamily:font, fontWeight:filesLoaded[i]?600:400, lineHeight:1.3 }}>{label}</span>
                       </div>
                     ))}
                   </div>
@@ -3721,7 +3680,6 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                           </div>
                           <div style={{ textAlign:"left" }}>
                             <div style={{ fontSize:"16px", fontWeight:800, color:P.white, fontFamily:font }}>Watch the demo</div>
-                            <div style={{ fontSize:"12px", color:"rgba(255,255,255,0.45)", fontFamily:font }}>See a cross-check run in ~45 seconds</div>
                           </div>
                         </button>
                       </div>
@@ -3735,7 +3693,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                           {fileInfo.map(({ label, color, Icon }, i) => (
                             <div key={label} style={{ border:`1.5px ${filesLoaded[i]?"solid":"dashed"} ${filesLoaded[i]?color:P.grey200}`, borderRadius:"10px", padding:"10px 8px", textAlign:"center", background:filesLoaded[i]?color+"0D":P.offWhite, transition:"all 0.3s" }}>
                               <div style={{ marginBottom:"4px", display:"flex", justifyContent:"center" }}>{filesLoaded[i] ? <ClearedIcon size={20} line={color} accent={color}/> : <Icon size={20} line={P.navy} accent={color}/>}</div>
-                              <div style={{ fontSize:"13px", fontWeight:700, color:filesLoaded[i]?color:P.grey400, fontFamily:font, lineHeight:1.3 }}>{label}</div>
+                              <div style={{ fontSize:"15px", fontWeight:700, color:filesLoaded[i]?color:P.grey600, fontFamily:font, lineHeight:1.3 }}>{label}</div>
                             </div>
                           ))}
                         </div>
@@ -3744,15 +3702,15 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                         {(demoPhase === "checking" || demoPhase === "results") && (
                           <div style={{ marginBottom:"16px", animation:"ggIn 0.3s ease" }}>
                             <div style={{ display:"flex", justifyContent:"space-between", marginBottom:"5px" }}>
-                              <span style={{ fontSize:"12px", fontWeight:700, color:P.navy, fontFamily:font }}>
-                                {checkPct < 100 ? "Checking 300 registrations against travel…" : "Check complete, 4 issues found"}
+                              <span style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font }}>
+                                {checkPct < 100 ? "Checking your registrations against travel…" : "Check complete, 4 issues found"}
                               </span>
-                              <span style={{ fontSize:"12px", fontWeight:800, color:P.accent, fontFamily:font }}>{checkPct}%</span>
+                              <span style={{ fontSize:"15px", fontWeight:800, color:P.accent, fontFamily:font }}>{checkPct}%</span>
                             </div>
                             <div style={{ height:"6px", background:P.grey100, borderRadius:"20px", overflow:"hidden" }}>
                               <div style={{ height:"100%", width:`${checkPct}%`, background:`linear-gradient(90deg,${P.periwinkleD},${P.accent})`, borderRadius:"20px", transition:"width 0.2s ease" }}/>
                             </div>
-                            {checkPct < 100 && <div style={{ fontSize:"14px", color:P.grey400, fontFamily:font, marginTop:"4px", animation:"ggPulse 1s infinite" }}>Matching names · comparing dates · scanning gaps…</div>}
+                            {checkPct < 100 && <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginTop:"4px", animation:"ggPulse 1s infinite" }}>Matching names · comparing dates · scanning gaps…</div>}
                           </div>
                         )}
 
@@ -3763,7 +3721,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                             {/* Table header */}
                             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 120px 70px 70px 70px 70px", background:"#ECEEF6", padding:"8px 14px", gap:"8px" }}>
                               {["First","Last","Email","Status","Arr.","Dep.","Δ Arr"].map(h => (
-                                <div key={h} style={{ fontSize:"13px", fontWeight:700, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em" }}>{h}</div>
+                                <div key={h} style={{ fontSize:"15px", fontWeight:700, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em" }}>{h}</div>
                               ))}
                             </div>
                             {/* Rows */}
@@ -3773,13 +3731,13 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                                 <React.Fragment key={g.key}>
                                   <div onClick={() => setExpandedRow(isExp ? null : g.key)}
                                     style={{ display:"grid", gridTemplateColumns:"1fr 1fr 120px 70px 70px 70px 70px", padding:"9px 14px", gap:"8px", alignItems:"center", background:isExp?"#F4F6FB":i%2===0?P.white:"#FAFBFD", borderTop:`1px solid ${P.grey100}`, cursor:"pointer", animation:"ggIn 0.3s ease", transition:"background 0.15s" }}>
-                                    <span style={{ fontSize:"13px", fontWeight:600, color:P.navy, fontFamily:font }}>{g.first}</span>
-                                    <span style={{ fontSize:"13px", fontWeight:700, color:P.navy, fontFamily:font }}>{g.last}</span>
-                                    <span style={{ fontSize:"14px", color:P.grey400, fontFamily:font, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{g.email}</span>
-                                    <span style={{ fontSize:"10px", fontWeight:800, color:statusColor(g.status), background:statusBg(g.status), padding:"2px 8px 2px 6px", borderRadius:"20px", fontFamily:font, whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:"3px" }}>{g.status==="error" ? <FlagIcon size={11} line={statusColor(g.status)} accent={statusColor(g.status)}/> : g.status==="warn" ? <AlertIcon size={11} line={statusColor(g.status)} accent={statusColor(g.status)}/> : <ClearedIcon size={11} line={statusColor(g.status)} accent={statusColor(g.status)}/>}{statusLabel(g.status)}</span>
+                                    <span style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font }}>{g.first}</span>
+                                    <span style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font }}>{g.last}</span>
+                                    <span style={{ fontSize:"15px", color:P.grey600, fontFamily:font, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{g.email}</span>
+                                    <span style={{ fontSize:"15px", fontWeight:800, color:statusColor(g.status), background:statusBg(g.status), padding:"2px 8px 2px 6px", borderRadius:"20px", fontFamily:font, whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:"3px" }}>{g.status==="error" ? <FlagIcon size={11} line={statusColor(g.status)} accent={statusColor(g.status)}/> : g.status==="warn" ? <AlertIcon size={11} line={statusColor(g.status)} accent={statusColor(g.status)}/> : <ClearedIcon size={11} line={statusColor(g.status)} accent={statusColor(g.status)}/>}{statusLabel(g.status)}</span>
                                     <span style={{ fontSize:"15px", color:P.grey600, fontFamily:font, display:"inline-flex", alignItems:"center" }}>{g.flight?.arr || <AlertIcon size={12} line={P.amber} accent={P.amber}/>}</span>
                                     <span style={{ fontSize:"15px", color:P.grey600, fontFamily:font, display:"inline-flex", alignItems:"center" }}>{g.flight?.dep || <AlertIcon size={12} line={P.amber} accent={P.amber}/>}</span>
-                                    <span style={{ fontSize:"12px", fontWeight:700, fontFamily:font, color:g.arrDiff==="0"?P.green:P.red }}>{g.arrDiff}</span>
+                                    <span style={{ fontSize:"15px", fontWeight:700, fontFamily:font, color:g.arrDiff==="0"?P.green:P.red }}>{g.arrDiff}</span>
                                   </div>
                                   {/* Expanded detail */}
                                   {isExp && (
@@ -3789,7 +3747,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                                           {g.issues.map(iss => (
                                             <div key={iss} style={{ display:"flex", alignItems:"center", gap:"6px", background:"#FDECEC", border:"1px solid #F5C6C6", borderRadius:"8px", padding:"5px 10px" }}>
                                               <FlagIcon size={12} line={P.red} accent={P.red}/>
-                                              <span style={{ fontSize:"12px", fontWeight:700, color:P.red, fontFamily:font }}>{iss}</span>
+                                              <span style={{ fontSize:"15px", fontWeight:700, color:P.red, fontFamily:font }}>{iss}</span>
                                             </div>
                                           ))}
                                         </div>
@@ -3797,38 +3755,38 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1fr", gap:"10px" }}>
                                         {/* Registration card — the source of truth */}
                                         <div style={{ background:P.white, border:`1.5px solid ${g.reg?"#00A89633":"#FDECEC"}`, borderRadius:"10px", padding:"12px 14px" }}>
-                                          <div style={{ fontSize:"14px", fontWeight:800, color:"#00A896", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em", display:"inline-flex", alignItems:"center", gap:"5px" }}><PeopleIcon size={12} line="#00A896" accent="#00A896"/>Registration</div>
+                                          <div style={{ fontSize:"15px", fontWeight:800, color:"#00A896", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em", display:"inline-flex", alignItems:"center", gap:"5px" }}><PeopleIcon size={12} line="#00A896" accent="#00A896"/>Registration</div>
                                           {g.reg ? <>
                                             <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Requested in: <strong style={{ color:P.navy }}>{g.reg.checkIn}</strong></div>
                                             <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Requested out: <strong style={{ color:P.navy }}>{g.reg.checkOut}</strong></div>
-                                            <div style={{ fontSize:"12px", color:P.accentD, fontFamily:font, fontWeight:700, display:"inline-flex", alignItems:"center", gap:"4px" }}><ClearedIcon size={12} line={P.accentD} accent={P.accentD}/>Registered</div>
-                                          </> : <div style={{ fontSize:"12px", fontWeight:700, color:P.red, fontFamily:font, display:"inline-flex", alignItems:"center", gap:"4px" }}><FlagIcon size={12} line={P.red} accent={P.red}/>Not on registration list</div>}
+                                            <div style={{ fontSize:"15px", color:P.accentD, fontFamily:font, fontWeight:700, display:"inline-flex", alignItems:"center", gap:"4px" }}><ClearedIcon size={12} line={P.accentD} accent={P.accentD}/>Registered</div>
+                                          </> : <div style={{ fontSize:"15px", fontWeight:700, color:P.red, fontFamily:font, display:"inline-flex", alignItems:"center", gap:"4px" }}><FlagIcon size={12} line={P.red} accent={P.red}/>Not on registration list</div>}
                                         </div>
                                         {/* Flight card */}
                                         <div style={{ background:P.white, border:`1.5px solid #4DA3FF22`, borderRadius:"10px", padding:"12px 14px" }}>
-                                          <div style={{ fontSize:"14px", fontWeight:800, color:"#4DA3FF", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em", display:"inline-flex", alignItems:"center", gap:"5px" }}><PlaneIcon size={12} line="#4DA3FF" accent="#4DA3FF"/>Flight</div>
+                                          <div style={{ fontSize:"15px", fontWeight:800, color:"#4DA3FF", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em", display:"inline-flex", alignItems:"center", gap:"5px" }}><PlaneIcon size={12} line="#4DA3FF" accent="#4DA3FF"/>Flight</div>
                                           {g.flight ? <>
                                             <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Arrival: <strong style={{ color:P.navy }}>{g.flight.arr}</strong></div>
                                             <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Departure: <strong style={{ color:P.navy }}>{g.flight.dep}</strong></div>
-                                            <div style={{ fontSize:"15px", color:P.grey400, fontFamily:font }}>Flight: {g.flight.num}</div>
-                                          </> : <div style={{ fontSize:"12px", fontWeight:700, color:P.red, fontFamily:font, display:"inline-flex", alignItems:"center", gap:"4px" }}><FlagIcon size={12} line={P.red} accent={P.red}/>No flight booked</div>}
+                                            <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font }}>Flight: {g.flight.num}</div>
+                                          </> : <div style={{ fontSize:"15px", fontWeight:700, color:P.red, fontFamily:font, display:"inline-flex", alignItems:"center", gap:"4px" }}><FlagIcon size={12} line={P.red} accent={P.red}/>No flight booked</div>}
                                         </div>
                                         {/* Hotel card */}
                                         <div style={{ background:P.white, border:`1.5px solid ${g.hotel?"#E3B04B22":"#FDECEC"}`, borderRadius:"10px", padding:"12px 14px" }}>
-                                          <div style={{ fontSize:"14px", fontWeight:800, color:"#E3B04B", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em", display:"inline-flex", alignItems:"center", gap:"5px" }}><HotelIcon size={12} line="#E3B04B" accent="#E3B04B"/>Hotel</div>
+                                          <div style={{ fontSize:"15px", fontWeight:800, color:"#E3B04B", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em", display:"inline-flex", alignItems:"center", gap:"5px" }}><HotelIcon size={12} line="#E3B04B" accent="#E3B04B"/>Hotel</div>
                                           {g.hotel ? <>
                                             <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Check-in: <strong style={{ color: g.status!=="ok"&&g.issues[0]?.includes("check-in")?P.red:P.navy }}>{g.hotel.in}</strong></div>
                                             <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Check-out: <strong style={{ color:P.navy }}>{g.hotel.out}</strong></div>
-                                            <div style={{ fontSize:"15px", color:P.grey400, fontFamily:font }}>{g.hotel.name}</div>
-                                          </> : <div style={{ fontSize:"12px", fontWeight:700, color:P.red, fontFamily:font, display:"inline-flex", alignItems:"center", gap:"4px" }}><FlagIcon size={12} line={P.red} accent={P.red}/>No hotel booked</div>}
+                                            <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font }}>{g.hotel.name}</div>
+                                          </> : <div style={{ fontSize:"15px", fontWeight:700, color:P.red, fontFamily:font, display:"inline-flex", alignItems:"center", gap:"4px" }}><FlagIcon size={12} line={P.red} accent={P.red}/>No hotel booked</div>}
                                         </div>
                                         {/* Car card */}
                                         <div style={{ background:P.white, border:`1.5px solid #6B3FA022`, borderRadius:"10px", padding:"12px 14px" }}>
-                                          <div style={{ fontSize:"14px", fontWeight:800, color:"#6B3FA0", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em", display:"inline-flex", alignItems:"center", gap:"5px" }}><CarIcon size={12} line="#6B3FA0" accent="#6B3FA0"/>Car Transfer</div>
+                                          <div style={{ fontSize:"15px", fontWeight:800, color:"#6B3FA0", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em", display:"inline-flex", alignItems:"center", gap:"5px" }}><CarIcon size={12} line="#6B3FA0" accent="#6B3FA0"/>Car Transfer</div>
                                           {g.car ? <>
                                             <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Pickup: <strong style={{ color:P.navy }}>{g.car.pickup}</strong></div>
-                                            <div style={{ fontSize:"15px", color:P.grey400, fontFamily:font }}>Location: {g.car.loc}</div>
-                                          </> : <div style={{ fontSize:"15px", color:P.grey400, fontFamily:font }}>No transfer booked</div>}
+                                            <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font }}>Location: {g.car.loc}</div>
+                                          </> : <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font }}>No transfer booked</div>}
                                         </div>
                                       </div>
                                     </div>
@@ -3843,8 +3801,8 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                         {/* Replay */}
                         {demoPhase === "results" && (
                           <div style={{ display:"flex", justifyContent:"center", gap:"12px", marginTop:"20px", animation:"ggIn 0.4s ease" }}>
-                            <button onClick={runDemo} style={{ background:"none", border:`1.5px solid ${P.grey100}`, borderRadius:"10px", padding:"8px 18px", fontSize:"16px", fontWeight:700, color:P.grey400, fontFamily:font, cursor:"pointer" }}>↺ Replay</button>
-                            <button onClick={onEnter} style={{ background:P.accent, border:"none", borderRadius:"10px", padding:"8px 20px", fontSize:"13px", fontWeight:700, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 2px 10px rgba(0,201,177,0.3)" }}>Try with your files →</button>
+                            <button onClick={runDemo} style={{ background:"none", border:`1.5px solid ${P.grey100}`, borderRadius:"10px", padding:"8px 18px", fontSize:"16px", fontWeight:700, color:P.grey600, fontFamily:font, cursor:"pointer" }}>↺ Replay</button>
+                            <button onClick={onEnter} style={{ background:P.accent, border:"none", borderRadius:"10px", padding:"8px 20px", fontSize:"15px", fontWeight:700, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 2px 10px rgba(0,201,177,0.3)" }}>Try with your files →</button>
                           </div>
                         )}
                       </>
@@ -3881,7 +3839,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
           </p>
           <div style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:"rgba(0,201,177,0.1)", border:"1px solid rgba(0,201,177,0.25)", borderRadius:"20px", padding:"6px 16px", marginBottom:"32px" }}>
             <ShieldCheck size={14} strokeWidth={1.8} color={P.accent}/>
-            <span style={{ fontSize:"13px", fontWeight:600, color:"rgba(255,255,255,0.7)", fontFamily:font }}>Built by an event planner who spent 15+ years reconciling attendee lists by hand</span>
+            <span style={{ fontSize:"15px", fontWeight:600, color:"rgba(255,255,255,0.7)", fontFamily:font }}>Built by an event planner who spent 15+ years reconciling attendee lists by hand</span>
           </div>
           <div className="gg-cta-btns" style={{ display:"flex", gap:"12px", justifyContent:"center", flexWrap:"wrap" }}>
             <button onClick={onEnter} style={{ background:`linear-gradient(135deg, ${P.accent}, ${P.accentD})`, border:"none", borderRadius:"12px", padding:"16px 40px", fontSize:"17px", fontWeight:800, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 4px 24px rgba(0,201,177,0.4)", letterSpacing:"-0.02em" }}>
@@ -3891,14 +3849,14 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               View pricing
             </button>
           </div>
-          <p style={{ fontSize:"13px", color:"rgba(255,255,255,0.25)", fontFamily:font, marginTop:"20px" }}>Full access · 10,000+ records · $250/mo · Cancel any time</p>
+          <p style={{ fontSize:"15px", color:"rgba(255,255,255,0.25)", fontFamily:font, marginTop:"20px" }}>Full access · $250/mo · Cancel any time</p>
         </div>
       </div>
 
       {/* ── Footer ── */}
       <div style={{ background:P.navy, padding:"28px 40px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:"16px" }}>
         <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
-          <span style={{ fontSize:"13px", color:"rgba(255,255,255,0.3)", fontFamily:font }}>Built for event professionals · © 2026 · <span style={{ color:"rgba(255,255,255,0.5)" }}>{APP_VERSION}</span></span>
+          <span style={{ fontSize:"15px", color:"rgba(255,255,255,0.3)", fontFamily:font }}>Built for event professionals · © 2026 · <span style={{ color:"rgba(255,255,255,0.5)" }}>{APP_VERSION}</span></span>
         </div>
         <div style={{ display:"flex", gap:"20px" }}>
           {[
@@ -3910,7 +3868,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
             ["Privacy Policy", onPrivacy],
             ["Terms of Service", onTerms],
           ].map(([label, fn]) => (
-            <button key={label} onClick={fn} style={{ background:"none", border:"none", fontSize:"13px", color:"rgba(255,255,255,0.35)", fontFamily:font, cursor:"pointer", textDecoration:"underline", textDecorationColor:"rgba(255,255,255,0.15)" }}>{label}</button>
+            <button key={label} onClick={fn} style={{ background:"none", border:"none", fontSize:"15px", color:"rgba(255,255,255,0.35)", fontFamily:font, cursor:"pointer", textDecoration:"underline", textDecorationColor:"rgba(255,255,255,0.15)" }}>{label}</button>
           ))}
         </div>
       </div>
@@ -3931,8 +3889,8 @@ function PricingPage({ onBack, nav }) {
     <div style={{ minHeight:"100vh", background:P.offWhite, fontFamily:font }}>
       {nav ? <MarketingNav nav={nav} /> : (
       <div style={{ background:P.navy, padding:"0 32px", height:"52px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
-        <button onClick={onBack} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:"8px", padding:"5px 14px", color:"rgba(255,255,255,0.75)", fontSize:"13px", fontFamily:font, fontWeight:600, cursor:"pointer" }}>← Back to app</button>
-        <span style={{ color:P.accent, fontSize:"13px", fontWeight:700, fontFamily:font, letterSpacing:"0.05em" }}>PRICING</span>
+        <button onClick={onBack} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:"8px", padding:"5px 14px", color:"rgba(255,255,255,0.75)", fontSize:"15px", fontFamily:font, fontWeight:600, cursor:"pointer" }}>← Back to app</button>
+        <span style={{ color:P.accent, fontSize:"15px", fontWeight:700, fontFamily:font, letterSpacing:"0.05em" }}>PRICING</span>
       </div>
       )}
 
@@ -3947,7 +3905,7 @@ function PricingPage({ onBack, nav }) {
         {/* Billing toggle */}
         <div style={{ display:"inline-flex", background:"rgba(255,255,255,0.08)", borderRadius:"12px", padding:"4px", gap:"4px" }}>
           {[["monthly","Monthly"],["annual","Annual · Save 17%"]].map(([k,l]) => (
-            <button key={k} onClick={() => setBilling(k)} style={{ padding:"8px 22px", borderRadius:"9px", border:"none", cursor:"pointer", fontFamily:font, fontSize:"14px", fontWeight:700, transition:"all 0.18s", background:billing===k?P.white:"transparent", color:billing===k?P.navy:"rgba(255,255,255,0.55)", boxShadow:billing===k?"0 1px 4px rgba(0,0,0,0.15)":"none" }}>{l}</button>
+            <button key={k} onClick={() => setBilling(k)} style={{ padding:"8px 22px", borderRadius:"9px", border:"none", cursor:"pointer", fontFamily:font, fontSize:"15px", fontWeight:700, transition:"all 0.18s", background:billing===k?P.white:"transparent", color:billing===k?P.navy:"rgba(255,255,255,0.55)", boxShadow:billing===k?"0 1px 4px rgba(0,0,0,0.15)":"none" }}>{l}</button>
           ))}
         </div>
       </div>
@@ -3958,7 +3916,7 @@ function PricingPage({ onBack, nav }) {
 
           {/* Best Value badge for annual */}
           {annual && (
-            <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", background:P.accent, color:P.white, fontSize:"14px", fontWeight:800, fontFamily:font, letterSpacing:"0.07em", padding:"4px 18px", borderRadius:"0 0 10px 10px", textTransform:"uppercase", whiteSpace:"nowrap" }}>
+            <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", background:P.accent, color:P.white, fontSize:"15px", fontWeight:800, fontFamily:font, letterSpacing:"0.07em", padding:"4px 18px", borderRadius:"0 0 10px 10px", textTransform:"uppercase", whiteSpace:"nowrap" }}>
               Best Value — Save $988/yr
             </div>
           )}
@@ -3971,22 +3929,22 @@ function PricingPage({ onBack, nav }) {
               <span style={{ fontSize:"52px", fontWeight:700, color:P.navy, fontFamily:fontDisplay, letterSpacing:"-0.04em", lineHeight:1 }}>
                 {annual ? "$2,000" : "$250"}
               </span>
-              <span style={{ fontSize:"17px", color:P.grey400, fontFamily:font, marginBottom:"8px" }}>
+              <span style={{ fontSize:"17px", color:P.grey600, fontFamily:font, marginBottom:"8px" }}>
                 {annual ? "/year" : "/month"}
               </span>
             </div>
             {annual && (
-              <div style={{ fontSize:"14px", color:P.green, fontWeight:700, fontFamily:font, marginBottom:"4px" }}>
+              <div style={{ fontSize:"15px", color:P.green, fontWeight:700, fontFamily:font, marginBottom:"4px" }}>
                 Equivalent to $167/mo · billed annually
               </div>
             )}
-            <div style={{ fontSize:"17px", color:P.grey400, fontFamily:font, marginBottom:"16px" }}>1 user · unlimited events · all features</div>
+            <div style={{ fontSize:"17px", color:P.grey600, fontFamily:font, marginBottom:"16px" }}>1 user · unlimited events · all features</div>
 
             {/* Access callout */}
             <div style={{ background:P.accentLight, border:`1.5px solid ${P.accent}44`, borderRadius:"10px", padding:"12px 16px", marginBottom:"16px", display:"flex", alignItems:"center", gap:"10px" }}>
               <span style={{ fontSize:"18px", flexShrink:0 }}>🎯</span>
               <div>
-                <div style={{ fontSize:"13px", fontWeight:800, color:P.teal, fontFamily:font }}>One plan, everything included</div>
+                <div style={{ fontSize:"15px", fontWeight:800, color:P.teal, fontFamily:font }}>One plan, everything included</div>
                 <div style={{ fontSize:"16px", color:P.grey600, fontFamily:font, lineHeight:1.5 }}>Create an account to get started. Unlimited events, unlimited guests, and every feature — one simple monthly price.</div>
               </div>
             </div>
@@ -3999,7 +3957,7 @@ function PricingPage({ onBack, nav }) {
 
           {/* Feature list */}
           <div style={{ borderTop:`1px solid ${P.grey100}`, padding:"24px 32px 32px" }}>
-            <div style={{ fontSize:"15px", fontWeight:700, color:P.grey400, fontFamily:font, letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:"16px" }}>Everything included</div>
+            <div style={{ fontSize:"15px", fontWeight:700, color:P.grey600, fontFamily:font, letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:"16px" }}>Everything included</div>
             {[
               "Flight, hotel, car & dietary cross-referencing",
               "Unlimited guests per event",
@@ -4029,8 +3987,8 @@ function PricingPage({ onBack, nav }) {
             { icon:<ShieldCheck size={13} strokeWidth={1.8}/>, text:"Your guest files never leave your browser" },
           ].map(({ icon, text }) => (
             <div key={text} style={{ display:"flex", alignItems:"center", gap:"10px" }}>
-              <span style={{ color:P.grey400, display:"flex" }}>{icon}</span>
-              <span style={{ fontSize:"16px", color:P.grey400, fontFamily:font }}>{text}</span>
+              <span style={{ color:P.grey600, display:"flex" }}>{icon}</span>
+              <span style={{ fontSize:"16px", color:P.grey600, fontFamily:font }}>{text}</span>
             </div>
           ))}
         </div>
@@ -4038,7 +3996,7 @@ function PricingPage({ onBack, nav }) {
         {/* Questions */}
         <div style={{ marginTop:"36px", background:P.white, borderRadius:"14px", border:`1px solid ${P.grey100}`, padding:"20px 24px", textAlign:"center" }}>
           <div style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"6px" }}>Questions?</div>
-          <div style={{ fontSize:"17px", color:P.grey400, fontFamily:font }}>Email us at <a href="mailto:groupgrid@outlook.com" style={{ color:P.periwinkleD, fontWeight:600, textDecoration:"none" }}>groupgrid@outlook.com</a> and we'll get back to you within one business day.</div>
+          <div style={{ fontSize:"17px", color:P.grey600, fontFamily:font }}>Email us at <a href="mailto:groupgrid@outlook.com" style={{ color:P.periwinkleD, fontWeight:600, textDecoration:"none" }}>groupgrid@outlook.com</a> and we'll get back to you within one business day.</div>
         </div>
       </div>
     </div>
@@ -4105,7 +4063,7 @@ export default function GroupGridApp() {
         <div style={{ textAlign:"center" }}>
           <div style={{ width:40, height:40, border:`3px solid rgba(255,255,255,0.1)`, borderTop:`3px solid ${P.accent}`, borderRadius:"50%", animation:"spin 0.8s linear infinite", margin:"0 auto 16px" }} />
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-          <div style={{ color:"rgba(255,255,255,0.4)", fontSize:"14px" }}>Loading GroupGrid…</div>
+          <div style={{ color:"rgba(255,255,255,0.4)", fontSize:"15px" }}>Loading GroupGrid…</div>
         </div>
       </div>
     );
@@ -4133,16 +4091,16 @@ function UploadSquare({ label, icon, accent, file, setter, required, sub, compac
           {file ? (
             <>
               <div style={{ fontSize:"15px", fontWeight:800, color:accent, fontFamily:font, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:"110px" }}>{file.name}</div>
-              <div style={{ fontSize:"14px", color:P.green, fontWeight:700, fontFamily:font }}><Check size={10} strokeWidth={2.5} style={{display:"inline",marginRight:3}}/>Ready</div>
+              <div style={{ fontSize:"15px", color:P.green, fontWeight:700, fontFamily:font }}><Check size={10} strokeWidth={2.5} style={{display:"inline",marginRight:3}}/>Ready</div>
             </>
           ) : (
             <>
               <div style={{ fontSize:"15px", fontWeight:800, color:P.navy, fontFamily:font, whiteSpace:"nowrap" }}>{label}</div>
-              <div style={{ fontSize:"14px", color:P.navyLight, fontFamily:font }}>{sub}{!required ? " · Optional" : ""}</div>
+              <div style={{ fontSize:"15px", color:P.navyLight, fontFamily:font }}>{sub}{!required ? " · Optional" : ""}</div>
             </>
           )}
         </div>
-        {file && <button onClick={e => { e.preventDefault(); setter(null); }} style={{ marginLeft:"auto", background:"transparent", border:"none", color:P.navyLight, fontSize:"14px", cursor:"pointer", lineHeight:1, flexShrink:0 }} title="Remove">✕</button>}
+        {file && <button onClick={e => { e.preventDefault(); setter(null); }} style={{ marginLeft:"auto", background:"transparent", border:"none", color:P.navyLight, fontSize:"15px", cursor:"pointer", lineHeight:1, flexShrink:0 }} title="Remove">✕</button>}
       </label>
     );
   }
@@ -4156,7 +4114,7 @@ function UploadSquare({ label, icon, accent, file, setter, required, sub, compac
       style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"120px", border:`1.5px dashed ${drag ? accent : file ? accent : P.grey200}`, borderRadius:"12px", padding:"20px 12px 16px", cursor:"pointer", background:file ? accent+"08" : drag ? accent+"05" : P.white, transition:"all 0.18s", position:"relative", textAlign:"center" }}>
       <input type="file" accept=".xlsx,.xls,.csv" style={{ display:"none" }} onChange={e => e.target.files[0] && setter(e.target.files[0])} />
       {!required && !file && (
-        <span style={{ position:"absolute", top:7, right:10, fontSize:"13px", color:P.grey400, fontFamily:font, fontWeight:500, textTransform:"uppercase", letterSpacing:"0.06em" }}>Optional</span>
+        <span style={{ position:"absolute", top:7, right:10, fontSize:"15px", color:P.grey600, fontFamily:font, fontWeight:500, textTransform:"uppercase", letterSpacing:"0.06em" }}>Optional</span>
       )}
       <div style={{ width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", marginBottom:"8px", color:file?P.accent:accent, flexShrink:0 }}>{file ? <Check size={24} strokeWidth={1.8} color={P.green}/> : icon}</div>
       {file ? (
@@ -4167,7 +4125,7 @@ function UploadSquare({ label, icon, accent, file, setter, required, sub, compac
         </>
       ) : (
         <>
-          <div style={{ color:P.navy, fontWeight:600, fontSize:"14px", marginBottom:"3px", fontFamily:font, textAlign:"center", lineHeight:1.3 }}>{label}</div>
+          <div style={{ color:P.navy, fontWeight:600, fontSize:"15px", marginBottom:"3px", fontFamily:font, textAlign:"center", lineHeight:1.3 }}>{label}</div>
           <div style={{ color:P.navyLight, fontSize:"15px", fontFamily:font, textAlign:"center" }}>{sub}</div>
         </>
       )}
@@ -4180,8 +4138,8 @@ function UploadSquare({ label, icon, accent, file, setter, required, sub, compac
 // browser, using the exact column names the parsers recognize.
 const TEMPLATE_DEFS = {
   registration: { file:"GroupGrid_Registration_Template.xlsx", sheet:"Registration", rows:[
-    ["First Name","Last Name","Email","Notes","Approval / Exception"],
-    ["Jane","Doe","jane.doe@example.com","VIP, seat near front","no hotel"],
+    ["First Name","Last Name","Email","Notes"],
+    ["Jane","Doe","jane.doe@example.com","VIP, seat near front. Approved to book own hotel."],
   ]},
   flight: { file:"GroupGrid_Flight_Template.xlsx", sheet:"Flights", rows:[
     ["Name","Email","Arrival Date","Arrival Time","Arrival Airport","Inbound Flight","Departure Date","Departure Time","Departure Airport","Outbound Flight"],
@@ -4288,6 +4246,30 @@ async function extractPdfToWorkbook(file) {
 
 // ── Two-step Setup screen (Option 1). Step 1 = project details (event name required),
 // Step 2 = file uploads (required on top, optional below). Accepts .xlsx/.xls/.csv/.pdf.
+function tagSrc(arr, src){ return (arr||[]).map(r => ({ ...r, source: (src||"").toString().trim() })); }
+
+function ExtraUploads({ show, items, setItems, Icon, color }) {
+  if (!show) return null;
+  return (
+    <div style={{ marginBottom:"14px" }}>
+      {items.map((it) => (
+        <div key={it.id} style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"8px", background:P.grey50, border:`1px solid ${P.grey100}`, borderRadius:"9px", padding:"8px 12px" }}>
+          <Icon size={16} strokeWidth={1.8} color={color} style={{ flexShrink:0 }}/>
+          <label style={{ flex:"0 0 130px", overflow:"hidden" }}>
+            <input type="file" accept=".xlsx,.xls,.csv,.pdf" style={{ display:"none" }} onChange={e => { const fl = e.target.files[0]; if (fl) setItems(prev => prev.map(x => x.id===it.id ? { ...x, file:fl } : x)); }} />
+            <span style={{ display:"inline-block", fontSize:"15px", color:it.file?P.navy:P.periwinkleD, fontFamily:font, cursor:"pointer", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"130px", fontWeight:500 }}>{it.file ? it.file.name : "+ choose file"}</span>
+          </label>
+          <input value={it.source} onChange={e => setItems(prev => prev.map(x => x.id===it.id ? { ...x, source:e.target.value } : x))} placeholder="Source (e.g. Concur)"
+            style={{ flex:1, background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"8px", padding:"7px 11px", fontSize:"15px", color:P.navy, fontFamily:font, outline:"none", minWidth:0 }} />
+          <button onClick={() => setItems(prev => prev.filter(x => x.id !== it.id))} style={{ background:"transparent", border:"none", color:P.grey600, cursor:"pointer", flexShrink:0 }} title="Remove"><X size={15} strokeWidth={1.8}/></button>
+        </div>
+      ))}
+      <button onClick={() => setItems(prev => [...prev, { id:Date.now(), file:null, source:"" }])}
+        style={{ background:"transparent", border:"none", color:P.accentD, fontSize:"15px", fontWeight:500, fontFamily:font, cursor:"pointer", padding:"2px 0" }}>+ Add another file</button>
+    </div>
+  );
+}
+
 function SetupTile({ label, sub, icon, accent, file, setter, required, recommended, columns, templateType }) {
   const [drag, setDrag] = useState(false);
   const [hover, setHover] = useState(false);
@@ -4300,26 +4282,26 @@ function SetupTile({ label, sub, icon, accent, file, setter, required, recommend
       <input type="file" accept=".xlsx,.xls,.csv,.pdf" style={{ display:"none" }} onChange={e => e.target.files[0] && setter(e.target.files[0])} />
       <span style={{ position:"absolute", top:7, left:0, right:0, display:"flex", justifyContent:"center" }}>
         {recommended
-          ? <span style={{ fontSize:"9px", fontWeight:600, padding:"1px 7px", borderRadius:"20px", background:"#DCF2F2", color:"#0A7B7A", fontFamily:font }}>Source of truth</span>
+          ? <span style={{ fontSize:"15px", fontWeight:600, padding:"1px 7px", borderRadius:"20px", background:"#DCF2F2", color:"#0A7B7A", fontFamily:font }}>Source of truth</span>
           : required
-            ? <span style={{ fontSize:"9px", fontWeight:600, padding:"1px 7px", borderRadius:"20px", background:P.redLight, color:P.red, fontFamily:font }}>Required</span>
-            : <span style={{ fontSize:"9px", fontWeight:500, padding:"1px 7px", borderRadius:"20px", background:P.grey100, color:P.grey400, fontFamily:font }}>Optional</span>}
+            ? <span style={{ fontSize:"15px", fontWeight:600, padding:"1px 7px", borderRadius:"20px", background:P.redLight, color:P.red, fontFamily:font }}>Required</span>
+            : <span style={{ fontSize:"15px", fontWeight:500, padding:"1px 7px", borderRadius:"20px", background:P.grey100, color:P.grey600, fontFamily:font }}>Optional</span>}
       </span>
       <div style={{ marginTop:"12px", marginBottom:"5px", color:file?P.green:accent }}>{file ? <Check size={20} strokeWidth={1.8} color={P.green}/> : icon}</div>
-      <div style={{ fontSize:"13px", fontWeight:500, color:P.navy, fontFamily:font, marginBottom:"2px", wordBreak:"break-word", maxWidth:"130px", lineHeight:1.25 }}>{file ? file.name : label}</div>
-      <div style={{ fontSize:"10px", color:file?P.green:P.grey400, fontFamily:font, fontWeight:file?500:400 }}>{file ? "Ready" : sub}</div>
+      <div style={{ fontSize:"15px", fontWeight:500, color:P.navy, fontFamily:font, marginBottom:"2px", wordBreak:"break-word", maxWidth:"130px", lineHeight:1.25 }}>{file ? file.name : label}</div>
+      <div style={{ fontSize:"15px", color:file?P.green:P.grey600, fontFamily:font, fontWeight:file?500:400 }}>{file ? "Ready" : sub}</div>
       {!file && templateType && (
         <button onClick={e => { e.preventDefault(); e.stopPropagation(); downloadTemplate(templateType); }}
           title="Download a correctly formatted Excel template"
-          style={{ position:"absolute", bottom:7, left:0, right:0, margin:"0 auto", width:"fit-content", background:"transparent", border:"none", color:P.periwinkleD, fontSize:"10px", fontWeight:600, fontFamily:font, cursor:"pointer", textDecoration:"underline" }}>
+          style={{ position:"absolute", bottom:7, left:0, right:0, margin:"0 auto", width:"fit-content", background:"transparent", border:"none", color:P.periwinkleD, fontSize:"15px", fontWeight:600, fontFamily:font, cursor:"pointer", textDecoration:"underline" }}>
           Download template
         </button>
       )}
-      {file && <button onClick={e => { e.preventDefault(); setter(null); }} style={{ position:"absolute", top:8, right:10, background:"transparent", border:"none", color:P.grey400, cursor:"pointer", lineHeight:1 }} title="Remove"><X size={13} strokeWidth={1.8}/></button>}
+      {file && <button onClick={e => { e.preventDefault(); setter(null); }} style={{ position:"absolute", top:8, right:10, background:"transparent", border:"none", color:P.grey600, cursor:"pointer", lineHeight:1 }} title="Remove"><X size={13} strokeWidth={1.8}/></button>}
       {hover && !file && columns && (
         <div style={{ position:"absolute", bottom:"calc(100% + 8px)", left:"50%", transform:"translateX(-50%)", width:"210px", background:P.navy, borderRadius:"10px", padding:"12px 14px", boxShadow:"0 8px 24px rgba(0,0,0,0.3)", zIndex:30, textAlign:"left", pointerEvents:"none" }}>
-          <div style={{ fontSize:"14px", fontWeight:600, color:P.accent, fontFamily:font, marginBottom:"7px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Expected columns</div>
-          {columns.map(c => <div key={c} style={{ fontSize:"12px", color:"rgba(255,255,255,0.75)", fontFamily:font, lineHeight:1.7 }}>{c}</div>)}
+          <div style={{ fontSize:"15px", fontWeight:600, color:P.accent, fontFamily:font, marginBottom:"7px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Expected columns</div>
+          {columns.map(c => <div key={c} style={{ fontSize:"15px", color:"rgba(255,255,255,0.75)", fontFamily:font, lineHeight:1.7 }}>{c}</div>)}
         </div>
       )}
     </label>
@@ -4336,6 +4318,7 @@ function SetupScreen({
   contacts, setContacts, setContactsOpen,
   registrationFile, setRegistrationFile, flightFile, setFlightFile, hotelFile, setHotelFile,
   hotelProperty, setHotelProperty, extraHotels, setExtraHotels,
+  extraFlights, setExtraFlights, extraCars, setExtraCars, extraReg, setExtraReg, extraDietary, setExtraDietary,
   carFile, setCarFile, dietaryFile, setDietaryFile,
   ready, loading, error, runCheck, isMobile, isReRun
 }) {
@@ -4360,8 +4343,8 @@ function SetupScreen({
           <React.Fragment key={label}>
             {i > 0 && <div className="gg-step-line" style={{ flex:1, height:"1.5px", background:P.grey100, margin:"0 12px", minWidth:"20px" }} />}
             <div style={{ display:"flex", alignItems:"center", gap:"9px" }}>
-              <span style={{ width:26, height:26, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"13px", fontWeight:600, flexShrink:0, fontFamily:font, background: state==="done"?P.accent:state==="active"?P.navy:P.grey100, color: state==="todo"?P.grey400:P.white }}>{state==="done"?<Check size={14} strokeWidth={2.5}/>:n}</span>
-              <span style={{ fontSize:"14px", fontWeight: state==="todo"?400:500, color: state==="todo"?P.grey400:P.navy, fontFamily:font }}>{label}</span>
+              <span style={{ width:26, height:26, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"17px", fontWeight:600, flexShrink:0, fontFamily:font, background: state==="done"?P.accent:state==="active"?P.navy:P.grey100, color: state==="todo"?P.grey600:P.white }}>{state==="done"?<Check size={14} strokeWidth={2.5}/>:n}</span>
+              <span style={{ fontSize:"18px", fontWeight: state==="todo"?400:500, color: state==="todo"?P.grey600:P.navy, fontFamily:font }}>{label}</span>
             </div>
           </React.Fragment>
         ))}
@@ -4374,26 +4357,26 @@ function SetupScreen({
         <div style={{ marginBottom:"14px" }}>
           <label style={{ display:"block", fontSize:"16px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Project name <span style={{ color:P.red }}>required</span></label>
           <input value={projectName} onChange={e => setProjectName(e.target.value)} placeholder="e.g. Sales Summit - working file"
-            style={{ width:"100%", background:P.grey50, border:`1.5px solid ${hasName?P.accent+"88":P.grey100}`, borderRadius:"10px", padding:"11px 13px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
-          <div style={{ fontSize:"14px", color:P.grey600, fontFamily:font, marginTop:"5px" }}>What this saved project is called in your list. Only you see it.</div>
+            style={{ width:"100%", background:P.grey50, border:`1.5px solid ${hasName?P.accent+"88":P.grey100}`, borderRadius:"10px", padding:"11px 13px", fontSize:"15px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+          <div style={{ fontSize:"18px", color:P.grey600, fontFamily:font, marginTop:"5px" }}>What this saved project is called in your list. Only you see it.</div>
         </div>
         <div style={{ marginBottom:"14px" }}>
-          <label style={{ display:"block", fontSize:"16px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Event name <span style={{ color:P.grey400, fontWeight:400 }}>· used in attendee emails</span></label>
+          <label style={{ display:"block", fontSize:"16px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Event name <span style={{ color:P.grey600, fontWeight:400 }}>· used in attendee emails</span></label>
           <input value={eventName} onChange={e => setEventName(e.target.value)} placeholder="e.g. Sales Summit 2026"
-            style={{ width:"100%", background:P.grey50, border:`1.5px solid ${eventName&&eventName.trim()?P.accent+"88":P.grey100}`, borderRadius:"10px", padding:"11px 13px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
-          <div style={{ fontSize:"14px", color:P.grey600, fontFamily:font, marginTop:"5px" }}>The name guests see in emails and on the report. Left blank, emails fall back to a generic phrase.</div>
+            style={{ width:"100%", background:P.grey50, border:`1.5px solid ${eventName&&eventName.trim()?P.accent+"88":P.grey100}`, borderRadius:"10px", padding:"11px 13px", fontSize:"15px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+          <div style={{ fontSize:"18px", color:P.grey600, fontFamily:font, marginTop:"5px" }}>The name guests see in emails and on the report. Left blank, emails fall back to a generic phrase.</div>
         </div>
       </div>
 
       {/* ── Box 2 · Travel parameters ── */}
       <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)" }}>
-        <div style={{ fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 2 · Travel parameters <span style={{ fontSize:"15px", fontWeight:400, color:P.grey400 }}>· optional</span></div>
+        <div style={{ fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 2 · Travel parameters <span style={{ fontSize:"19px", fontWeight:400, color:P.grey600 }}>· optional</span></div>
         <div style={{ fontSize:"12.5px", color:P.grey600, fontFamily:font, marginBottom:"16px", lineHeight:1.5 }}>Set your approved travel window, cutoffs, and airports. GroupGrid flags anyone who falls outside them. Skip this to run without travel flags.</div>
 
         {/* Arrival */}
         <div style={{ display:"flex", alignItems:"center", gap:"9px", marginBottom:"12px" }}>
           <PlaneIcon size={18} line={P.periwinkleD} accent={P.accent} />
-          <span style={{ fontSize:"14px", fontWeight:600, color:P.navy, fontFamily:font }}>Arrival</span>
+          <span style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font }}>Arrival</span>
         </div>
         <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px", marginBottom:"12px" }}>
           {[
@@ -4403,7 +4386,7 @@ function SetupScreen({
             <div key={label}>
               <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>{label}</label>
               <input type="date" value={val} onChange={e => set(e.target.value)}
-                style={{ width:"100%", background:P.grey50, border:`1.5px solid ${val?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:val?P.navy:P.grey400, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+                style={{ width:"100%", background:P.grey50, border:`1.5px solid ${val?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"18px", color:val?P.navy:P.grey600, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
             </div>
           ))}
         </div>
@@ -4411,17 +4394,17 @@ function SetupScreen({
           <div>
             <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Early-arrival cutoff</label>
             <input type="time" value={arrivalCutoff} onChange={e => setArrivalCutoff(e.target.value)}
-              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${arrivalCutoff?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:arrivalCutoff?P.navy:P.grey400, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
+              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${arrivalCutoff?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"18px", color:arrivalCutoff?P.navy:P.grey600, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
             <div style={{ fontSize:"11.5px", color:P.grey600, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Lands before this, needs the night before.</div>
           </div>
           <div>
             <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Arrival airport(s)</label>
             <input type="text" value={preferredAirports} onChange={e => setPreferredAirports(e.target.value)} placeholder="e.g. JFK, LGA"
-              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${preferredAirports?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:preferredAirports?P.navy:P.grey400, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
+              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${preferredAirports?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"18px", color:preferredAirports?P.navy:P.grey600, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
             <div style={{ fontSize:"11.5px", color:P.grey600, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Codes for your arrival city.</div>
           </div>
         </div>
-        <div style={{ display:"flex", gap:"8px", alignItems:"flex-start", fontSize:"15px", color:P.grey600, fontFamily:font, lineHeight:1.5, background:P.amber+"12", borderRadius:"9px", padding:"9px 12px", marginBottom:"16px" }}>
+        <div style={{ display:"flex", gap:"8px", alignItems:"flex-start", fontSize:"19px", color:P.grey600, fontFamily:font, lineHeight:1.5, background:P.amber+"12", borderRadius:"9px", padding:"9px 12px", marginBottom:"16px" }}>
           <span style={{ flexShrink:0, marginTop:"1px" }}><FlagIcon size={14} line={P.amber} accent={P.amber} /></span>
           <span><strong style={{ color:P.navyLight, fontWeight:600 }}>Flags</strong> arrivals outside the window, early landings with no prior-night room, or landings at other airports.</span>
         </div>
@@ -4429,7 +4412,7 @@ function SetupScreen({
         {/* Departure */}
         <div style={{ display:"flex", alignItems:"center", gap:"9px", marginBottom:"12px" }}>
           <span style={{ display:"inline-flex", transform:"scaleX(-1)" }}><PlaneIcon size={18} line={P.periwinkleD} accent={P.accent} /></span>
-          <span style={{ fontSize:"14px", fontWeight:600, color:P.navy, fontFamily:font }}>Departure</span>
+          <span style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font }}>Departure</span>
         </div>
         <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px", marginBottom:"12px" }}>
           {[
@@ -4439,7 +4422,7 @@ function SetupScreen({
             <div key={label}>
               <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>{label}</label>
               <input type="date" value={val} onChange={e => set(e.target.value)}
-                style={{ width:"100%", background:P.grey50, border:`1.5px solid ${val?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:val?P.navy:P.grey400, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+                style={{ width:"100%", background:P.grey50, border:`1.5px solid ${val?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"18px", color:val?P.navy:P.grey600, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
             </div>
           ))}
         </div>
@@ -4447,17 +4430,17 @@ function SetupScreen({
           <div>
             <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Earliest departure time</label>
             <input type="time" value={departureCutoff} onChange={e => setDepartureCutoff(e.target.value)}
-              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${departureCutoff?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:departureCutoff?P.navy:P.grey400, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
+              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${departureCutoff?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"18px", color:departureCutoff?P.navy:P.grey600, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
             <div style={{ fontSize:"11.5px", color:P.grey600, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Earliest a flight may leave that day.</div>
           </div>
           <div>
             <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Departure airport(s)</label>
             <input type="text" value={departureAirports} onChange={e => setDepartureAirports(e.target.value)} placeholder="e.g. JFK, LGA"
-              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${departureAirports?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:departureAirports?P.navy:P.grey400, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
+              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${departureAirports?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"18px", color:departureAirports?P.navy:P.grey600, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
             <div style={{ fontSize:"11.5px", color:P.grey600, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Codes for your departure city.</div>
           </div>
         </div>
-        <div style={{ display:"flex", gap:"8px", alignItems:"flex-start", fontSize:"15px", color:P.grey600, fontFamily:font, lineHeight:1.5, background:P.amber+"12", borderRadius:"9px", padding:"9px 12px", marginBottom:"4px" }}>
+        <div style={{ display:"flex", gap:"8px", alignItems:"flex-start", fontSize:"19px", color:P.grey600, fontFamily:font, lineHeight:1.5, background:P.amber+"12", borderRadius:"9px", padding:"9px 12px", marginBottom:"4px" }}>
           <span style={{ flexShrink:0, marginTop:"1px" }}><FlagIcon size={14} line={P.amber} accent={P.amber} /></span>
           <span><strong style={{ color:P.navyLight, fontWeight:600 }}>Flags</strong> departures outside the window, before your earliest time, or from other airports.</span>
         </div>
@@ -4465,7 +4448,7 @@ function SetupScreen({
 
       {/* ── Box 3 · Contact details (expanded inline) ── */}
       <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)" }}>
-        <div style={{ fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 3 · Contact details <span style={{ fontSize:"15px", fontWeight:400, color:P.grey400 }}>· optional</span></div>
+        <div style={{ fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 3 · Contact details <span style={{ fontSize:"19px", fontWeight:400, color:P.grey600 }}>· optional</span></div>
         <div style={{ fontSize:"12.5px", color:P.grey600, fontFamily:font, marginBottom:"16px", lineHeight:1.5 }}>Add your hotel, travel agency, and transfer contacts so you can email them directly from your results.</div>
         {[
           { key:"hotel", label:"Hotel", color:P.navy },
@@ -4475,44 +4458,46 @@ function SetupScreen({
           <div key={key} style={{ marginBottom:"14px" }}>
             <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"8px" }}>
               <span style={{ width:3, height:14, background:color, borderRadius:"2px" }} />
-              <span style={{ fontSize:"13px", fontWeight:600, color:P.navy, fontFamily:font }}>{label}</span>
+              <span style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font }}>{label}</span>
             </div>
             <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px" }}>
               <input value={contacts[key]?.name || ""} onChange={e => updateContact(key, "name", e.target.value)} placeholder="Contact name"
-                style={{ width:"100%", background:P.grey50, border:`1.5px solid ${contacts[key]?.name?color+"55":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+                style={{ width:"100%", background:P.grey50, border:`1.5px solid ${contacts[key]?.name?color+"55":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"15px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
               <input type="email" value={contacts[key]?.email || ""} onChange={e => updateContact(key, "email", e.target.value)} placeholder="email@company.com"
-                style={{ width:"100%", background:P.grey50, border:`1.5px solid ${contacts[key]?.email?color+"55":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+                style={{ width:"100%", background:P.grey50, border:`1.5px solid ${contacts[key]?.email?color+"55":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"15px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
             </div>
           </div>
         ))}
         <button onClick={() => setContactsOpen(true)}
-          style={{ display:"inline-flex", alignItems:"center", gap:"7px", background:"transparent", border:"none", color:P.periwinkleD, fontSize:"13px", fontWeight:600, fontFamily:font, cursor:"pointer", padding:"4px 0", marginTop:"2px" }}>
+          style={{ display:"inline-flex", alignItems:"center", gap:"7px", background:"transparent", border:"none", color:P.periwinkleD, fontSize:"15px", fontWeight:600, fontFamily:font, cursor:"pointer", padding:"4px 0", marginTop:"2px" }}>
           <PeopleIcon size={15} line={P.periwinkleD} accent={P.accent}/>
           More contact options (multiple hotels, phone, email signature)
         </button>
       </div>
 
       <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)", opacity: hasName ? 1 : 0.55, pointerEvents: hasName ? "auto" : "none", transition:"opacity 0.2s" }}>
-        <div style={{ fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 4 · Upload files {!hasName && <span style={{ fontSize:"15px", fontWeight:400, color:P.grey400 }}>· name your project first</span>}</div>
-        <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"14px" }}>Upload whatever you have — registration, flights, hotels, cars. GroupGrid cross-checks any 2 or more. Excel or CSV. Hover a tile for expected columns.</div>
-        <div style={{ fontSize:"15px", fontWeight:500, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>Upload any 2 or more</div>
+        <div style={{ fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 4 · Upload files {!hasName && <span style={{ fontSize:"19px", fontWeight:400, color:P.grey600 }}>· name your project first</span>}</div>
+        <div style={{ fontSize:"19px", color:P.grey600, fontFamily:font, marginBottom:"14px" }}>Upload whatever you have — registration, flights, hotels, cars. GroupGrid cross-checks any 2 or more. Excel or CSV. Hover a tile for expected columns.</div>
+        <div style={{ fontSize:"19px", fontWeight:500, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>Upload any 2 or more</div>
         <div className="gg-setup-tiles3" style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"10px", marginBottom:"14px" }}>
           <SetupTile label="Registration List" sub="Best anchor" icon={<PeopleIcon size={20} />} accent={P.accentD} file={registrationFile} setter={setRegistrationFile} templateType="registration" recommended columns={["First/Last Name (or Name)","Email","Company / Job Title (opt)","Requested Check-In / Out (opt)","Flight / Hotel Request (opt)"]} />
           <SetupTile label="Flight Manifest" sub=".xlsx, .csv, .pdf" icon={<PlaneIcon size={20} />} accent={P.periwinkleD} file={flightFile} setter={setFlightFile} templateType="flight" columns={["First/Last Name (or Name)","Email (opt)","Arrival Date","Departure Date","Flight # (opt)"]} />
           <SetupTile label="Hotel Roster" sub=".xlsx, .csv, .pdf" icon={<HotelIcon size={20} />} accent={P.navy} file={hotelFile} setter={setHotelFile} templateType="hotel" columns={["First/Last Name (or Name)","Email (opt)","Check-In Date","Check-Out Date","Hotel / Room (opt)"]} />
         </div>
 
+        <ExtraUploads show={!!registrationFile} items={extraReg} setItems={setExtraReg} Icon={Users} color={P.accentD} />
+        <ExtraUploads show={!!flightFile} items={extraFlights} setItems={setExtraFlights} Icon={Plane} color={P.periwinkleD} />
         {/* Multi-hotel: name the property and add more rooming lists */}
         {hotelFile && (
           <div style={{ background:P.grey50, border:`1px solid ${P.grey100}`, borderRadius:"12px", padding:"14px 16px", marginBottom:"14px" }}>
-            <div style={{ fontSize:"13px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Hotel properties</div>
-            <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"12px", lineHeight:1.5 }}>Running more than one hotel? Name each property and add its rooming list. If a file already has a "Hotel" column, GroupGrid uses that automatically.</div>
+            <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Hotel properties</div>
+            <div style={{ fontSize:"19px", color:P.grey600, fontFamily:font, marginBottom:"12px", lineHeight:1.5 }}>Running more than one hotel? Name each property and add its rooming list. If a file already has a "Hotel" column, GroupGrid uses that automatically.</div>
 
             <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"8px" }}>
               <Hotel size={16} strokeWidth={1.8} color="#F5A623" style={{ flexShrink:0 }}/>
               <span style={{ fontSize:"16px", color:P.grey600, fontFamily:font, flex:"0 0 130px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{hotelFile.name}</span>
               <input value={hotelProperty} onChange={e => setHotelProperty(e.target.value)} placeholder="Property name (optional)"
-                style={{ flex:1, background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"8px", padding:"7px 11px", fontSize:"13px", color:P.navy, fontFamily:font, outline:"none", minWidth:0 }} />
+                style={{ flex:1, background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"8px", padding:"7px 11px", fontSize:"15px", color:P.navy, fontFamily:font, outline:"none", minWidth:0 }} />
             </div>
 
             {extraHotels.map((eh, idx) => (
@@ -4520,39 +4505,41 @@ function SetupScreen({
                 <Hotel size={16} strokeWidth={1.8} color="#F5A623" style={{ flexShrink:0 }}/>
                 <label style={{ flex:"0 0 130px", overflow:"hidden" }}>
                   <input type="file" accept=".xlsx,.xls,.csv" style={{ display:"none" }} onChange={e => { const f = e.target.files[0]; if (f) setExtraHotels(prev => prev.map(x => x.id===eh.id ? { ...x, file:f } : x)); }} />
-                  <span style={{ display:"inline-block", fontSize:"13px", color:eh.file?P.navy:P.periwinkleD, fontFamily:font, cursor:"pointer", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"130px", fontWeight:500 }}>{eh.file ? eh.file.name : "+ choose file"}</span>
+                  <span style={{ display:"inline-block", fontSize:"15px", color:eh.file?P.navy:P.periwinkleD, fontFamily:font, cursor:"pointer", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"130px", fontWeight:500 }}>{eh.file ? eh.file.name : "+ choose file"}</span>
                 </label>
                 <input value={eh.property} onChange={e => setExtraHotels(prev => prev.map(x => x.id===eh.id ? { ...x, property:e.target.value } : x))} placeholder="Property name (optional)"
-                  style={{ flex:1, background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"8px", padding:"7px 11px", fontSize:"13px", color:P.navy, fontFamily:font, outline:"none", minWidth:0 }} />
-                <button onClick={() => setExtraHotels(prev => prev.filter(x => x.id !== eh.id))} style={{ background:"transparent", border:"none", color:P.grey400, cursor:"pointer", flexShrink:0 }} title="Remove"><X size={15} strokeWidth={1.8}/></button>
+                  style={{ flex:1, background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"8px", padding:"7px 11px", fontSize:"15px", color:P.navy, fontFamily:font, outline:"none", minWidth:0 }} />
+                <button onClick={() => setExtraHotels(prev => prev.filter(x => x.id !== eh.id))} style={{ background:"transparent", border:"none", color:P.grey600, cursor:"pointer", flexShrink:0 }} title="Remove"><X size={15} strokeWidth={1.8}/></button>
               </div>
             ))}
 
             <button onClick={() => setExtraHotels(prev => [...prev, { id:Date.now(), file:null, property:"" }])}
-              style={{ background:"transparent", border:"none", color:P.accentD, fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer", marginTop:"4px", padding:"4px 0" }}>+ Add another hotel property</button>
+              style={{ background:"transparent", border:"none", color:P.accentD, fontSize:"15px", fontWeight:500, fontFamily:font, cursor:"pointer", marginTop:"4px", padding:"4px 0" }}>+ Add another hotel property</button>
           </div>
         )}
 
-        <div style={{ fontSize:"15px", fontWeight:500, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>More files</div>
+        <div style={{ fontSize:"19px", fontWeight:500, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>More files</div>
         <div className="gg-setup-tiles2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px" }}>
           <SetupTile label="Car Transfers" sub=".xlsx, .csv, .pdf" icon={<CarIcon size={20} />} accent={P.grey600} file={carFile} setter={setCarFile} templateType="car" columns={["First/Last Name (or Name)","Email (opt)","Pickup Date","Dropoff Date","Pickup Location (opt)"]} />
           {SHOW_DIETARY && <SetupTile label="Dietary & Access" sub=".xlsx, .csv, .pdf" icon={<Salad size={20} strokeWidth={1.8} color="#27AE60"/>} accent={P.teal} file={dietaryFile} setter={setDietaryFile} templateType="dietary" columns={["First/Last Name (or Name)","Email (opt)","Dietary Restrictions","Accessibility Needs","Special Notes (opt)"]} />}
         </div>
-        <div style={{ fontSize:"13px", color:P.navyLight, fontFamily:font, marginTop:"16px", padding:"10px 13px", background:P.periwinkle+"0D", borderRadius:"9px", border:`1px solid ${P.periwinkle}22`, lineHeight:1.5 }}>
-          <span style={{ background:P.periwinkle+"22", color:P.periwinkleD, borderRadius:"5px", padding:"1px 7px", fontSize:"11px", fontWeight:600, marginRight:"7px" }}>TIP</span>
+        <ExtraUploads show={!!carFile} items={extraCars} setItems={setExtraCars} Icon={Car} color={P.grey600} />
+        {SHOW_DIETARY && <ExtraUploads show={!!dietaryFile} items={extraDietary} setItems={setExtraDietary} Icon={Salad} color="#27AE60" />}
+        <div style={{ fontSize:"15px", color:P.navyLight, fontFamily:font, marginTop:"16px", padding:"10px 13px", background:P.periwinkle+"0D", borderRadius:"9px", border:`1px solid ${P.periwinkle}22`, lineHeight:1.5 }}>
+          <span style={{ background:P.periwinkle+"22", color:P.periwinkleD, borderRadius:"5px", padding:"1px 7px", fontSize:"15px", fontWeight:600, marginRight:"7px" }}>TIP</span>
           Include an <strong style={{ fontWeight:600 }}>Email Address</strong> column for the most accurate matching. GroupGrid matches by email first, then name.
         </div>
       </div>
       </div>
 
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:"14px", background:P.navy, borderRadius:"12px", padding:"13px 18px", flexWrap:"wrap" }}>
-        <div style={{ fontSize:"13px", color:"rgba(255,255,255,0.6)", fontFamily:font }}>
+        <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.6)", fontFamily:font }}>
           {!hasName ? "Name your event to begin." : !ready ? "Upload at least 2 files to cross-check." : "Ready to run."}
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
-          {error && <span style={{ fontSize:"13px", color:"#FFB3AB", fontFamily:font }}>{error}</span>}
+          {error && <span style={{ fontSize:"15px", color:"#FFB3AB", fontFamily:font }}>{error}</span>}
           <button onClick={runCheck} disabled={!canRun}
-            style={{ background:canRun?P.accent:"rgba(255,255,255,0.15)", color:canRun?P.white:"rgba(255,255,255,0.4)", border:"none", borderRadius:"10px", padding:"11px 24px", fontSize:"14px", fontWeight:600, fontFamily:font, cursor:canRun?"pointer":"not-allowed", transition:"all 0.18s", whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:"8px" }}>
+            style={{ background:canRun?P.accent:"rgba(255,255,255,0.15)", color:canRun?P.white:"rgba(255,255,255,0.4)", border:"none", borderRadius:"10px", padding:"11px 24px", fontSize:"15px", fontWeight:600, fontFamily:font, cursor:canRun?"pointer":"not-allowed", transition:"all 0.18s", whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:"8px" }}>
             <span>{loading ? "Checking…" : isReRun ? "Re-run Cross-Check" : "Run Cross-Check"}</span>
             {!loading && <CrossCheckIcon size={17} line={canRun?"rgba(255,255,255,0.92)":"rgba(255,255,255,0.4)"} accent={canRun?P.white:"rgba(255,255,255,0.4)"} />}
           </button>
@@ -4563,10 +4550,10 @@ function SetupScreen({
 }
 
 const REPORT_PRESETS = {
-  general: ["lastName","firstName","email","company","status","issues","approval","flightArrival","arrivalTime","arrivalAirport","flightIn","flightDeparture","departureTime","departureAirport","flightOut","hotel","checkIn","checkOut","room","carPickup","carPickupTime","carDropoff"],
-  hotel: ["lastName","firstName","email","hotel","checkIn","checkOut","room","status","issues"],
-  car: ["lastName","firstName","email","carPickup","carPickupTime","carDropoff","status","issues"],
-  travel: ["lastName","firstName","email","flightArrival","arrivalTime","arrivalAirport","flightIn","flightDeparture","departureTime","departureAirport","flightOut","status","issues"],
+  general: ["lastName","firstName","email","company","note","status","issues","flightArrival","arrivalTime","arrivalAirport","flightIn","flightDeparture","departureTime","departureAirport","flightOut","hotel","checkIn","checkOut","room","carPickup","carPickupTime","carDropoff"],
+  hotel: ["lastName","firstName","email","note","hotel","checkIn","checkOut","room","status","issues"],
+  car: ["lastName","firstName","email","note","carPickup","carPickupTime","carDropoff","status","issues"],
+  travel: ["lastName","firstName","email","note","flightArrival","arrivalTime","arrivalAirport","flightIn","flightDeparture","departureTime","departureAirport","flightOut","status","issues"],
 };
 
 function GroupGrid({ user, onLogin, onLogout }) {
@@ -4576,6 +4563,10 @@ function GroupGrid({ user, onLogin, onLogout }) {
   const [hotelFile, setHotelFile] = useState(null);
   const [hotelProperty, setHotelProperty] = useState(""); // optional property name for the primary hotel file
   const [extraHotels, setExtraHotels] = useState([]); // [{ id, file, property }] additional hotel properties
+  const [extraFlights, setExtraFlights] = useState([]); // [{ id, file, source }]
+  const [extraCars, setExtraCars] = useState([]);
+  const [extraReg, setExtraReg] = useState([]);
+  const [extraDietary, setExtraDietary] = useState([]);
   const [carFile, setCarFile] = useState(null);
   const [dietaryFile, setDietaryFile] = useState(null);
   const [registrationFile, setRegistrationFile] = useState(null);
@@ -4762,15 +4753,16 @@ function GroupGrid({ user, onLogin, onLogout }) {
     setLoading(true); setError(null); setExpanded(null);
     try {
       let flights = [], hotels = [], cars = [], dietary = [], registration = [];
-      if (flightFile)       { const w = await readXlsx(flightFile);       flights = parseFlightSheet(w); }
-      if (hotelFile)        { const w = await readXlsx(hotelFile);        hotels = parseHotelSheetTagged(w, hotelProperty); }
-      // Additional hotel properties (multi-hotel): parse each and merge into one hotels array
-      for (const eh of extraHotels) {
-        if (eh.file) { const w = await readXlsx(eh.file); hotels = hotels.concat(parseHotelSheetTagged(w, eh.property)); }
-      }
-      if (carFile)          { const w = await readXlsx(carFile);          cars = parseCarSheet(w); }
-      if (dietaryFile)      { const w = await readXlsx(dietaryFile);      dietary = parseDietarySheet(w); }
-      if (registrationFile) { const w = await readXlsx(registrationFile); registration = parseRegistrationSheet(w); }
+      if (flightFile)       { const w = await readXlsx(flightFile);       flights = tagSrc(parseFlightSheet(w), flightFile.name); }
+      for (const ex of extraFlights) { if (ex.file) { const w = await readXlsx(ex.file); flights = flights.concat(tagSrc(parseFlightSheet(w), ex.source || ex.file.name)); } }
+      if (hotelFile)        { const w = await readXlsx(hotelFile);        hotels = tagSrc(parseHotelSheetTagged(w, hotelProperty), hotelProperty || hotelFile.name); }
+      for (const eh of extraHotels) { if (eh.file) { const w = await readXlsx(eh.file); hotels = hotels.concat(tagSrc(parseHotelSheetTagged(w, eh.property), eh.property || eh.file.name)); } }
+      if (carFile)          { const w = await readXlsx(carFile);          cars = tagSrc(parseCarSheet(w), carFile.name); }
+      for (const ex of extraCars) { if (ex.file) { const w = await readXlsx(ex.file); cars = cars.concat(tagSrc(parseCarSheet(w), ex.source || ex.file.name)); } }
+      if (dietaryFile)      { const w = await readXlsx(dietaryFile);      dietary = tagSrc(parseDietarySheet(w), dietaryFile.name); }
+      for (const ex of extraDietary) { if (ex.file) { const w = await readXlsx(ex.file); dietary = dietary.concat(tagSrc(parseDietarySheet(w), ex.source || ex.file.name)); } }
+      if (registrationFile) { const w = await readXlsx(registrationFile); registration = tagSrc(parseRegistrationSheet(w), registrationFile.name); }
+      for (const ex of extraReg) { if (ex.file) { const w = await readXlsx(ex.file); registration = registration.concat(tagSrc(parseRegistrationSheet(w), ex.source || ex.file.name)); } }
       const aw = { arrivalStart:parseDate(arrivalStart), arrivalEnd:parseDate(arrivalEnd), departureStart:parseDate(departureStart), departureEnd:parseDate(departureEnd), preferredAirports: preferredAirports.split(",").map(s=>s.trim()).filter(Boolean), departureAirports: departureAirports.split(",").map(s=>s.trim()).filter(Boolean), arrivalCutoff, departureCutoff };
       const allResults = crossMatch(flights, hotels, cars, dietary, aw, meta, registration);
       setResults(allResults); setShowSetup(false);
@@ -4878,7 +4870,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
   }
 
   function exportReport() {
-    const rows = filtered.map(r => ({ "First Name":r.firstName||r.displayName.split(" ")[0]||"—", "Last Name":r.lastName||r.displayName.split(" ").slice(1).join(" ")||"—", "Full Name":r.displayName, "Email":r.email||"—", "Registered":r.reg?"Yes":(r.registered?"Yes":"No"), "Status":{ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status], "Active Issues":r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None", "Resolved":r.resolved?.join("; ")||"—", "Note":r.note||"—", "Approval / Exception":r.approval||"—", "Company":r.reg?.company||"—", "Job Title":r.reg?.jobTitle||"—", "Requested Check-In":fmt(r.reg?.regCheckIn), "Requested Check-Out":fmt(r.reg?.regCheckOut), "Dietary":r.diet?.dietary||r.reg?.dietaryRequest||"—", "Accessibility":r.diet?.accessibility||"—", "Flight Arrival":fmt(r.flight?.flightArrival), "Arrival Time":fmtTime(r.flight?.arrivalTime, timeFormat)||"—", "Hotel Check-In":fmt(r.hotel?.checkIn), "Arrival Δ":r.details?.arrDiff??"N/A", "Flight Departure":fmt(r.flight?.flightDeparture), "Departure Time":fmtTime(r.flight?.departureTime, timeFormat)||"—", "Hotel Check-Out":fmt(r.hotel?.checkOut), "Departure Δ":r.details?.depDiff??"N/A", "Car Pickup":fmt(r.car?.pickupDate), "Car Pickup Time":fmtTime(r.car?.pickupTime, timeFormat)||"—", "Car Dropoff":fmt(r.car?.dropoffDate), "Car Dropoff Time":fmtTime(r.car?.dropoffTime, timeFormat)||"—", "Hotel":r.hotel?.hotel||"—", "Room":r.hotel?.room||"—", "Arrival Airport":(r.flight?.arrivalAirport||r.flight?.airport||"").toUpperCase()||"—", "Departure Airport":(r.flight?.departureAirport||r.flight?.airport||"").toUpperCase()||"—", "Matched By":r.matchedBy }));
+    const rows = filtered.map(r => ({ "First Name":r.firstName||r.displayName.split(" ")[0]||"—", "Last Name":r.lastName||r.displayName.split(" ").slice(1).join(" ")||"—", "Full Name":r.displayName, "Email":r.email||"—", "Registered":r.reg?"Yes":(r.registered?"Yes":"No"), "Status":{ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status], "Active Issues":r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None", "Resolved":r.resolved?.join("; ")||"—", "Note":r.note||"—", "Note By":r.noteBy||"—", "Note Added":r.noteAt ? new Date(r.noteAt).toLocaleString() : "—", "Company":r.reg?.company||"—", "Job Title":r.reg?.jobTitle||"—", "Requested Check-In":fmt(r.reg?.regCheckIn), "Requested Check-Out":fmt(r.reg?.regCheckOut), "Dietary":r.diet?.dietary||r.reg?.dietaryRequest||"—", "Accessibility":r.diet?.accessibility||"—", "Flight Arrival":fmt(r.flight?.flightArrival), "Arrival Time":fmtTime(r.flight?.arrivalTime, timeFormat)||"—", "Hotel Check-In":fmt(r.hotel?.checkIn), "Arrival Δ":r.details?.arrDiff??"N/A", "Flight Departure":fmt(r.flight?.flightDeparture), "Departure Time":fmtTime(r.flight?.departureTime, timeFormat)||"—", "Hotel Check-Out":fmt(r.hotel?.checkOut), "Departure Δ":r.details?.depDiff??"N/A", "Car Pickup":fmt(r.car?.pickupDate), "Car Pickup Time":fmtTime(r.car?.pickupTime, timeFormat)||"—", "Car Dropoff":fmt(r.car?.dropoffDate), "Car Dropoff Time":fmtTime(r.car?.dropoffTime, timeFormat)||"—", "Hotel":r.hotel?.hotel||"—", "Room":r.hotel?.room||"—", "Arrival Airport":(r.flight?.arrivalAirport||r.flight?.airport||"").toUpperCase()||"—", "Departure Airport":(r.flight?.departureAirport||r.flight?.airport||"").toUpperCase()||"—", "Matched By":r.matchedBy, "Sources":[r.reg?.source, r.flight?.source, r.hotel?.source, r.car?.source, r.diet?.source].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(", ")||"—" }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "GroupGrid");
     XLSX.writeFile(wb, `groupgrid-${(eventName||"report").replace(/\s+/g,"-")}-${new Date().toISOString().slice(0,10)}.xlsx`);
@@ -4956,9 +4948,11 @@ function GroupGrid({ user, onLogin, onLogout }) {
     { key:"firstName", label:"First Name", group:"Attendee", get:r => r.firstName||r.displayName.split(" ")[0]||"—" },
     { key:"email", label:"Email", group:"Attendee", get:r => r.email||"—" },
     { key:"company", label:"Company", group:"Attendee", get:r => r.reg?.company||"—" },
+    { key:"note", label:"Note", group:"Attendee", get:r => r.note||"—" },
+    { key:"noteBy", label:"Note By", group:"Attendee", get:r => r.noteBy||"—" },
+    { key:"noteAt", label:"Note Added", group:"Attendee", get:r => r.noteAt ? new Date(r.noteAt).toLocaleString() : "—" },
     { key:"status", label:"Status", group:"Status", get:r => ({ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status]) },
     { key:"issues", label:"Flagged Issues", group:"Status", get:r => r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None" },
-    { key:"approval", label:"Approval / Exception", group:"Status", get:r => r.approval||"—" },
     { key:"flightArrival", label:"Flight Arrival", group:"Flight", get:r => fmt(r.flight?.flightArrival) },
     { key:"arrivalTime", label:"Arrival Time", group:"Flight", get:r => fmtTime(r.flight?.arrivalTime, timeFormat)||"—" },
     { key:"arrivalAirport", label:"Arrival Airport", group:"Flight", get:r => (r.flight?.arrivalAirport||r.flight?.airport||"").toUpperCase()||"—" },
@@ -4992,6 +4986,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
       "Last Name": r.lastName||r.displayName.split(" ").slice(1).join(" ")||"—",
       "First Name": r.firstName||r.displayName.split(" ")[0]||"—",
       "Email": r.email||"—",
+      "Note": r.note||"—",
       "Flight Arrival": fmt(r.flight?.flightArrival),
       "Arrival Time": fmtTime(r.flight?.arrivalTime, timeFormat)||"—",
       "Arrival Airport": (r.flight?.arrivalAirport||r.flight?.airport||"").toUpperCase()||"—",
@@ -5017,7 +5012,42 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
   function exportSelected() {
     const toExport = selectedRows.size > 0 ? filtered.filter(r => selectedRows.has(r.key)) : filtered;
-    const rows = toExport.map(r => ({ "First Name":r.firstName||r.displayName.split(" ")[0]||"—", "Last Name":r.lastName||r.displayName.split(" ").slice(1).join(" ")||"—", "Full Name":r.displayName, "Email":r.email||"—", "Registered":r.reg?"Yes":(r.registered?"Yes":"No"), "Status":{ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status], "Active Issues":r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None", "Note":r.note||"—", "Approval / Exception":r.approval||"—", "Company":r.reg?.company||"—", "Job Title":r.reg?.jobTitle||"—", "Requested Check-In":fmt(r.reg?.regCheckIn), "Requested Check-Out":fmt(r.reg?.regCheckOut), "Flight Arrival":fmt(r.flight?.flightArrival), "Arrival Time":fmtTime(r.flight?.arrivalTime, timeFormat)||"—", "Flight In":r.flight?.flightIn||"—", "Hotel Check-In":fmt(r.hotel?.checkIn), "Arrival Δ":r.details?.arrDiff??"N/A", "Flight Departure":fmt(r.flight?.flightDeparture), "Departure Time":fmtTime(r.flight?.departureTime, timeFormat)||"—", "Flight Out":r.flight?.flightOut||"—", "Hotel Check-Out":fmt(r.hotel?.checkOut), "Departure Δ":r.details?.depDiff??"N/A", "Arrival Airport":(r.flight?.arrivalAirport||r.flight?.airport||"").toUpperCase()||"—", "Departure Airport":(r.flight?.departureAirport||r.flight?.airport||"").toUpperCase()||"—", "Hotel":r.hotel?.hotel||"—", "Room":r.hotel?.room||"—", "Car Pickup":fmt(r.car?.pickupDate), "Car Pickup Time":fmtTime(r.car?.pickupTime, timeFormat)||"—", "Car Dropoff":fmt(r.car?.dropoffDate), "Car Dropoff Time":fmtTime(r.car?.dropoffTime, timeFormat)||"—", "Dietary":r.diet?.dietary||r.reg?.dietaryRequest||"—", "Accessibility":r.diet?.accessibility||"—" }));
+    const rows = toExport.map(r => ({
+      "First Name":r.firstName||r.displayName.split(" ")[0]||"—",
+      "Last Name":r.lastName||r.displayName.split(" ").slice(1).join(" ")||"—",
+      "Full Name":r.displayName,
+      "Email":r.email||"—",
+      "Registered":r.reg?"Yes":(r.registered?"Yes":"No"),
+      "Status":{ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status],
+      "Active Issues":r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None",
+      "Note":r.note||"—",
+      "Note By":r.noteBy||"—",
+      "Note Added":r.noteAt ? new Date(r.noteAt).toLocaleString() : "—",
+      "Requested Check-In":fmt(r.reg?.regCheckIn),
+      "Requested Check-Out":fmt(r.reg?.regCheckOut),
+      "Car Pickup":fmt(r.car?.pickupDate),
+      "Car Pickup Time":fmtTime(r.car?.pickupTime, timeFormat)||"—",
+      "Flight Arrival":fmt(r.flight?.flightArrival),
+      "Arrival Time":fmtTime(r.flight?.arrivalTime, timeFormat)||"—",
+      "Arrival Airport":(r.flight?.arrivalAirport||r.flight?.airport||"").toUpperCase()||"—",
+      "Flight In":r.flight?.flightIn||"—",
+      "Hotel":r.hotel?.hotel||"—",
+      "Hotel Check-In":fmt(r.hotel?.checkIn),
+      "Arrival Δ":r.details?.arrDiff??"N/A",
+      "Hotel Check-Out":fmt(r.hotel?.checkOut),
+      "Departure Δ":r.details?.depDiff??"N/A",
+      "Room":r.hotel?.room||"—",
+      "Flight Departure":fmt(r.flight?.flightDeparture),
+      "Departure Time":fmtTime(r.flight?.departureTime, timeFormat)||"—",
+      "Departure Airport":(r.flight?.departureAirport||r.flight?.airport||"").toUpperCase()||"—",
+      "Flight Out":r.flight?.flightOut||"—",
+      "Car Dropoff":fmt(r.car?.dropoffDate),
+      "Car Dropoff Time":fmtTime(r.car?.dropoffTime, timeFormat)||"—",
+      "Company":r.reg?.company||"—",
+      "Job Title":r.reg?.jobTitle||"—",
+      "Dietary":r.diet?.dietary||r.reg?.dietaryRequest||"—",
+      "Accessibility":r.diet?.accessibility||"—"
+    }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "GroupGrid");
     const label = selectedRows.size > 0 ? `${selectedRows.size}-selected` : "all";
@@ -5261,7 +5291,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
   const paramsDirty = !!results && !!lastRunSig && lastRunSig !== JSON.stringify({ arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, eventName });
   const hasDiet = SHOW_DIETARY && results?.some(r => r.diet);
   const hasHotelNames = results?.some(r => r.hotel?.hotel && r.hotel.hotel.trim());
-  const uploadedCount = [registrationFile, flightFile, hotelFile, carFile, dietaryFile].filter(Boolean).length + extraHotels.filter(h=>h.file).length;
+  const uploadedCount = [registrationFile, flightFile, hotelFile, carFile, dietaryFile].filter(Boolean).length + [...extraHotels, ...extraFlights, ...extraCars, ...extraReg, ...extraDietary].filter(h=>h.file).length;
   const ready = uploadedCount >= 2;
 
 
@@ -5336,7 +5366,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
             </button>
           )}
           <BrandLogo height={isMobile ? 28 : 40} onDark={true} />
-            {!isMobile && <button onClick={() => setPage("landing")} style={{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"7px", padding:"4px 12px", fontSize:"12px", fontWeight:600, color:"rgba(255,255,255,0.45)", fontFamily:font, cursor:"pointer", letterSpacing:"0.03em" }}>← Home</button>}
+            {!isMobile && <button onClick={() => setPage("landing")} style={{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"7px", padding:"4px 12px", fontSize:"15px", fontWeight:600, color:"rgba(255,255,255,0.45)", fontFamily:font, cursor:"pointer", letterSpacing:"0.03em" }}>← Home</button>}
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
           {saveMsg && <span style={{ fontSize:"15px", color:P.accent, fontFamily:font, fontWeight:600 }}>✓ {saveMsg}</span>}
@@ -5349,10 +5379,10 @@ function GroupGrid({ user, onLogin, onLogout }) {
           <div style={{ width:1, height:16, background:"rgba(255,255,255,0.15)", marginLeft:"2px" }} />
           {user ? (
             <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
-              <div style={{ width:30, height:30, borderRadius:"50%", background:`linear-gradient(135deg, ${P.periwinkle}, ${P.periwinkleD})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"14px", fontWeight:800, color:P.white, fontFamily:font, flexShrink:0, cursor:"default" }} title={user.email}>
+              <div style={{ width:30, height:30, borderRadius:"50%", background:`linear-gradient(135deg, ${P.periwinkle}, ${P.periwinkleD})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"15px", fontWeight:800, color:P.white, fontFamily:font, flexShrink:0, cursor:"default" }} title={user.email}>
                 {user.name.charAt(0).toUpperCase()}
               </div>
-              <span style={{ fontSize:"14px", color:"rgba(255,255,255,0.75)", fontFamily:font, fontWeight:700 }}>{user.name}</span>
+              <span style={{ fontSize:"15px", color:"rgba(255,255,255,0.75)", fontFamily:font, fontWeight:700 }}>{user.name}</span>
               <button onClick={onLogout} style={{ background:"transparent", border:"1px solid rgba(255,255,255,0.15)", borderRadius:"8px", padding:"4px 10px", fontSize:"15px", fontWeight:700, fontFamily:font, color:"rgba(255,255,255,0.4)", cursor:"pointer" }}>Sign out</button>
             </div>
           ) : (
@@ -5364,14 +5394,14 @@ function GroupGrid({ user, onLogin, onLogout }) {
           {/* Mobile: auth control always visible — Sign In when logged out, account + Sign out when logged in */}
           {isMobile && !user && (
             <button onClick={() => setLoginOpen(true)} style={{ background:P.accent, border:"none", borderRadius:"8px", padding:"6px 14px", cursor:"pointer", fontFamily:font }}>
-              <span style={{ fontSize:"13px", fontWeight:600, color:P.white }}>Sign In</span>
+              <span style={{ fontSize:"15px", fontWeight:600, color:P.white }}>Sign In</span>
             </button>
           )}
           {isMobile && user && (
             <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
               <div title={user.email} style={{ width:28, height:28, borderRadius:"50%", background:P.accentD, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:"15px", fontWeight:700, color:P.white, fontFamily:font, textTransform:"uppercase" }}>{(user.name || user.email || "?").trim().charAt(0)}</div>
               <button onClick={onLogout} style={{ background:"transparent", border:"1px solid rgba(255,255,255,0.2)", borderRadius:"8px", padding:"6px 12px", cursor:"pointer", fontFamily:font }}>
-                <span style={{ fontSize:"13px", fontWeight:600, color:"rgba(255,255,255,0.7)" }}>Sign out</span>
+                <span style={{ fontSize:"15px", fontWeight:600, color:"rgba(255,255,255,0.7)" }}>Sign out</span>
               </button>
             </div>
           )}
@@ -5414,10 +5444,10 @@ function GroupGrid({ user, onLogin, onLogout }) {
               style={{ width:"100%", display:"flex", alignItems:"center", gap:"8px", background:"rgba(255,255,255,0.07)", border:`1px dashed rgba(255,255,255,0.18)`, borderRadius:"8px", padding:"7px 10px", cursor:"pointer", marginBottom:"6px", fontFamily:font, transition:"all 0.15s", textAlign:"left" }}
               onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.12)"}
               onMouseLeave={e => e.currentTarget.style.background="rgba(255,255,255,0.07)"}>
-              <div style={{ width:24, height:24, borderRadius:"6px", background:"rgba(255,255,255,0.15)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"14px", flexShrink:0, color:P.white, fontWeight:900 }}>+</div>
+              <div style={{ width:24, height:24, borderRadius:"6px", background:"rgba(255,255,255,0.15)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"15px", flexShrink:0, color:P.white, fontWeight:900 }}>+</div>
               <div>
                 <div style={{ fontSize:"15px", fontWeight:800, color:P.white, fontFamily:font }}>New Project</div>
-                <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.4)", fontFamily:font }}>Start fresh</div>
+                <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.4)", fontFamily:font }}>Start fresh</div>
               </div>
             </button>
 
@@ -5429,9 +5459,9 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 </div>
                 <div style={{ minWidth:0, flex:1 }}>
                   <div style={{ fontSize:"15px", fontWeight:800, color:P.white, fontFamily:font, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{projectName || eventName || "Unsaved Project"}</div>
-                  <div style={{ fontSize:"14px", color:P.accent, fontFamily:font }}>{results ? `${results.length} guests · ${results.filter(r=>r.status!=="ok").length} flags` : "Active"}</div>
+                  <div style={{ fontSize:"15px", color:P.accent, fontFamily:font }}>{results ? `${results.length} guests · ${results.filter(r=>r.status!=="ok").length} flags` : "Active"}</div>
                 </div>
-                <span style={{ fontSize:"14px", background:P.accent, color:P.navy, padding:"2px 6px", borderRadius:"20px", fontFamily:font, fontWeight:800, flexShrink:0 }}>Active</span>
+                <span style={{ fontSize:"15px", background:P.accent, color:P.navy, padding:"2px 6px", borderRadius:"20px", fontFamily:font, fontWeight:800, flexShrink:0 }}>Active</span>
               </div>
             )}
 
@@ -5463,11 +5493,11 @@ function GroupGrid({ user, onLogin, onLogout }) {
                       </div>
                       <div style={{ minWidth:0, flex:1 }}>
                         <div style={{ fontSize:"15px", fontWeight:800, color:P.white, fontFamily:font, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.name}</div>
-                        <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.4)", fontFamily:font }}>{s.guestCount} guests · {s.issueCount} flags</div>
+                        <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.4)", fontFamily:font }}>{s.guestCount} guests · {s.issueCount} flags</div>
                       </div>
-                      {results && <button onClick={e => { e.stopPropagation(); setCompareSession(s); setShowDiff(true); setActiveTab("grid"); }} style={{ background:"rgba(255,255,255,0.12)", border:`1px solid rgba(255,255,255,0.2)`, borderRadius:"5px", padding:"2px 7px", fontSize:"11px", color:P.white, fontWeight:700, fontFamily:font, cursor:"pointer", marginRight:"4px" }}>↔ Diff</button>}
+                      {results && <button onClick={e => { e.stopPropagation(); setCompareSession(s); setShowDiff(true); setActiveTab("grid"); }} style={{ background:"rgba(255,255,255,0.12)", border:`1px solid rgba(255,255,255,0.2)`, borderRadius:"5px", padding:"2px 7px", fontSize:"15px", color:P.white, fontWeight:700, fontFamily:font, cursor:"pointer", marginRight:"4px" }}>↔ Diff</button>}
                       <button onClick={e => { e.stopPropagation(); setSavedSessions(prev => { const next = prev.filter(x => x.id !== s.id); try { storage.set(storageKey, JSON.stringify(next)); } catch(ex) {} return next; }); }}
-                        style={{ background:"transparent", border:"none", color:"rgba(255,255,255,0.2)", fontSize:"14px", cursor:"pointer", padding:"2px 4px", flexShrink:0, lineHeight:1, borderRadius:"4px" }}
+                        style={{ background:"transparent", border:"none", color:"rgba(255,255,255,0.2)", fontSize:"15px", cursor:"pointer", padding:"2px 4px", flexShrink:0, lineHeight:1, borderRadius:"4px" }}
                         onMouseEnter={e => { e.currentTarget.style.color = P.red; e.currentTarget.style.background = "rgba(192,57,43,0.2)"; }}
                         onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.2)"; e.currentTarget.style.background = "transparent"; }}
                         title="Remove">✕</button>
@@ -5504,7 +5534,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 onMouseEnter={e => activeTab!==k && (e.currentTarget.style.background="rgba(255,255,255,0.07)")}
                 onMouseLeave={e => activeTab!==k && (e.currentTarget.style.background="transparent")}>
                 <span style={{ width:20, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, color:activeTab===k?P.accent:"rgba(255,255,255,0.45)" }}>{icon}</span>
-                <span style={{ flex:1, fontSize:"14px", fontWeight:700, color:activeTab===k?P.accent:"rgba(255,255,255,0.7)", fontFamily:font }}>{label}</span>
+                <span style={{ flex:1, fontSize:"15px", fontWeight:700, color:activeTab===k?P.accent:"rgba(255,255,255,0.7)", fontFamily:font }}>{label}</span>
                 {badge && <span style={{ background:P.red, color:P.white, fontSize:"15px", fontWeight:800, padding:"1px 7px", borderRadius:"20px", flexShrink:0 }}>{badge}</span>}
               </button>
             ))}
@@ -5530,15 +5560,15 @@ function GroupGrid({ user, onLogin, onLogout }) {
                   style={{ width:"100%", display:"flex", alignItems:"center", gap:"8px", background:filter===k&&activeTab==="grid"?"rgba(0,201,177,0.15)":"transparent", border:`1px solid ${filter===k&&activeTab==="grid"?"rgba(0,201,177,0.3)":"transparent"}`, borderRadius:"7px", padding:"6px 10px", paddingLeft: indent ? "26px" : "10px", cursor:"pointer", marginBottom:"2px", textAlign:"left" }}
                   onMouseEnter={e => (filter!==k||activeTab!=="grid") && (e.currentTarget.style.background="rgba(255,255,255,0.07)")}
                   onMouseLeave={e => (filter!==k||activeTab!=="grid") && (e.currentTarget.style.background="transparent")}>
-                  <span style={{ fontSize:"14px", color:color||"rgba(255,255,255,0.45)", width:16, textAlign:"center", flexShrink:0 }}>{icon}</span>
+                  <span style={{ fontSize:"15px", color:color||"rgba(255,255,255,0.45)", width:16, textAlign:"center", flexShrink:0 }}>{icon}</span>
                   <span style={{ flex:1, fontSize: indent ? "13px" : "15px", fontWeight:filter===k&&activeTab==="grid"?600:400, color:filter===k&&activeTab==="grid"?P.accent:(indent?"rgba(255,255,255,0.5)":"rgba(255,255,255,0.65)"), fontFamily:font }}>{label}</span>
-                  <span style={{ fontSize:"13px", fontWeight:600, color:filter===k&&activeTab==="grid"?P.accent:"rgba(255,255,255,0.4)", fontFamily:font }}>{count}</span>
+                  <span style={{ fontSize:"15px", fontWeight:600, color:filter===k&&activeTab==="grid"?P.accent:"rgba(255,255,255,0.4)", fontFamily:font }}>{count}</span>
                 </button>
               );
               return (<>
                 {mainFilters.map(renderBtn)}
                 {subFilters.length > 0 && (<>
-                  <div style={{ fontSize:"11px", fontWeight:500, color:"rgba(255,255,255,0.3)", letterSpacing:"0.04em", margin:"8px 0 4px", paddingLeft:"10px" }}>Within Action Needed</div>
+                  <div style={{ fontSize:"15px", fontWeight:500, color:"rgba(255,255,255,0.3)", letterSpacing:"0.04em", margin:"8px 0 4px", paddingLeft:"10px" }}>Within Action Needed</div>
                   {subFilters.map(renderBtn)}
                 </>)}
               </>);
@@ -5595,7 +5625,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
             <div style={{ display:"flex", alignItems:"center", gap:"11px", flex:"1 1 200px", minWidth:0 }}>
               <span style={{ width:4, height:34, background:P.accent, borderRadius:"3px", flexShrink:0 }} />
               <div style={{ display:"flex", flexDirection:"column", minWidth:0, flex:1 }}>
-                <span style={{ fontSize:"14px", fontWeight:600, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"1px" }}>Event</span>
+                <span style={{ fontSize:"18px", fontWeight:600, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"1px" }}>Event</span>
                 <input value={eventName} onChange={e => setEventName(e.target.value)} placeholder="Name your event"
                   style={{ width:"100%", minWidth:0, background:"transparent", border:"none", fontSize:"22px", fontWeight:600, letterSpacing:"-0.02em", color:P.navy, fontFamily:font, outline:"none", padding:"0", lineHeight:1.15 }} />
               </div>
@@ -5603,12 +5633,12 @@ function GroupGrid({ user, onLogin, onLogout }) {
             <div style={{ display:"flex", alignItems:"center", gap:"8px", flexShrink:0 }}>
             <div style={{ position:"relative", display:"flex" }}>
               <button onClick={() => setWindowOpen(!windowOpen)}
-                style={{ display:"inline-flex", alignItems:"center", gap:"7px", height:"36px", background:hasWindow?P.periwinkle+"14":P.grey50, border:`1.5px solid ${hasWindow?P.periwinkle+"55":P.grey100}`, borderRadius:"9px", padding:"0 13px", fontSize:"13px", fontWeight:500, color:hasWindow?P.periwinkleD:P.grey600, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>
+                style={{ display:"inline-flex", alignItems:"center", gap:"7px", height:"36px", background:hasWindow?P.periwinkle+"14":P.grey50, border:`1.5px solid ${hasWindow?P.periwinkle+"55":P.grey100}`, borderRadius:"9px", padding:"0 13px", fontSize:"17px", fontWeight:500, color:hasWindow?P.periwinkleD:P.grey600, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>
                 {hasWindow ? "Dates set" : "Approved travel dates"} <CalendarIcon size={15} line={hasWindow?P.periwinkleD:P.grey600} accent={P.accent}/>
               </button>
               {windowOpen && (
                 <div style={{ position:"absolute", top:"calc(100% + 6px)", right:0, zIndex:60, width:"260px", background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"12px", padding:"14px", boxShadow:"0 12px 32px rgba(15,29,53,0.16)" }}>
-                  <div style={{ fontSize:"15px", color:P.grey400, fontFamily:font, marginBottom:"10px", lineHeight:1.5 }}>Flag guests arriving or departing outside these dates.</div>
+                  <div style={{ fontSize:"19px", color:P.grey600, fontFamily:font, marginBottom:"10px", lineHeight:1.5 }}>Flag guests arriving or departing outside these dates.</div>
                   <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
                     {[
                       { label:"Earliest arrival", val:arrivalStart, set:setArrivalStart },
@@ -5617,21 +5647,21 @@ function GroupGrid({ user, onLogin, onLogout }) {
                       { label:"Latest departure", val:departureEnd, set:setDepartureEnd },
                     ].map(({ label, val, set }) => (
                       <div key={label}>
-                        <div style={{ fontSize:"15px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"3px" }}>{label}</div>
+                        <div style={{ fontSize:"19px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"3px" }}>{label}</div>
                         <input type="date" value={val} onChange={e => set(e.target.value)}
-                          style={{ width:"100%", background:P.grey50, border:`1.5px solid ${val?P.accent+"66":P.grey100}`, borderRadius:"8px", padding:"7px 9px", fontSize:"13px", fontFamily:font, color:val?P.navy:P.grey400, outline:"none", boxSizing:"border-box" }} />
+                          style={{ width:"100%", background:P.grey50, border:`1.5px solid ${val?P.accent+"66":P.grey100}`, borderRadius:"8px", padding:"7px 9px", fontSize:"17px", fontFamily:font, color:val?P.navy:P.grey600, outline:"none", boxSizing:"border-box" }} />
                       </div>
                     ))}
                     <div style={{ display:"flex", gap:"8px", marginTop:"4px" }}>
-                      {hasWindow && <button onClick={() => { setArrivalStart(""); setArrivalEnd(""); setDepartureStart(""); setDepartureEnd(""); }} style={{ flex:1, background:"transparent", border:`1px solid ${P.grey200}`, borderRadius:"7px", padding:"6px", color:P.grey600, fontSize:"15px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>Clear</button>}
-                      <button onClick={() => setWindowOpen(false)} style={{ flex:1, background:P.navy, border:"none", borderRadius:"7px", padding:"6px", color:P.white, fontSize:"12px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>Done</button>
+                      {hasWindow && <button onClick={() => { setArrivalStart(""); setArrivalEnd(""); setDepartureStart(""); setDepartureEnd(""); }} style={{ flex:1, background:"transparent", border:`1px solid ${P.grey200}`, borderRadius:"7px", padding:"6px", color:P.grey600, fontSize:"19px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>Clear</button>}
+                      <button onClick={() => setWindowOpen(false)} style={{ flex:1, background:P.navy, border:"none", borderRadius:"7px", padding:"6px", color:P.white, fontSize:"15px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>Done</button>
                     </div>
                   </div>
                 </div>
               )}
             </div>
             <button onClick={() => setContactsOpen(true)}
-              style={{ display:"inline-flex", alignItems:"center", gap:"7px", height:"36px", background:(contacts.hotel.email||contacts.travel.email)?P.accent+"14":P.grey50, border:`1.5px solid ${(contacts.hotel.email||contacts.travel.email)?P.accent+"55":P.grey100}`, borderRadius:"9px", padding:"0 13px", fontSize:"13px", fontWeight:500, color:(contacts.hotel.email||contacts.travel.email)?P.accentD:P.grey600, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>
+              style={{ display:"inline-flex", alignItems:"center", gap:"7px", height:"36px", background:(contacts.hotel.email||contacts.travel.email)?P.accent+"14":P.grey50, border:`1.5px solid ${(contacts.hotel.email||contacts.travel.email)?P.accent+"55":P.grey100}`, borderRadius:"9px", padding:"0 13px", fontSize:"17px", fontWeight:500, color:(contacts.hotel.email||contacts.travel.email)?P.accentD:P.grey600, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>
               {(contacts.hotel.email||contacts.travel.email) ? "Contacts added" : "Contacts"} <PeopleIcon size={15} line={(contacts.hotel.email||contacts.travel.email)?P.accentD:P.grey600} accent={P.accent}/>
             </button>
             </div>
@@ -5639,8 +5669,8 @@ function GroupGrid({ user, onLogin, onLogout }) {
         )}
 
         {results && !showSetup && (
-          <div style={{ display:"flex", alignItems:"center", gap:"8px", flexWrap:"wrap", fontSize:"15px", color:P.grey400, fontFamily:font, margin:"-6px 0 16px", padding:"0 2px" }}>
-            <CalendarIcon size={13} line={P.grey400} accent={P.accent} />
+          <div style={{ display:"flex", alignItems:"center", gap:"8px", flexWrap:"wrap", fontSize:"19px", color:P.grey600, fontFamily:font, margin:"-6px 0 16px", padding:"0 2px" }}>
+            <CalendarIcon size={13} line={P.grey600} accent={P.accent} />
             <span>{hasWindow ? `${arrivalStart?fmt(parseDate(arrivalStart)):"—"} – ${departureEnd?fmt(parseDate(departureEnd)):"—"}` : "No travel window"}</span>
             <span style={{ color:P.grey200 }}>·</span>
             <span>{arrivalCutoff || departureCutoff ? `${arrivalCutoff?`Arr ${fmtTime(arrivalCutoff,"ampm")}`:""}${arrivalCutoff&&departureCutoff?" / ":""}${departureCutoff?`Dep ${fmtTime(departureCutoff,"ampm")}`:""}` : "No cutoff"}</span>
@@ -5651,12 +5681,12 @@ function GroupGrid({ user, onLogin, onLogout }) {
             <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:"12px" }}>
               {paramsDirty && (
                 <button onClick={runCheck} disabled={loading}
-                  style={{ display:"inline-flex", alignItems:"center", gap:"7px", background:P.amber+"1A", border:`1.5px solid ${P.amber}66`, borderRadius:"9px", padding:"6px 13px", fontSize:"12px", fontWeight:600, color:"#9A6A12", fontFamily:font, cursor:loading?"wait":"pointer" }}>
+                  style={{ display:"inline-flex", alignItems:"center", gap:"7px", background:P.amber+"1A", border:`1.5px solid ${P.amber}66`, borderRadius:"9px", padding:"6px 13px", fontSize:"15px", fontWeight:600, color:"#9A6A12", fontFamily:font, cursor:loading?"wait":"pointer" }}>
                   <CrossCheckIcon size={14} line="#9A6A12" accent={P.amber} />
                   {loading ? "Re-running…" : "Re-run to update flags"}
                 </button>
               )}
-              <button onClick={() => setShowSetup(true)} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"12px", fontWeight:600, fontFamily:font, cursor:"pointer", textDecoration:"underline" }}>Edit setup</button>
+              <button onClick={() => setShowSetup(true)} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"15px", fontWeight:600, fontFamily:font, cursor:"pointer", textDecoration:"underline" }}>Edit setup</button>
             </div>
           </div>
         )}
@@ -5685,6 +5715,10 @@ function GroupGrid({ user, onLogin, onLogout }) {
             hotelFile={hotelFile} setHotelFile={setHotelFile}
             hotelProperty={hotelProperty} setHotelProperty={setHotelProperty}
             extraHotels={extraHotels} setExtraHotels={setExtraHotels}
+            extraFlights={extraFlights} setExtraFlights={setExtraFlights}
+            extraCars={extraCars} setExtraCars={setExtraCars}
+            extraReg={extraReg} setExtraReg={setExtraReg}
+            extraDietary={extraDietary} setExtraDietary={setExtraDietary}
             carFile={carFile} setCarFile={setCarFile}
             dietaryFile={dietaryFile} setDietaryFile={setDietaryFile}
             ready={ready} loading={loading} error={error} runCheck={runCheck} isMobile={isMobile}
@@ -5699,12 +5733,12 @@ function GroupGrid({ user, onLogin, onLogout }) {
               {SHOW_DIETARY && <UploadSquare label="Dietary" icon={<Salad size={22} strokeWidth={1.8} color="#27AE60"/>} accent={P.teal}        file={dietaryFile} setter={setDietaryFile} required={false} sub="Optional" compact />}
               {!isMobile && <div style={{ width:1, height:32, background:P.grey100, flexShrink:0 }} />}
               <button onClick={runCheck} disabled={!ready || loading}
-                style={{ background:ready&&!loading?P.accent:P.grey100, color:ready&&!loading?P.white:P.grey400, border:"none", borderRadius:"7px", padding:"7px 16px", fontSize:"14px", fontWeight:600, fontFamily:font, cursor:ready&&!loading?"pointer":"not-allowed", transition:"all 0.18s", flexShrink:0, whiteSpace:"nowrap", boxShadow:ready&&!loading?"0 1px 6px rgba(0,201,177,0.3)":"none", gridColumn: isMobile ? "1 / -1" : "auto" }}>
+                style={{ background:ready&&!loading?P.accent:P.grey100, color:ready&&!loading?P.white:P.grey600, border:"none", borderRadius:"7px", padding:"7px 16px", fontSize:"18px", fontWeight:600, fontFamily:font, cursor:ready&&!loading?"pointer":"not-allowed", transition:"all 0.18s", flexShrink:0, whiteSpace:"nowrap", boxShadow:ready&&!loading?"0 1px 6px rgba(0,201,177,0.3)":"none", gridColumn: isMobile ? "1 / -1" : "auto" }}>
                 {loading ? "Checking…" : "Re-run Check"}
               </button>
             </div>
-            {error && <div style={{ fontSize:"13px", color:P.red, fontFamily:font, background:P.redLight, borderRadius:"8px", padding:"5px 10px", marginTop:"8px" }}>{error}</div>}
-            {results && <div style={{ fontSize:"13px", color:P.green, fontFamily:font, fontWeight:600, marginTop:"8px", textAlign: isMobile ? "center" : "right" }}>{results.length} guests · {results.filter(r=>r.status!=="ok").length} flags found</div>}
+            {error && <div style={{ fontSize:"15px", color:P.red, fontFamily:font, background:P.redLight, borderRadius:"8px", padding:"5px 10px", marginTop:"8px" }}>{error}</div>}
+            {results && <div style={{ fontSize:"15px", color:P.green, fontFamily:font, fontWeight:600, marginTop:"8px", textAlign: isMobile ? "center" : "right" }}>{results.length} guests · {results.filter(r=>r.status!=="ok").length} flags found</div>}
           </div>
         )}
 
@@ -5722,22 +5756,22 @@ function GroupGrid({ user, onLogin, onLogout }) {
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"12px" }}>
                       <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
                         <span style={{ fontSize:"15px", fontWeight:800, color:P.navy, fontFamily:font }}>↔ Changes vs "{compareSession.name}"</span>
-                        <span style={{ fontSize:"16px", color:P.grey400, fontFamily:font }}>{new Date(compareSession.date).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</span>
+                        <span style={{ fontSize:"16px", color:P.grey600, fontFamily:font }}>{new Date(compareSession.date).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</span>
                       </div>
-                      <button onClick={() => { setShowDiff(false); setCompareSession(null); }} style={{ background:"transparent", border:"none", color:P.grey400, cursor:"pointer", fontSize:"18px", lineHeight:1 }}>×</button>
+                      <button onClick={() => { setShowDiff(false); setCompareSession(null); }} style={{ background:"transparent", border:"none", color:P.grey600, cursor:"pointer", fontSize:"18px", lineHeight:1 }}>×</button>
                     </div>
                     <div style={{ display:"flex", gap:"12px", flexWrap:"wrap" }}>
                       {[
                         { label:"New guests", val:diff.added.length, color:P.green, bg:P.greenLight, items:diff.added.map(r=>r.displayName) },
                         { label:"Removed", val:diff.removed.length, color:P.red, bg:P.redLight, items:diff.removed.map(r=>r.displayName) },
                         { label:"Issues changed", val:diff.changed.length, color:P.amber, bg:P.amberLight, items:diff.changed.map(d=>`${d.curr.displayName}: ${d.prev.issues.map(x=>x.text).join(", ")||"none"} → ${d.curr.issues.map(x=>x.text).join(", ")||"none"}`) },
-                        { label:"Unchanged", val:diff.unchanged.length, color:P.grey400, bg:P.grey50, items:[] },
+                        { label:"Unchanged", val:diff.unchanged.length, color:P.grey600, bg:P.grey50, items:[] },
                       ].map(({label,val,color,bg,items}) => (
                         <div key={label} style={{ background:bg, border:`1px solid ${color}33`, borderRadius:"8px", padding:"10px 14px", minWidth:"110px" }}>
                           <div style={{ fontSize:"22px", fontWeight:700, color, fontFamily:fontDisplay }}>{val}</div>
-                          <div style={{ fontSize:"13px", fontWeight:600, color, fontFamily:font }}>{label}</div>
-                          {items.length > 0 && items.length <= 5 && <div style={{ marginTop:"6px", fontSize:"12px", color, fontFamily:font, lineHeight:1.6 }}>{items.map((x,i)=><div key={i} style={{ opacity:0.8 }}>• {x}</div>)}</div>}
-                          {items.length > 5 && <div style={{ marginTop:"6px", fontSize:"12px", color, fontFamily:font, opacity:0.8 }}>• {items[0]}<br/>• {items[1]}<br/>+{items.length-2} more</div>}
+                          <div style={{ fontSize:"15px", fontWeight:600, color, fontFamily:font }}>{label}</div>
+                          {items.length > 0 && items.length <= 5 && <div style={{ marginTop:"6px", fontSize:"15px", color, fontFamily:font, lineHeight:1.6 }}>{items.map((x,i)=><div key={i} style={{ opacity:0.8 }}>• {x}</div>)}</div>}
+                          {items.length > 5 && <div style={{ marginTop:"6px", fontSize:"15px", color, fontFamily:font, opacity:0.8 }}>• {items[0]}<br/>• {items[1]}<br/>+{items.length-2} more</div>}
                         </div>
                       ))}
                     </div>
@@ -5747,44 +5781,44 @@ function GroupGrid({ user, onLogin, onLogout }) {
           {activeTab === "reports" && (
             <div style={{ maxWidth:"860px" }}>
               <h2 style={{ fontSize:"20px", fontWeight:700, color:P.navy, fontFamily:fontDisplay, letterSpacing:"-0.02em", margin:"0 0 4px" }}>Reporting</h2>
-              <p style={{ fontSize:"14px", color:P.grey600, fontFamily:font, margin:"0 0 20px", lineHeight:1.5 }}>Export a clean onsite itinerary, the full cross-check report, or build a custom report for a specific vendor.</p>
+              <p style={{ fontSize:"18px", color:P.grey600, fontFamily:font, margin:"0 0 20px", lineHeight:1.5 }}>Export a clean onsite itinerary, the full cross-check report, or build a custom report for a specific vendor.</p>
 
               <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"20px 22px", marginBottom:"16px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)" }}>
                 <div style={{ display:"flex", alignItems:"flex-start", gap:"12px", marginBottom:"14px" }}>
                   <div style={{ width:40, height:40, borderRadius:"10px", background:P.navy, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><PeopleIcon size={20} line="rgba(255,255,255,0.95)" accent={P.accent} /></div>
                   <div style={{ flex:1 }}>
                     <div style={{ fontSize:"16px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"2px" }}>Onsite master itinerary</div>
-                    <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font, lineHeight:1.5 }}>Every attendee A to Z by last name, with their full flight, hotel, and car details on one row. Built to print or use onsite.</div>
+                    <div style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.5 }}>Every attendee A to Z by last name, with their full flight, hotel, and car details on one row. Built to print or use onsite.</div>
                   </div>
                 </div>
-                <button onClick={exportOnsiteList} style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:P.accent, color:P.white, border:"none", borderRadius:"10px", padding:"11px 20px", fontSize:"14px", fontWeight:800, fontFamily:font, cursor:"pointer", boxShadow:"0 2px 12px rgba(0,201,177,0.35)" }}>Download onsite itinerary (Excel)</button>
+                <button onClick={exportOnsiteList} style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:P.accent, color:P.white, border:"none", borderRadius:"10px", padding:"11px 20px", fontSize:"15px", fontWeight:800, fontFamily:font, cursor:"pointer", boxShadow:"0 2px 12px rgba(0,201,177,0.35)" }}>Download onsite itinerary (Excel)</button>
               </div>
 
               <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"20px 22px", marginBottom:"16px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)" }}>
                 <div style={{ fontSize:"16px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"2px" }}>Full cross-check report</div>
-                <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font, lineHeight:1.5, marginBottom:"14px" }}>Every attendee and every field, including flagged issues and any resolution notes.</div>
-                <button onClick={exportSelected} style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:"transparent", color:P.navy, border:`1.5px solid ${P.grey200}`, borderRadius:"10px", padding:"10px 18px", fontSize:"14px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>Export full report</button>
+                <div style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.5, marginBottom:"14px" }}>Every attendee and every field, including flagged issues and any resolution notes.</div>
+                <button onClick={exportSelected} style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:"transparent", color:P.navy, border:`1.5px solid ${P.grey200}`, borderRadius:"10px", padding:"10px 18px", fontSize:"15px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>Export full report</button>
               </div>
 
               <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"20px 22px", marginBottom:"16px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)" }}>
                 <div style={{ fontSize:"16px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"2px" }}>Custom report</div>
-                <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font, lineHeight:1.5, marginBottom:"16px" }}>Pick who it's for and choose the fields. The report includes all {results.length} attendees with just the columns you select.</div>
+                <div style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.5, marginBottom:"16px" }}>Pick who it's for and choose the fields. The report includes all {results.length} attendees with just the columns you select.</div>
 
-                <div style={{ fontSize:"12px", fontWeight:700, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"8px" }}>Who is it for?</div>
+                <div style={{ fontSize:"16px", fontWeight:700, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"8px" }}>Who is it for?</div>
                 <div style={{ display:"flex", gap:"8px", flexWrap:"wrap", marginBottom:"18px" }}>
-                  {[["general","General"],["hotel","Hotel"],["car","Car transfer"],["travel","Travel agency"]].map(([t,label]) => (
-                    <button key={t} onClick={() => applyReportTarget(t)} style={{ background:reportTarget===t?P.accent+"18":P.grey50, border:`1.5px solid ${reportTarget===t?P.accent:P.grey100}`, borderRadius:"9px", padding:"7px 14px", fontSize:"13px", fontWeight:700, color:reportTarget===t?P.accentD:P.grey600, fontFamily:font, cursor:"pointer" }}>{label}</button>
+                  {[["general","Everything"],["hotel","Hotel"],["car","Car transfer"],["travel","Travel agency"]].map(([t,label]) => (
+                    <button key={t} onClick={() => applyReportTarget(t)} style={{ background:reportTarget===t?P.accent+"18":P.grey50, border:`1.5px solid ${reportTarget===t?P.accent:P.grey100}`, borderRadius:"9px", padding:"7px 14px", fontSize:"17px", fontWeight:700, color:reportTarget===t?P.accentD:P.grey600, fontFamily:font, cursor:"pointer" }}>{label}</button>
                   ))}
                 </div>
 
                 {["Attendee","Status","Flight","Hotel","Car"].map(group => (
                   <div key={group} style={{ marginBottom:"14px" }}>
-                    <div style={{ fontSize:"12px", fontWeight:700, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"8px" }}>{group}</div>
+                    <div style={{ fontSize:"16px", fontWeight:700, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"8px" }}>{group}</div>
                     <div style={{ display:"flex", flexWrap:"wrap", gap:"7px" }}>
                       {REPORT_FIELDS.filter(fl => fl.group===group).map(fl => {
                         const on = reportFields.has(fl.key);
                         return (
-                          <button key={fl.key} onClick={() => toggleReportField(fl.key)} style={{ display:"inline-flex", alignItems:"center", gap:"6px", background:on?P.accent+"14":P.white, border:`1.5px solid ${on?P.accent+"66":P.grey100}`, borderRadius:"8px", padding:"6px 11px", fontSize:"13px", fontWeight:600, color:on?P.navy:P.grey600, fontFamily:font, cursor:"pointer" }}>
+                          <button key={fl.key} onClick={() => toggleReportField(fl.key)} style={{ display:"inline-flex", alignItems:"center", gap:"6px", background:on?P.accent+"14":P.white, border:`1.5px solid ${on?P.accent+"66":P.grey100}`, borderRadius:"8px", padding:"6px 11px", fontSize:"17px", fontWeight:600, color:on?P.navy:P.grey600, fontFamily:font, cursor:"pointer" }}>
                             <span style={{ width:14, height:14, borderRadius:"4px", background:on?P.accent:P.white, border:`1.5px solid ${on?P.accent:P.grey200}`, display:"inline-flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{on && <Check size={10} strokeWidth={3} color={P.white} />}</span>
                             {fl.label}
                           </button>
@@ -5795,13 +5829,13 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 ))}
 
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:"14px", flexWrap:"wrap", marginTop:"18px", paddingTop:"16px", borderTop:`1px solid ${P.grey100}` }}>
-                  <span style={{ fontSize:"13px", color:P.grey600, fontFamily:font }}>{reportFields.size} field{reportFields.size===1?"":"s"} selected · all {results.length} attendees</span>
-                  <button onClick={exportCustomReport} disabled={!reportFields.size} style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:reportFields.size?P.accent:P.grey100, color:reportFields.size?P.white:P.grey400, border:"none", borderRadius:"10px", padding:"11px 20px", fontSize:"14px", fontWeight:800, fontFamily:font, cursor:reportFields.size?"pointer":"not-allowed", boxShadow:reportFields.size?"0 2px 12px rgba(0,201,177,0.35)":"none" }}>Export custom report</button>
+                  <span style={{ fontSize:"17px", color:P.grey600, fontFamily:font }}>{reportFields.size} field{reportFields.size===1?"":"s"} selected · all {results.length} attendees</span>
+                  <button onClick={exportCustomReport} disabled={!reportFields.size} style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:reportFields.size?P.accent:P.grey100, color:reportFields.size?P.white:P.grey600, border:"none", borderRadius:"10px", padding:"11px 20px", fontSize:"18px", fontWeight:800, fontFamily:font, cursor:reportFields.size?"pointer":"not-allowed", boxShadow:reportFields.size?"0 2px 12px rgba(0,201,177,0.35)":"none" }}>Export custom report</button>
                 </div>
 
                 <div style={{ display:"flex", gap:"8px", alignItems:"flex-start", marginTop:"14px", background:P.grey50, borderRadius:"9px", padding:"10px 12px" }}>
-                  <span style={{ flexShrink:0, marginTop:"1px" }}><Mail size={14} strokeWidth={1.8} color={P.grey400} /></span>
-                  <span style={{ fontSize:"12px", color:P.grey600, fontFamily:font, lineHeight:1.5 }}>Sending a report straight to your vendor contact from the app is coming once your email is connected. For now, download the file here and attach it to your message.</span>
+                  <span style={{ flexShrink:0, marginTop:"1px" }}><Mail size={14} strokeWidth={1.8} color={P.grey600} /></span>
+                  <span style={{ fontSize:"16px", color:P.grey600, fontFamily:font, lineHeight:1.5 }}>Sending a report straight to your vendor contact from the app is coming once your email is connected. For now, download the file here and attach it to your message.</span>
                 </div>
               </div>
             </div>
@@ -5823,7 +5857,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"20px" }}>
                 <div>
                   <h2 style={{ fontFamily:fontDisplay, fontSize:"18px", fontWeight:700, color:P.navy, margin:"0 0 3px" }}>{eventName||"Event"} — Summary</h2>
-                  <div style={{ fontSize:"14px", color:P.navyLight, fontFamily:font }}>{new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}</div>
+                  <div style={{ fontSize:"15px", color:P.navyLight, fontFamily:font }}>{new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}</div>
                 </div>
                 <div style={{ display:"flex", gap:"8px", alignItems:"center", flexWrap:"wrap" }}>
                   <Btn onClick={exportReport} outline>Export</Btn>
@@ -5835,7 +5869,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 {[{label:"Total Guests",val:counts.total,color:P.navy,icon:<Users size={14} strokeWidth={1.8}/>},{label:"Fully Aligned",val:counts.ok,color:P.green,icon:<Check size={14} strokeWidth={1.8}/>},{label:"Action Needed",val:counts.flagged,color:P.red,icon:<AlertTriangle size={14} strokeWidth={1.8}/>},{label:"Alignment Rate",val:(counts.total>0?Math.round(counts.ok/counts.total*100):0)+"%",color:P.periwinkleD,icon:<BarChart2 size={14} strokeWidth={1.8}/>}].map(({label,val,color,icon}) => (
                   <div key={label} style={{ background:P.offWhite, borderRadius:"12px", padding:"14px 16px" }}>
                     <div style={{ fontSize:"20px", fontWeight:900, color, fontFamily:font }}>{icon} {val}</div>
-                    <div style={{ fontSize:"14px", color:P.navy, fontWeight:600, marginTop:"4px", fontFamily:font }}>{label}</div>
+                    <div style={{ fontSize:"15px", color:P.navy, fontWeight:600, marginTop:"4px", fontFamily:font }}>{label}</div>
                   </div>
                 ))}
               </div>
@@ -5853,7 +5887,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                   {results.filter(r=>r.status!=="ok").map((r,i) => (
                     <div key={i} style={{ background:P.redLight, borderRadius:"10px", padding:"10px 14px", display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"6px" }}>
                       <div>
-                        <div style={{ fontWeight:700, fontSize:"14px", color:P.navy, fontFamily:font }}>{r.firstName} {r.lastName}</div>
+                        <div style={{ fontWeight:700, fontSize:"15px", color:P.navy, fontFamily:font }}>{r.firstName} {r.lastName}</div>
                         <div style={{ fontSize:"15px", color:P.red, fontFamily:font, marginTop:"2px" }}>{r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join(" · ")}</div>
                       </div>
                       <Btn onClick={() => setEmailModal(r)} small outline color={P.red}>Draft <Mail size={12} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></Btn>
@@ -5892,7 +5926,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                   <button key={k} onClick={() => setFilter(k)} aria-pressed={on} title={`Show ${l.toLowerCase()}`}
                     style={{ textAlign:"left", background:on?c+"14":P.offWhite, border:`1.5px solid ${on?c:P.grey100}`, borderRadius:"12px", padding:"12px 14px", cursor:"pointer", transition:"all 0.12s", outline:"none" }}>
                     <div style={{ fontSize:"24px", fontWeight:900, color:c, fontFamily:font, lineHeight:1 }}>{v}</div>
-                    <div style={{ fontSize:"12px", fontWeight:600, color:on?c:P.grey600, fontFamily:font, marginTop:"5px" }}>{l}</div>
+                    <div style={{ fontSize:"16px", fontWeight:600, color:on?c:P.grey600, fontFamily:font, marginTop:"5px" }}>{l}</div>
                   </button>
                 );
               })}
@@ -5902,14 +5936,14 @@ function GroupGrid({ user, onLogin, onLogout }) {
               <div style={{ position:"relative", flex:1 }}>
                 <input placeholder="Search by name or email…" value={search} onChange={e => setSearch(e.target.value)}
                   style={{ width:"100%", background:P.white, border:`1.5px solid ${P.grey200}`, borderRadius:"10px", padding:"10px 12px 10px 34px", color:P.navy, fontSize:"15px", fontFamily:font, outline:"none", boxSizing:"border-box" }} />
-                <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:P.navyLight, fontSize:"14px", pointerEvents:"none" }}>🔍</span>
+                <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:P.navyLight, fontSize:"15px", pointerEvents:"none" }}>🔍</span>
                 {search && <button onClick={() => setSearch("")} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"transparent", border:"none", color:P.navyLight, fontSize:"15px", cursor:"pointer" }}>✕</button>}
               </div>
               {/* Filter pills replaced by the status scorecard above */}
               {/* Sort — full width row on mobile */}
               <div style={{ display:"flex", gap:"8px", alignItems:"center" }}>
               <select value={sortBy||""} onChange={e => { setSortBy(e.target.value||null); setSortDir("asc"); }}
-                style={{ background:P.white, border:`1.5px solid ${P.grey200}`, borderRadius:"8px", padding:"8px 10px", fontSize:"14px", fontWeight:700, fontFamily:font, color:P.navy, cursor:"pointer", outline:"none", flex: isMobile ? 1 : "none" }}>
+                style={{ background:P.white, border:`1.5px solid ${P.grey200}`, borderRadius:"8px", padding:"8px 10px", fontSize:"15px", fontWeight:700, fontFamily:font, color:P.navy, cursor:"pointer", outline:"none", flex: isMobile ? 1 : "none" }}>
                 <option value="">Sort by…</option>
                 <option value="lastName">Last Name A→Z</option>
                 <option value="firstName">First Name A→Z</option>
@@ -5923,17 +5957,17 @@ function GroupGrid({ user, onLogin, onLogout }) {
               </select>
               {sortBy && (
                 <button onClick={() => setSortDir(d => d==="asc"?"desc":"asc")}
-                  style={{ background:P.navy, border:"none", borderRadius:"8px", padding:"8px 10px", fontSize:"14px", fontWeight:700, fontFamily:font, color:P.white, cursor:"pointer" }}>
+                  style={{ background:P.navy, border:"none", borderRadius:"8px", padding:"8px 10px", fontSize:"15px", fontWeight:700, fontFamily:font, color:P.white, cursor:"pointer" }}>
                   {sortDir === "asc" ? "↑ Asc" : "↓ Desc"}
                 </button>
               )}
               <div title="Time display format" style={{ display:"flex", border:`1.5px solid ${P.grey200}`, borderRadius:"8px", overflow:"hidden", flexShrink:0 }}>
                 {[{k:"ampm",l:"AM/PM"},{k:"24hr",l:"24h"}].map(({k,l}) => (
                   <button key={k} onClick={() => setTimeFormat(k)}
-                    style={{ background:timeFormat===k?P.navy:P.white, color:timeFormat===k?P.white:P.grey600, border:"none", padding:"8px 10px", fontSize:"13px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>{l}</button>
+                    style={{ background:timeFormat===k?P.navy:P.white, color:timeFormat===k?P.white:P.grey600, border:"none", padding:"8px 10px", fontSize:"17px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>{l}</button>
                 ))}
               </div>
-              <span style={{ fontSize:"14px", color:P.navyLight, fontFamily:font, whiteSpace:"nowrap" }}>{displayRows.length} guests</span>
+              <span style={{ fontSize:"15px", color:P.navyLight, fontFamily:font, whiteSpace:"nowrap" }}>{displayRows.length} guests</span>
               </div>{/* end sort wrapper */}
             </div>
 
@@ -5943,16 +5977,16 @@ function GroupGrid({ user, onLogin, onLogout }) {
               <label style={{ display:"flex", alignItems:"center", gap:"7px", cursor:"pointer", flexShrink:0 }}>
                 <div onClick={toggleSelectAll} style={{ width:18, height:18, borderRadius:"5px", border:`2px solid ${allSelected?P.accent:someSelected?P.accent:P.grey300}`, background:allSelected?P.accent:someSelected?P.accent+"33":P.white, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0, transition:"all 0.15s" }}>
                   {allSelected && <span style={{ color:P.white, fontSize:"15px", fontWeight:900, lineHeight:1 }}>✓</span>}
-                  {!allSelected && someSelected && <span style={{ color:P.periwinkleD, fontSize:"14px", fontWeight:900, lineHeight:1 }}>—</span>}
+                  {!allSelected && someSelected && <span style={{ color:P.periwinkleD, fontSize:"15px", fontWeight:900, lineHeight:1 }}>—</span>}
                 </div>
-                <span style={{ fontSize:"13px", fontWeight:700, color:P.navy, fontFamily:font, whiteSpace:"nowrap" }}>
+                <span style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font, whiteSpace:"nowrap" }}>
                   {someSelected ? `${selCount} selected` : `Select all`}
                 </span>
               </label>
               <div style={{ width:1, height:20, background:P.grey100, flexShrink:0 }} />
               {/* Excel export — PRIMARY */}
               <button onClick={exportSelected}
-                style={{ display:"flex", alignItems:"center", gap:"5px", background:P.accent, border:"none", borderRadius:"7px", padding:"5px 13px", fontSize:"13px", fontWeight:700, fontFamily:font, color:P.white, cursor:"pointer", transition:"all 0.15s", whiteSpace:"nowrap", flexShrink:0, boxShadow:"0 1px 6px rgba(0,201,177,0.3)" }}>
+                style={{ display:"flex", alignItems:"center", gap:"5px", background:P.accent, border:"none", borderRadius:"7px", padding:"5px 13px", fontSize:"15px", fontWeight:700, fontFamily:font, color:P.white, cursor:"pointer", transition:"all 0.15s", whiteSpace:"nowrap", flexShrink:0, boxShadow:"0 1px 6px rgba(0,201,177,0.3)" }}>
                 {someSelected ? `Export ${selCount} to Excel` : "Export to Excel"} <FileSpreadsheet size={13} strokeWidth={1.8} style={{verticalAlign:"-2px",marginLeft:"4px"}}/>
               </button>
               {/* Email selected — send messages without leaving the cross-check tab */}
@@ -5961,7 +5995,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 return (
                   <button onClick={() => emailSelected()} disabled={emailable.length===0}
                     title={emailable.length===0 ? "Selected guests have no email or no open issues" : `Draft emails to ${emailable.length} guest(s)`}
-                    style={{ display:"flex", alignItems:"center", gap:"5px", background:emailable.length>0?P.white:P.grey50, border:`1.5px solid ${emailable.length>0?P.accent:P.grey100}`, borderRadius:"7px", padding:"5px 12px", fontSize:"13px", fontWeight:600, fontFamily:font, color:emailable.length>0?P.accentD:P.grey400, cursor:emailable.length>0?"pointer":"not-allowed", flexShrink:0, whiteSpace:"nowrap" }}>
+                    style={{ display:"flex", alignItems:"center", gap:"5px", background:emailable.length>0?P.white:P.grey50, border:`1.5px solid ${emailable.length>0?P.accent:P.grey100}`, borderRadius:"7px", padding:"5px 12px", fontSize:"17px", fontWeight:600, fontFamily:font, color:emailable.length>0?P.accentD:P.grey600, cursor:emailable.length>0?"pointer":"not-allowed", flexShrink:0, whiteSpace:"nowrap" }}>
                     Email {emailable.length>0?emailable.length:""} selected <Mail size={13} strokeWidth={1.8} style={{verticalAlign:"-2px",marginLeft:"2px"}}/>
                   </button>
                 );
@@ -5973,18 +6007,18 @@ function GroupGrid({ user, onLogin, onLogout }) {
               </button>
               {someSelected && (
                 <button onClick={() => setSelectedRows(new Set())}
-                  style={{ background:"transparent", border:"none", fontSize:"13px", color:P.navyLight, fontFamily:font, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 }}>
+                  style={{ background:"transparent", border:"none", fontSize:"15px", color:P.navyLight, fontFamily:font, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 }}>
                   Clear
                 </button>
               )}
               <div style={{ marginLeft:"auto", display:"flex", gap:"6px", alignItems:"center", flexShrink:0 }}>
                 <button onClick={saveSession}
-                  style={{ display:"flex", alignItems:"center", gap:"5px", background:P.navy, border:"none", borderRadius:"7px", padding:"5px 14px", fontSize:"13px", fontWeight:700, fontFamily:font, color:P.white, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 }}>
+                  style={{ display:"flex", alignItems:"center", gap:"5px", background:P.navy, border:"none", borderRadius:"7px", padding:"5px 14px", fontSize:"15px", fontWeight:700, fontFamily:font, color:P.white, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 }}>
                   <Save size={13} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/> Save Project
                 </button>
                 {(filter !== "all" || sortBy) && (
                   <button onClick={() => { setFilter("all"); setSortBy(null); setSortDir("asc"); }}
-                    style={{ background:"transparent", border:`1px solid ${P.grey200}`, borderRadius:"6px", padding:"3px 8px", fontSize:"13px", fontWeight:600, color:P.navyLight, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>
+                    style={{ background:"transparent", border:`1px solid ${P.grey200}`, borderRadius:"6px", padding:"3px 8px", fontSize:"15px", fontWeight:600, color:P.navyLight, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>
                     Clear filters
                   </button>
                 )}
@@ -6014,7 +6048,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
               return (
             <div style={{ background:P.white, borderRadius:"10px", boxShadow:"0 1px 2px rgba(15,29,53,0.06), 0 4px 12px rgba(15,29,53,0.05)", border:`1px solid ${P.grey100}`, overflow:"hidden" }}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", borderBottom:`1px solid ${P.grey100}`, background:P.grey50 }}>
-                <span style={{ fontSize:"15px", color:P.grey400, fontFamily:font }}>Scroll to see all columns →</span>
+                <span style={{ fontSize:"19px", color:P.grey600, fontFamily:font }}>Scroll to see all columns →</span>
                 <div style={{ display:"flex", gap:"6px" }}>
                   <button onClick={() => { if (tableScrollRef.current) tableScrollRef.current.scrollBy({ left:-320, behavior:"smooth" }); }}
                     style={{ width:"30px", height:"28px", borderRadius:"7px", border:`1px solid ${P.grey200}`, background:P.white, color:P.grey600, cursor:"pointer", fontSize:"17px", display:"flex", alignItems:"center", justifyContent:"center" }} title="Scroll left">‹</button>
@@ -6024,14 +6058,14 @@ function GroupGrid({ user, onLogin, onLogout }) {
               </div>
               <div className="gg-table-wrap" ref={tableScrollRef} onScroll={e => setTableScrollTop(e.currentTarget.scrollTop)}
                 style={{ overflowX:"auto", overflowY:"auto", maxHeight:isMobile ? `calc(100vh - 220px)` : `${containerH}px` }}>
-                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"14px", minWidth:hasCars?"1060px":"760px" }}>
+                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"15px", minWidth:hasCars?"1060px":"760px" }}>
                   <thead style={{ position:"sticky", top:0, zIndex:10 }}>
                     <tr style={{ background:P.navy }}>
                       {/* Checkbox column */}
                       <th style={{ padding:"10px 8px 10px 14px", width:"32px" }}>
                         <div onClick={toggleSelectAll} style={{ width:16, height:16, borderRadius:"4px", border:`2px solid ${allSelected?"white":someSelected?"rgba(255,255,255,0.6)":"rgba(255,255,255,0.3)"}`, background:allSelected?"white":someSelected?"rgba(255,255,255,0.2)":"transparent", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", transition:"all 0.15s" }}>
                           {allSelected && <span style={{ color:P.navy, fontSize:"15px", fontWeight:900, lineHeight:1 }}>✓</span>}
-                          {!allSelected && someSelected && <span style={{ color:"white", fontSize:"8px", fontWeight:900, lineHeight:1 }}>—</span>}
+                          {!allSelected && someSelected && <span style={{ color:"white", fontSize:"15px", fontWeight:900, lineHeight:1 }}>—</span>}
                         </div>
                       </th>
                       {[
@@ -6088,41 +6122,41 @@ function GroupGrid({ user, onLogin, onLogout }) {
                             {/* First Name */}
                             <td style={{ padding:"10px 12px" }}>
                               <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
-                                <span style={{ fontWeight:600, fontSize:"14px", color:P.navy, fontFamily:font }}>
+                                <span style={{ fontWeight:600, fontSize:"15px", color:P.navy, fontFamily:font }}>
                                   {r.firstName || r.displayName.split(" ")[0]}
                                 </span>
                               </div>
                             </td>
                             {/* Last Name */}
-                            <td style={{ padding:"10px 12px", fontWeight:700, color:P.navy, fontSize:"14px", fontFamily:font }}>
+                            <td style={{ padding:"10px 12px", fontWeight:700, color:P.navy, fontSize:"15px", fontFamily:font }}>
                               {r.lastName || r.displayName.split(" ").slice(1).join(" ") || "—"}
                             </td>
                             {/* Email */}
-                            <td style={{ padding:"10px 12px", fontSize:"15px", color:r.email?P.grey600:P.grey200, fontFamily:font }}>
+                            <td style={{ padding:"10px 12px", fontSize:"19px", color:r.email?P.grey600:P.grey200, fontFamily:font }}>
                               {r.email || "—"}
                             </td>
                             <td style={{ padding:"10px 12px" }}><StatusChip status={r.status} /></td>
                             {/* Arrival side: flight arrival → car pickup → hotel check-in */}
-                            <td style={{ padding:"10px 12px", color:r.flight?P.grey600:P.red, fontSize:"16px", fontFamily:font, fontWeight:r.flight?500:700 }}>{r.flight ? fmt(r.flight.flightArrival) : "⚠ Missing"}{r.flight?.arrivalTime ? <div style={{ fontSize:"15px", color:P.grey400, fontWeight:500 }}>{fmtTime(r.flight.arrivalTime, timeFormat)}</div> : null}</td>
+                            <td style={{ padding:"10px 12px", color:r.flight?P.grey600:P.red, fontSize:"16px", fontFamily:font, fontWeight:r.flight?500:700 }}>{r.flight ? fmt(r.flight.flightArrival) : "⚠ Missing"}{r.flight?.arrivalTime ? <div style={{ fontSize:"19px", color:P.grey600, fontWeight:500 }}>{fmtTime(r.flight.arrivalTime, timeFormat)}</div> : null}</td>
                             <td style={{ padding:"10px 12px", color:P.grey600, fontSize:"17px", fontFamily:font, fontWeight:600, letterSpacing:"0.03em", whiteSpace:"nowrap" }}>{(r.flight?.arrivalAirport || r.flight?.airport || "").toUpperCase() || "—"}</td>
                             {hasCars && <>
-                              <td style={{ padding:"10px 12px", color:P.navy, fontSize:"16px", fontFamily:font }}>{fmt(r.car?.pickupDate)}{r.car?.pickupTime ? <div style={{ fontSize:"15px", color:P.grey400, fontWeight:500 }}>{fmtTime(r.car.pickupTime, timeFormat)}</div> : null}</td>
+                              <td style={{ padding:"10px 12px", color:P.navy, fontSize:"16px", fontFamily:font }}>{fmt(r.car?.pickupDate)}{r.car?.pickupTime ? <div style={{ fontSize:"19px", color:P.grey600, fontWeight:500 }}>{fmtTime(r.car.pickupTime, timeFormat)}</div> : null}</td>
                               <td style={{ padding:"10px 12px", textAlign:"center" }}><Delta val={r.details?.pickupDiff} /></td>
                             </>}
-                            <td style={{ padding:"10px 12px", color:r.hotel?P.grey600:P.red, fontSize:"15px", fontFamily:font, fontWeight:r.hotel?500:700 }}>{r.hotel ? fmt(r.hotel.checkIn) : "⚠ Missing"}</td>
+                            <td style={{ padding:"10px 12px", color:r.hotel?P.grey600:P.red, fontSize:"19px", fontFamily:font, fontWeight:r.hotel?500:700 }}>{r.hotel ? fmt(r.hotel.checkIn) : "⚠ Missing"}</td>
                             <td style={{ padding:"10px 12px", textAlign:"center" }}><Delta val={r.details?.arrDiff} /></td>
                             {/* Departure side: hotel check-out → car dropoff → flight departure */}
-                            <td style={{ padding:"10px 12px", color:r.hotel?P.grey600:P.red, fontSize:"15px", fontFamily:font, fontWeight:r.hotel?500:700 }}>{r.hotel ? fmt(r.hotel.checkOut) : "⚠ Missing"}</td>
+                            <td style={{ padding:"10px 12px", color:r.hotel?P.grey600:P.red, fontSize:"19px", fontFamily:font, fontWeight:r.hotel?500:700 }}>{r.hotel ? fmt(r.hotel.checkOut) : "⚠ Missing"}</td>
                             <td style={{ padding:"10px 12px", textAlign:"center" }}><Delta val={r.details?.depDiff} /></td>
-                            {hasCars && <td style={{ padding:"10px 12px", color:P.navy, fontSize:"16px", fontFamily:font }}>{fmt(r.car?.dropoffDate)}{r.car?.dropoffTime ? <div style={{ fontSize:"15px", color:P.grey400, fontWeight:500 }}>{fmtTime(r.car.dropoffTime, timeFormat)}</div> : null}</td>}
-                            <td style={{ padding:"10px 12px", color:r.flight?P.grey600:P.red, fontSize:"16px", fontFamily:font, fontWeight:r.flight?500:700 }}>{r.flight ? fmt(r.flight.flightDeparture) : "⚠ Missing"}{r.flight?.departureTime ? <div style={{ fontSize:"15px", color:P.grey400, fontWeight:500 }}>{fmtTime(r.flight.departureTime, timeFormat)}</div> : null}</td>
+                            {hasCars && <td style={{ padding:"10px 12px", color:P.navy, fontSize:"16px", fontFamily:font }}>{fmt(r.car?.dropoffDate)}{r.car?.dropoffTime ? <div style={{ fontSize:"19px", color:P.grey600, fontWeight:500 }}>{fmtTime(r.car.dropoffTime, timeFormat)}</div> : null}</td>}
+                            <td style={{ padding:"10px 12px", color:r.flight?P.grey600:P.red, fontSize:"16px", fontFamily:font, fontWeight:r.flight?500:700 }}>{r.flight ? fmt(r.flight.flightDeparture) : "⚠ Missing"}{r.flight?.departureTime ? <div style={{ fontSize:"19px", color:P.grey600, fontWeight:500 }}>{fmtTime(r.flight.departureTime, timeFormat)}</div> : null}</td>
                             <td style={{ padding:"10px 12px", color:P.grey600, fontSize:"17px", fontFamily:font, fontWeight:600, letterSpacing:"0.03em", whiteSpace:"nowrap" }}>{(r.flight?.departureAirport || r.flight?.airport || "").toUpperCase() || "—"}</td>
                             {hasHotelNames && (() => {
                               const wrongHotel = (r.issues||[]).some(x => x.text && x.text.includes("but assigned to"));
                               return <td style={{ padding:"10px 12px", color:wrongHotel?P.red:P.navy, fontSize:"15px", fontFamily:font, fontWeight:wrongHotel?600:500, whiteSpace:"nowrap" }}>{r.hotel?.hotel ? (wrongHotel ? "⚠ "+r.hotel.hotel : r.hotel.hotel) : "—"}</td>;
                             })()}
                             {hasDiet && <td style={{ padding:"10px 12px" }}>
-                              {r.diet?.dietary ? <span style={{ background:P.tealLight, color:P.teal, fontSize:"16px", fontWeight:700, padding:"2px 8px", borderRadius:"20px", fontFamily:font }}>{r.diet.dietary.slice(0,16)}{r.diet.dietary.length>16?"…":""}</span> : <span style={{ color:P.grey400 }}>—</span>}
+                              {r.diet?.dietary ? <span style={{ background:P.tealLight, color:P.teal, fontSize:"16px", fontWeight:700, padding:"2px 8px", borderRadius:"20px", fontFamily:font }}>{r.diet.dietary.slice(0,16)}{r.diet.dietary.length>16?"…":""}</span> : <span style={{ color:P.grey600 }}>—</span>}
                             </td>}
                             <td style={{ padding:"10px 12px" }}>
                               {activeIssues.length === 0
@@ -6147,10 +6181,10 @@ function GroupGrid({ user, onLogin, onLogout }) {
                                     <Btn onClick={() => setEmailModal(r)} small color={P.accent}>Draft Email <Mail size={12} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></Btn>
                                     <div style={{ flex:1, display:"flex", alignItems:"center", gap:"8px" }}>
                                       <span style={{ fontSize:"15px", fontWeight:700, color:P.navyLight, fontFamily:font, flexShrink:0 }}>Note</span>
-                                      <input value={r.note||""} onChange={e => updateMeta(r,{note:e.target.value})} placeholder={user ? `Planner note — saved to ${user.name}'s account` : "Planner note — saved locally (sign in to sync)"} onClick={e => e.stopPropagation()}
-                                        style={{ flex:1, background:P.white, border:`1.5px solid ${r.note ? P.periwinkle+"66" : P.grey200}`, borderRadius:"9px", padding:"5px 12px", fontSize:"14px", fontFamily:font, color:P.navy, outline:"none" }} />
+                                      <input value={r.note||""} onChange={e => updateMeta(r,{note:e.target.value, noteBy:(user&&user.name)||"You", noteAt:new Date().toISOString()})} placeholder={user ? `Planner note — saved to ${user.name}'s account` : "Planner note — saved locally (sign in to sync)"} onClick={e => e.stopPropagation()}
+                                        style={{ flex:1, background:P.white, border:`1.5px solid ${r.note ? P.periwinkle+"66" : P.grey200}`, borderRadius:"9px", padding:"5px 12px", fontSize:"15px", fontFamily:font, color:P.navy, outline:"none" }} />
                                       <Btn onClick={(e) => { if (e && e.stopPropagation) e.stopPropagation(); saveSession(); }} small color={P.accent}>Save Note</Btn>
-                                      {r.note && <span style={{ fontSize:"14px", color:P.green, fontFamily:font, fontWeight:700, flexShrink:0 }}>{user ? "synced" : "saved"}</span>}
+                                      {r.note && <span style={{ fontSize:"18px", color:P.green, fontFamily:font, fontWeight:700, flexShrink:0 }}>{user ? "synced" : "saved"}</span>}{r.note && r.noteAt && <span style={{ fontSize:"17px", color:P.grey600, fontFamily:font, flexShrink:0, whiteSpace:"nowrap" }}>{(r.noteBy||"You")} · {new Date(r.noteAt).toLocaleString([], { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" })}</span>}
                                     </div>
                                     <span style={{ fontSize:"15px", color:P.navyLight, fontFamily:font }}>{r.matchedBy==="email"?"✉ email match":"👤 name match"}</span>
                                   </div>
@@ -6200,7 +6234,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                                         </span>
                                       </div>
                                       {r.issues.length === 0
-                                        ? <div style={{ color:P.green, fontSize:"14px", fontWeight:700, fontFamily:font }}>✓ All clear</div>
+                                        ? <div style={{ color:P.green, fontSize:"15px", fontWeight:700, fontFamily:font }}>✓ All clear</div>
                                         : r.issues.map((issue, j) => <IssueTag key={j} issue={issue} resolved={r.resolved} onResolve={txt => toggleResolve(r, txt)} />)}
                                       {r.resolved?.length > 0 && <div style={{ fontSize:"15px", color:P.navyLight, fontFamily:font, marginTop:"4px" }}>{r.resolved.length} resolved</div>}
                                     </Card>
@@ -6250,7 +6284,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
               <button key={k} onClick={() => { setActiveTab(k); setSidebarOpen(false); }}
                 style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:"3px", background:"transparent", border:"none", cursor:"pointer", padding:"4px 0" }}>
                 <span style={{ color: active ? P.accent : "rgba(255,255,255,0.4)", display:"flex", alignItems:"center" }}>{icon}</span>
-                <span style={{ fontSize:"10px", fontWeight: active ? 700 : 500, color: active ? P.accent : "rgba(255,255,255,0.4)", fontFamily:font, letterSpacing:"0.04em" }}>{label}</span>
+                <span style={{ fontSize:"15px", fontWeight: active ? 700 : 500, color: active ? P.accent : "rgba(255,255,255,0.4)", fontFamily:font, letterSpacing:"0.04em" }}>{label}</span>
               </button>
             );
           })}
@@ -6259,7 +6293,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
             <span style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:"3px", color:"rgba(255,255,255,0.4)" }}>
               {[0,1,2].map(i => <span key={i} style={{ width:16, height:2, background:"rgba(255,255,255,0.4)", borderRadius:2, display:"block" }} />)}
             </span>
-            <span style={{ fontSize:"10px", fontWeight:500, color:"rgba(255,255,255,0.4)", fontFamily:font, letterSpacing:"0.04em" }}>Menu</span>
+            <span style={{ fontSize:"15px", fontWeight:500, color:"rgba(255,255,255,0.4)", fontFamily:font, letterSpacing:"0.04em" }}>Menu</span>
           </button>
         </div>
       )}
