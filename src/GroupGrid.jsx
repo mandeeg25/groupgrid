@@ -44,15 +44,15 @@
 
 import React, { useState, useCallback, useEffect, useRef, Fragment } from "react";
 import * as XLSX from "xlsx";
-import { Plane, Hotel, Car, Salad, BarChart2, Mail, Lock, Calendar, Send, AlertTriangle, AlertCircle, Circle, Copy, Check, X, Plus, ShieldCheck, Ban, FileSpreadsheet, Users, Download, Save, Trash2, Pencil} from "lucide-react";
+import { Plane, Hotel, Car, Salad, BarChart2, Mail, Lock, Calendar, Send, AlertTriangle, AlertCircle, Circle, Copy, Check, X, Plus, ShieldCheck, Ban, FileSpreadsheet, Users, Download, Save, Trash2, Pencil, ChevronRight, ChevronDown, CreditCard} from "lucide-react";
 
 const P = {
-  navy:"#0C1E3F", navyLight:"#1A2E52", periwinkle:"#6B7FD4", periwinkleL:"#9BAAE8",
-  periwinkleD:"#4C62C4", white:"#FFFFFF", offWhite:"#F4F7FA", grey50:"#EEF1F8",
+  navy:"#0F1F3D", navyLight:"#1A2E52", periwinkle:"#6B7FD4", periwinkleL:"#9BAAE8",
+  periwinkleD:"#4C62C4", white:"#FFFFFF", offWhite:"#F0F2F7", grey50:"#EEF1F8",
   grey100:"#DDE2EF", grey200:"#B8C0D8", grey400:"#7E8BA8", grey600:"#4A5568",
-  green:"#2FBF8B", greenLight:"#E3F7F0", amber:"#E3B04B", amberLight:"#FEF2DC",
-  red:"#F2685A", redLight:"#FDECEC", purple:"#6B3FA0", purpleLight:"#EEE5F9",
-  teal:"#0A7B7A", tealLight:"#DCF2F2", blue:"#4DA3FF", blueLight:"#EAF2FE",
+  green:"#0D9E6E", greenLight:"#E3F7F0", amber:"#C97A0A", amberLight:"#FEF2DC",
+  red:"#C0392B", redLight:"#FDECEC", purple:"#6B3FA0", purpleLight:"#EEE5F9",
+  teal:"#0A7B7A", tealLight:"#DCF2F2", blue:"#4F8EF7", blueLight:"#EAF2FE",
   accent:"#00C9B1", accentLight:"#E0FAF7", accentD:"#00A896",
 };
 const font = "'Manrope', sans-serif";
@@ -90,7 +90,7 @@ function markDots() {
 function BrandMark({ size = 28, onDark = true }) {
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0, display: "block" }}>
-      <rect width="100" height="100" rx="26" fill={onDark ? "#0A1A33" : "#0C1E3F"} />
+      <rect width="100" height="100" rx="26" fill={onDark ? "#0A1A33" : "#0F1F3D"} />
       {markDots()}
     </svg>
   );
@@ -100,10 +100,10 @@ function BrandMark({ size = 28, onDark = true }) {
 function BrandLogo({ height = 26, onDark = true }) {
   return (
     <svg width={height * 4.7} height={height} viewBox="0 0 470 100" xmlns="http://www.w3.org/2000/svg" style={{ display: "block", flexShrink: 0 }}>
-      <rect width="100" height="100" rx="26" fill={onDark ? "#0A1A33" : "#0C1E3F"} />
+      <rect width="100" height="100" rx="26" fill={onDark ? "#0A1A33" : "#0F1F3D"} />
       {markDots()}
       <text x="120" y="50" dominantBaseline="central" fontFamily="'Poppins', 'Helvetica Neue', Arial, sans-serif" fontWeight="600" fontSize="54" letterSpacing="-1">
-        <tspan fill={onDark ? "#FFFFFF" : "#0C1E3F"}>Group</tspan><tspan fill={MARK_TEAL}>Grid</tspan>
+        <tspan fill={onDark ? "#FFFFFF" : "#0F1F3D"}>Group</tspan><tspan fill={MARK_TEAL}>Grid</tspan>
       </text>
     </svg>
   );
@@ -253,7 +253,7 @@ function GlobalStyles() {
     if (!vp) { vp = document.createElement("meta"); vp.setAttribute("name", "viewport"); document.head.appendChild(vp); }
     vp.setAttribute("content", "width=device-width, initial-scale=1, viewport-fit=cover");
     // Set the GroupGrid brand-mark favicon at runtime so it shows even if index.html has none.
-    const faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='26' fill='#0C1E3F'/><circle cx='28' cy='28' r='9' fill='#00C9B1'/><circle cx='50' cy='28' r='9' fill='#A9C2DC'/><circle cx='72' cy='28' r='9' fill='#A9C2DC'/><circle cx='28' cy='50' r='9' fill='#A9C2DC'/><circle cx='50' cy='50' r='9' fill='#00C9B1'/><circle cx='72' cy='50' r='9' fill='#A9C2DC'/><circle cx='28' cy='72' r='9' fill='#A9C2DC'/><circle cx='50' cy='72' r='9' fill='#A9C2DC'/><circle cx='72' cy='72' r='9' fill='#00C9B1'/></svg>";
+    const faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='26' fill='#0F1F3D'/><circle cx='28' cy='28' r='9' fill='#00C9B1'/><circle cx='50' cy='28' r='9' fill='#A9C2DC'/><circle cx='72' cy='28' r='9' fill='#A9C2DC'/><circle cx='28' cy='50' r='9' fill='#A9C2DC'/><circle cx='50' cy='50' r='9' fill='#00C9B1'/><circle cx='72' cy='50' r='9' fill='#A9C2DC'/><circle cx='28' cy='72' r='9' fill='#A9C2DC'/><circle cx='50' cy='72' r='9' fill='#A9C2DC'/><circle cx='72' cy='72' r='9' fill='#00C9B1'/></svg>";
     const faviconHref = "data:image/svg+xml," + encodeURIComponent(faviconSvg);
     let icon = document.querySelector('link[rel="icon"]');
     if (!icon) { icon = document.createElement("link"); icon.setAttribute("rel", "icon"); document.head.appendChild(icon); }
@@ -517,7 +517,7 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
   const hasReg = registration.length > 0;
   const hasFlights = flights.length > 0;
   const hasHotels = hotels.length > 0;
-  const { arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff } = aw || {};
+  const { arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, lateArrivalCutoff } = aw || {};
   const mkMaps = (arr) => { const byE = new Map(), byN = new Map(); arr.forEach(x => { if (x.email) byE.set(x.email, x); const k = normName(x.name); if (k) byN.set(k, x); }); return [byE, byN]; };
   const [fByE, fByN] = mkMaps(flights), [hByE, hByN] = mkMaps(hotels), [cByE, cByN] = mkMaps(cars), [dByE, dByN] = mkMaps(dietary), [rByE, rByN] = mkMaps(registration);
   const allLists = [...flights,...hotels,...cars,...dietary,...registration];
@@ -636,6 +636,20 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
     if (departureCutoff && flight && flight.departureTime && flight.flightDeparture && flight.departureTime < departureCutoff) {
       issues.push({ type:"earlydeparture", text:`Departs ${fmtTime(flight.departureTime,"ampm")} (before ${fmtTime(departureCutoff,"ampm")} earliest departure)` });
     }
+    // ── Late-arrival rule (after-cutoff hotel risk) ──
+    // If a guest's flight lands (or their inbound car transfer picks up) after the late-arrival
+    // cutoff AND they have a hotel room booked, flag it so the planner can warn the hotel to hold
+    // the room. Many hotels release a room if the guest has not checked in by ~11 PM local time.
+    if (lateArrivalCutoff && hotel && hotel.checkIn) {
+      const flightLate = flight && flight.arrivalTime && flight.flightArrival && flight.arrivalTime > lateArrivalCutoff;
+      const carLate = car && car.pickupTime && car.pickupDate && car.pickupTime > lateArrivalCutoff;
+      const hotelName = hotel.hotel ? hotel.hotel.trim() : "the hotel";
+      if (flightLate) {
+        issues.push({ type:"latearrival", text:`Arrives ${fmtTime(flight.arrivalTime,"ampm")} (after ${fmtTime(lateArrivalCutoff,"ampm")} cutoff). Possible late arrival, notify ${hotelName} to hold the room` });
+      } else if (carLate) {
+        issues.push({ type:"latearrival", text:`Car pickup ${fmtTime(car.pickupTime,"ampm")} (after ${fmtTime(lateArrivalCutoff,"ampm")} cutoff). Possible late arrival, notify ${hotelName} to hold the room` });
+      }
+    }
     const arrDate = flight?.flightArrival || hotel?.checkIn || reg?.regCheckIn, depDate = flight?.flightDeparture || hotel?.checkOut || reg?.regCheckOut;
     if (arrDate && isOutside(arrDate, arrivalStart, arrivalEnd)) issues.push({ type:"window", text:`Arrival ${fmt(arrDate)} outside approved window` });
     if (depDate && isOutside(depDate, departureStart, departureEnd)) issues.push({ type:"window", text:`Departure ${fmt(depDate)} outside approved window` });
@@ -718,7 +732,7 @@ function Delta({ val }) {
 }
 
 function IssueTag({ issue, resolved, onResolve }) {
-  const cfg = { missing:{bg:P.amberLight,color:P.amber,border:`1px solid ${P.amber}44`,icon:<Circle size={11} strokeWidth={1.8}/>}, mismatch:{bg:P.redLight,color:P.red,border:`1px solid ${P.red}44`,icon:<AlertTriangle size={11} strokeWidth={1.8}/>}, window:{bg:P.purpleLight,color:P.purple,border:`1px solid ${P.purple}44`,icon:<Calendar size={11} strokeWidth={1.8}/>}, duplicate:{bg:"#FFF3E0",color:"#E65100",border:"1px solid #E6510044",icon:<AlertCircle size={11} strokeWidth={1.8}/>}, unregistered:{bg:P.purpleLight,color:P.purple,border:`1px solid ${P.purple}44`,icon:<Ban size={11} strokeWidth={1.8}/>}, airport:{bg:"#EAF2FE",color:"#4DA3FF",border:"1px solid #4DA3FF44",icon:<Plane size={11} strokeWidth={1.8}/>}, earlyarrival:{bg:"#EEF0FB",color:P.periwinkleD,border:`1px solid ${P.periwinkleD}44`,icon:<Calendar size={11} strokeWidth={1.8}/>}, earlydeparture:{bg:"#EEF0FB",color:P.periwinkleD,border:`1px solid ${P.periwinkleD}44`,icon:<Calendar size={11} strokeWidth={1.8}/>} };
+  const cfg = { missing:{bg:P.amberLight,color:P.amber,border:`1px solid ${P.amber}44`,icon:<Circle size={11} strokeWidth={1.8}/>}, mismatch:{bg:P.redLight,color:P.red,border:`1px solid ${P.red}44`,icon:<AlertTriangle size={11} strokeWidth={1.8}/>}, window:{bg:P.purpleLight,color:P.purple,border:`1px solid ${P.purple}44`,icon:<Calendar size={11} strokeWidth={1.8}/>}, duplicate:{bg:"#FFF3E0",color:"#E65100",border:"1px solid #E6510044",icon:<AlertCircle size={11} strokeWidth={1.8}/>}, unregistered:{bg:P.purpleLight,color:P.purple,border:`1px solid ${P.purple}44`,icon:<Ban size={11} strokeWidth={1.8}/>}, airport:{bg:"#EAF2FE",color:"#4F8EF7",border:"1px solid #4F8EF744",icon:<Plane size={11} strokeWidth={1.8}/>}, earlyarrival:{bg:"#EEF0FB",color:P.periwinkleD,border:`1px solid ${P.periwinkleD}44`,icon:<Calendar size={11} strokeWidth={1.8}/>}, earlydeparture:{bg:"#EEF0FB",color:P.periwinkleD,border:`1px solid ${P.periwinkleD}44`,icon:<Calendar size={11} strokeWidth={1.8}/>} };
   const s = cfg[issue.type] || cfg.mismatch;
   const isRes = (resolved || []).includes(issue.text);
   return (
@@ -781,7 +795,8 @@ function SupportModal({ user, onClose }) {
       stEmail.trim() ? `Reply to: ${stEmail.trim()}` : "",
       "Sent from the GroupGrid in-app support form",
     ].filter(Boolean);
-    window.location.href = `mailto:groupgrid@outlook.com?subject=${encodeURIComponent(subjectLine)}&body=${encodeURIComponent(lines.join("\n"))}`;
+    const routeAddr = stCategory === "Account / billing" ? "billing@groupgrid.io" : "support@groupgrid.io";
+    window.location.href = `mailto:${routeAddr}?subject=${encodeURIComponent(subjectLine)}&body=${encodeURIComponent(lines.join("\n"))}`;
   };
   const inputStyle = (filled) => ({ width:"100%", background:P.grey50, border:`1.5px solid ${filled?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"11px 13px", fontSize:"15px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" });
   const labelStyle = { display:"block", fontSize:"16px", fontWeight:600, color:P.grey600, fontFamily:font, marginBottom:"6px" };
@@ -791,7 +806,7 @@ function SupportModal({ user, onClose }) {
         <div style={{ padding:"20px 24px", borderBottom:`1px solid ${P.grey100}`, display:"flex", alignItems:"center", justifyContent:"space-between", gap:"14px" }}>
           <div>
             <div style={{ fontWeight:700, fontSize:"16px", color:P.navy, fontFamily:font }}>Contact support</div>
-            <div style={{ fontSize:"16px", color:P.grey600, fontFamily:font, marginTop:"2px", lineHeight:1.5 }}>We reply within one business day. This opens a pre-filled email to groupgrid@outlook.com in your mail app.</div>
+            <div style={{ fontSize:"16px", color:P.grey600, fontFamily:font, marginTop:"2px", lineHeight:1.5 }}>We reply within one business day. This opens a pre-filled email to {stCategory === "Account / billing" ? "billing@groupgrid.io" : "support@groupgrid.io"} in your mail app.</div>
           </div>
           <button onClick={onClose} style={{ background:P.grey100, border:"none", borderRadius:"10px", width:30, height:30, cursor:"pointer", color:P.navy, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><X size={15} strokeWidth={1.8}/></button>
         </div>
@@ -1326,6 +1341,28 @@ Warmly,
 {{plannerName}}
 {{eventName}} Planning Team`,
   },
+  arrives_late: {
+    id: "arrives_late",
+    label: "Possible Late Arrival",
+    icon: "🌙",
+    color: P.amber,
+    description: "Guest arrives after the late-arrival cutoff — hotel may release the room",
+    subject: "{{eventName}} [Late Arrival]: Please hold the room for {{guestFullName}}",
+    body: `Hi {{guestName}},
+
+A quick heads-up about your arrival for {{eventName}}:
+
+──────────────────────
+Expected arrival: {{expectedArrival}}
+Hotel check-in: {{checkIn}} at {{hotel}}
+──────────────────────
+
+Your arrival is later in the evening, so we are letting {{hotel}} know to hold your room. No action needed on your side — just reply if your plans change.
+
+Warmly,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  },
   departs_late: {
     id: "departs_late",
     label: "Departs After Check-Out",
@@ -1480,7 +1517,7 @@ Warmly,
     id: "wrong_airport",
     label: "Different Airport",
     icon: "✈",
-    color: "#4DA3FF",
+    color: "#4F8EF7",
     description: "Guest is flying into an airport that isn't a preferred event airport",
     subject: "{{eventName}} [Airport]: Could you confirm your travel details?",
     body: `Hi {{guestName}},
@@ -1572,6 +1609,13 @@ function fillTemplate(template, record, extra = {}) {
     "{{checkIn}}": fmt(record.hotel?.checkIn) || "—",
     "{{checkOut}}": fmt(record.hotel?.checkOut) || "—",
     "{{hotel}}": record.hotel?.hotel || "the hotel",
+    "{{room}}": record.hotel?.room || "—",
+    "{{expectedArrival}}": (() => {
+      const f = record.flight, c = record.car;
+      if (f?.flightArrival) return `${fmt(f.flightArrival)}${f.arrivalTime ? ` at ${fmtTime(f.arrivalTime, "ampm")}` : ""}${f.flightIn ? ` (Flight ${f.flightIn})` : ""}`;
+      if (c?.pickupDate) return `${fmt(c.pickupDate)}${c.pickupTime ? ` at ${fmtTime(c.pickupTime, "ampm")}` : ""} (car transfer)`;
+      return "—";
+    })(),
     "{{bookedTravel}}": (() => {
       const lines = [];
       if (record.flight) {
@@ -1629,6 +1673,7 @@ function getApplicableTemplates(record) {
   if (issues.some(x => x.type === "window")) applicable.push("outside_window");
   if (issues.some(x => x.type === "airport")) applicable.push("wrong_airport");
   if (issues.some(x => x.type === "earlyarrival") && !applicable.includes("arrives_early")) applicable.push("arrives_early");
+  if (issues.some(x => x.type === "latearrival")) applicable.push("arrives_late");
   return applicable;
 }
 
@@ -1638,6 +1683,7 @@ function getApplicableTemplates(record) {
 // for the attendee. The original guest-addressed body stays on the template as a fallback.
 const TEMPLATE_AUDIENCE = {
   arrives_early:      "hotel",
+  arrives_late:       "hotel",
   departs_late:       "hotel",
   missing_hotel:      "hotel",
   missing_flight:     "travel",
@@ -1651,6 +1697,7 @@ const TEMPLATE_AUDIENCE = {
 // Group the comms by what they are about, so hotel/flight/car messages sit together.
 const TEMPLATE_CATEGORY = {
   arrives_early:      "Hotel",
+  arrives_late:       "Hotel",
   departs_late:       "Hotel",
   missing_hotel:      "Hotel",
   missing_flight:     "Flight",
@@ -1665,6 +1712,7 @@ const CATEGORY_ORDER = ["Hotel", "Flight", "Car Transfer", "Registration & Confi
 // Brand icon for each template (single-line GroupGrid icon set).
 const TEMPLATE_ICON_KEY = {
   arrives_early:      "hotel",
+  arrives_late:       "hotel",
   departs_late:       "hotel",
   missing_hotel:      "hotel",
   missing_flight:     "plane",
@@ -1741,6 +1789,28 @@ Warm regards,
 {{plannerName}}
 {{eventName}} Planning Team`,
 };
+// Per-template vendor bodies. When a built-in template needs a message tailored beyond the
+// generic per-audience VENDOR_BODY, its id maps to a specific body here and takes precedence.
+const VENDOR_BODY_OVERRIDE = {
+  arrives_late: `Dear {{hotelContact}},
+
+I am writing about a late arrival for {{guestFullName}}{{guestEmailParen}}, a confirmed guest for {{eventName}}. Their travel is scheduled to arrive later in the evening, potentially after your standard check-in cutoff:
+
+──────────────────────
+Guest: {{guestFullName}}
+Room / confirmation: {{room}}
+Hotel check-in: {{checkIn}} at {{hotel}}
+Expected arrival: {{expectedArrival}}
+──────────────────────
+
+Please hold the room for a late arrival so it is not released if the guest has not checked in by your standard cutoff. Kindly confirm the room will be held.
+
+Thank you very much.
+
+Warm regards,
+{{plannerName}}
+{{eventName}} Planning Team`,
+};
 
 // ── New Template Modal ────────────────────────────────────────────────────────
 const ICON_OPTIONS = ["✉","📋","⭐","🔔","🎯","🚨","💬","📌","🏷","👋","🎉","⚡","📣","🤝","📝","🔁","❓","✅","🛎","💡"];
@@ -1752,6 +1822,7 @@ const TRIGGER_OPTIONS = [
   { value:"car_mismatch", label:"Car transfer timing mismatch" },
   { value:"needs_registration", label:"Booked travel but not registered" },
   { value:"arrives_early", label:"Arrives before check-in" },
+  { value:"arrives_late", label:"Possible late arrival" },
   { value:"departs_late", label:"Departs after check-out" },
   { value:"outside_window", label:"Outside travel window" },
   { value:"has_flags", label:"Any flag / issue" },
@@ -1910,6 +1981,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
       case "missing_flight": return issues.some(x => x.text === "Missing from flight manifest");
       case "missing_transfer": return issues.some(x => x.text === "Missing from car transfers");
       case "arrives_early": return issues.some(x => x.text?.includes("before check-in"));
+      case "arrives_late": return issues.some(x => x.type === "latearrival");
       case "departs_late": return issues.some(x => x.text?.includes("before check-out"));
       case "outside_window": return issues.some(x => x.type === "window");
       case "manual_only": return false;
@@ -1927,13 +1999,17 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                       : audience === "travel" ? contacts?.travel?.email
                       : audience === "car" ? contacts?.car?.email
                       : "";
-    if (audience !== "guest" && vendorEmail && VENDOR_BODY[audience]) {
+    const vendorBody = VENDOR_BODY_OVERRIDE[templateId] || VENDOR_BODY[audience];
+    if (audience !== "guest" && vendorEmail && vendorBody) {
       const tag = audience === "hotel" ? "Hotel" : audience === "travel" ? "Flight" : "Transfer";
+      const subject = templateId === "arrives_late"
+        ? `${(extra.eventName && extra.eventName !== "our event") ? extra.eventName + " " : ""}[Late Arrival] Please hold the room for ${record.displayName || record.firstName || ""}`
+        : `${(extra.eventName && extra.eventName !== "our event") ? extra.eventName + " " : ""}[${tag}] — Guest Review: ${record.displayName || record.firstName || ""}`;
       return {
         to: vendorEmail,
         audience,
-        subject: `${(extra.eventName && extra.eventName !== "our event") ? extra.eventName + " " : ""}[${tag}] — Guest Review: ${record.displayName || record.firstName || ""}`,
-        body: fillTemplate(VENDOR_BODY[audience], record, extra),
+        subject,
+        body: fillTemplate(vendorBody, record, extra),
       };
     }
     // guest audience, or vendor contact missing → guest-addressed body to the guest
@@ -2910,7 +2986,7 @@ function TermsPage({ onBack, nav }) {
         These Terms shall be governed by the laws of the State of Delaware, United States, without regard to its conflict of law provisions. Any disputes arising under these Terms shall be resolved in the courts of Delaware.
       </Section>
       <Section title="11. Contact">
-        Questions about these Terms? Email us at <a href="mailto:groupgrid@outlook.com" style={{ color:P.periwinkleD, fontWeight:600 }}>groupgrid@outlook.com</a>.
+        Questions about these Terms, billing, or pricing? Email us at <a href="mailto:billing@groupgrid.io" style={{ color:P.periwinkleD, fontWeight:600 }}>billing@groupgrid.io</a>.
       </Section>
     </PageShell>
   );
@@ -3058,7 +3134,7 @@ function AboutPage({ onBack, nav }) {
           <div style={{ fontSize:"16px", color:P.grey600, fontFamily:font, lineHeight:1.7, marginBottom:"16px" }}>
             GroupGrid is built by an active member of the event marketing community, including CEMA and PCMA. Have a question or want to connect? Reach out anytime.
           </div>
-          <a href="mailto:groupgrid@outlook.com" style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:P.navy, borderRadius:"10px", padding:"10px 22px", fontSize:"15px", fontWeight:700, color:P.white, fontFamily:font, textDecoration:"none" }}>
+          <a href="mailto:hello@groupgrid.io" style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:P.navy, borderRadius:"10px", padding:"10px 22px", fontSize:"15px", fontWeight:700, color:P.white, fontFamily:font, textDecoration:"none" }}>
             Get in touch →
           </a>
         </div>
@@ -3077,10 +3153,11 @@ function ContactPage({ onBack, nav }) {
       </div>
       <div className="gg-card-grid-3" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"16px", marginBottom:"36px" }}>
         {[
-          { Icon:Mail, label:"General Inquiries", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.periwinkleD, bg:P.grey50 },
-          { Icon:AlertTriangle, label:"Bug Reports", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.red, bg:P.redLight },
-          { Icon:Plus, label:"Feature Requests", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.accentD, bg:P.accentLight },
-          { Icon:Users, label:"Partnerships", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.amber, bg:P.amberLight },
+          { Icon:Mail, label:"General Inquiries", value:"hello@groupgrid.io", href:"mailto:hello@groupgrid.io", color:P.periwinkleD, bg:P.grey50 },
+          { Icon:CreditCard, label:"Billing & Pricing", value:"billing@groupgrid.io", href:"mailto:billing@groupgrid.io", color:P.teal, bg:P.tealLight },
+          { Icon:AlertTriangle, label:"Bug Reports", value:"support@groupgrid.io", href:"mailto:support@groupgrid.io", color:P.red, bg:P.redLight },
+          { Icon:Plus, label:"Feature Requests", value:"support@groupgrid.io", href:"mailto:support@groupgrid.io", color:P.accentD, bg:P.accentLight },
+          { Icon:Users, label:"Partnerships", value:"hello@groupgrid.io", href:"mailto:hello@groupgrid.io", color:P.amber, bg:P.amberLight },
         ].map(({ Icon, label, value, href, color, bg }) => (
           <a key={label} href={href} style={{ display:"flex", alignItems:"center", gap:"14px", background:bg, border:`1.5px solid ${color}22`, borderRadius:"12px", padding:"18px 20px", textDecoration:"none" }}>
             <span style={{ display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon size={22} strokeWidth={1.8} color={color} /></span>
@@ -3126,7 +3203,7 @@ function FAQPage({ onBack, nav }) {
       ))}
       <div style={{ marginTop:"24px", background:P.accentLight, border:`1.5px solid ${P.accent}44`, borderRadius:"14px", padding:"22px 26px", textAlign:"center" }}>
         <div style={{ fontSize:"15px", fontWeight:800, color:P.teal, fontFamily:font, marginBottom:"6px" }}>Still have a question?</div>
-        <div style={{ fontSize:"17px", color:P.grey600, fontFamily:font }}>Email us at <a href="mailto:groupgrid@outlook.com" style={{ color:P.periwinkleD, fontWeight:700, textDecoration:"none" }}>groupgrid@outlook.com</a> and we'll get back to you within one business day.</div>
+        <div style={{ fontSize:"17px", color:P.grey600, fontFamily:font }}>Email us at <a href="mailto:support@groupgrid.io" style={{ color:P.periwinkleD, fontWeight:700, textDecoration:"none" }}>support@groupgrid.io</a> and we'll get back to you within one business day.</div>
       </div>
     </PageShell>
   );
@@ -3162,7 +3239,7 @@ function PrivacyPage({ onBack, nav }) {
         We will notify users of any material changes to this policy via in-app notification and email. Continued use after notification constitutes acceptance of the updated policy.
       </Section>
       <Section title="Contact">
-        Questions about privacy? Email us at <a href="mailto:groupgrid@outlook.com" style={{ color:P.periwinkleD, fontWeight:600 }}>groupgrid@outlook.com</a>.
+        Questions about privacy? Email us at <a href="mailto:privacy@groupgrid.io" style={{ color:P.periwinkleD, fontWeight:600 }}>privacy@groupgrid.io</a>.
       </Section>
     </PageShell>
   );
@@ -3582,15 +3659,18 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
         ];
 
         const statusColor = s => s==="error" ? P.red : s==="warn" ? P.amber : P.green;
-        const statusBg    = s => s==="error" ? "#FDECEC" : s==="warn" ? "#FEF8EC" : "#F0FDF7";
+        const statusBg    = s => s==="error" ? P.redLight : s==="warn" ? P.amberLight : P.greenLight;
         const statusLabel = s => s==="error" ? "Flag" : s==="warn" ? "Review" : "OK";
+        // Shared column layout + per-column alignment so the header and every row line up cleanly.
+        const demoCols = "minmax(60px,0.8fr) minmax(74px,0.9fr) minmax(150px,1.7fr) 100px 78px 78px 66px";
+        const demoJustify = ["start","start","stretch","center","center","center","end"];
 
         const fileInfo = [
           { label:"Registration List", color:"#00A896", Icon:PeopleIcon, sub:"event_registration.xlsx" },
-          { label:"Flight Manifest", color:"#4DA3FF", Icon:PlaneIcon, sub:"flight_manifest_dec.xlsx" },
-          { label:"Hotel Roster",    color:"#E3B04B", Icon:HotelIcon, sub:"hotel_roster_marriott.xlsx" },
+          { label:"Flight Manifest", color:"#4F8EF7", Icon:PlaneIcon, sub:"flight_manifest_dec.xlsx" },
+          { label:"Hotel Roster",    color:"#C97A0A", Icon:HotelIcon, sub:"hotel_roster_marriott.xlsx" },
           { label:"Car Transfers",   color:"#6B3FA0", Icon:CarIcon, sub:"car_transfers_sfo.xlsx" },
-          ...(SHOW_DIETARY?[{ label:"Dietary & Access",color:"#27AE60", Icon:Salad, sub:"dietary_requirements.xlsx" }]:[]),
+          ...(SHOW_DIETARY?[{ label:"Dietary & Access",color:P.teal, Icon:Salad, sub:"dietary_requirements.xlsx" }]:[]),
         ];
 
         const runDemo = () => {
@@ -3611,7 +3691,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
         };
 
         return (
-          <div style={{ background:"#F4F7FA", padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
+          <div style={{ background:"#F0F2F7", padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
             <style>{`
               @keyframes ggIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
               @keyframes ggPulse { 0%,100%{opacity:.45} 50%{opacity:1} }
@@ -3674,7 +3754,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                     {/* Idle state */}
                     {demoPhase === "idle" && (
                       <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100%", flexDirection:"column", gap:"20px" }}>
-                        <button onClick={runDemo} style={{ display:"flex", alignItems:"center", gap:"14px", background:`linear-gradient(135deg, ${P.navy}, #0D1E40)`, border:"none", borderRadius:"16px", padding:"18px 32px", cursor:"pointer", boxShadow:"0 4px 24px rgba(15,29,53,0.2)" }}>
+                        <button onClick={runDemo} style={{ display:"flex", alignItems:"center", gap:"14px", background:`linear-gradient(135deg, ${P.navy}, ${P.navyLight})`, border:"none", borderRadius:"16px", padding:"18px 32px", cursor:"pointer", boxShadow:"0 4px 24px rgba(15,29,53,0.2)" }}>
                           <div style={{ width:44, height:44, borderRadius:"50%", background:P.accent, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                             <span style={{ marginLeft:"3px", display:"inline-flex" }}><svg width="16" height="16" viewBox="0 0 16 16"><path d="M4 3l9 5-9 5z" fill={P.navy}/></svg></span>
                           </div>
@@ -3717,11 +3797,11 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                         {/* Results table */}
                         {rowsVisible > 0 && (
                           <div className="gg-demo-table-scroll" style={{ overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
-                          <div style={{ border:`1px solid ${P.grey100}`, borderRadius:"12px", overflow:"hidden", animation:"ggIn 0.3s ease", minWidth:"560px" }}>
+                          <div style={{ border:`1px solid ${P.grey100}`, borderRadius:"12px", overflow:"hidden", animation:"ggIn 0.3s ease", minWidth:"620px" }}>
                             {/* Table header */}
-                            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 120px 70px 70px 70px 70px", background:"#ECEEF6", padding:"8px 14px", gap:"8px" }}>
-                              {["First","Last","Email","Status","Arr.","Dep.","Δ Arr"].map(h => (
-                                <div key={h} style={{ fontSize:"15px", fontWeight:700, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em" }}>{h}</div>
+                            <div style={{ display:"grid", gridTemplateColumns:demoCols, background:P.grey50, padding:"10px 16px", gap:"12px" }}>
+                              {["First","Last","Email","Status","Arr.","Dep.","Δ Arr"].map((h,ci) => (
+                                <div key={h} style={{ fontSize:"13px", fontWeight:700, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", justifySelf:demoJustify[ci], whiteSpace:"nowrap" }}>{h}</div>
                               ))}
                             </div>
                             {/* Rows */}
@@ -3730,29 +3810,29 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                               return (
                                 <React.Fragment key={g.key}>
                                   <div onClick={() => setExpandedRow(isExp ? null : g.key)}
-                                    style={{ display:"grid", gridTemplateColumns:"1fr 1fr 120px 70px 70px 70px 70px", padding:"9px 14px", gap:"8px", alignItems:"center", background:isExp?"#F4F6FB":i%2===0?P.white:"#FAFBFD", borderTop:`1px solid ${P.grey100}`, cursor:"pointer", animation:"ggIn 0.3s ease", transition:"background 0.15s" }}>
-                                    <span style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font }}>{g.first}</span>
-                                    <span style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font }}>{g.last}</span>
-                                    <span style={{ fontSize:"15px", color:P.grey600, fontFamily:font, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{g.email}</span>
-                                    <span style={{ fontSize:"15px", fontWeight:800, color:statusColor(g.status), background:statusBg(g.status), padding:"2px 8px 2px 6px", borderRadius:"20px", fontFamily:font, whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:"3px" }}>{g.status==="error" ? <FlagIcon size={11} line={statusColor(g.status)} accent={statusColor(g.status)}/> : g.status==="warn" ? <AlertIcon size={11} line={statusColor(g.status)} accent={statusColor(g.status)}/> : <ClearedIcon size={11} line={statusColor(g.status)} accent={statusColor(g.status)}/>}{statusLabel(g.status)}</span>
-                                    <span style={{ fontSize:"15px", color:P.grey600, fontFamily:font, display:"inline-flex", alignItems:"center" }}>{g.flight?.arr || <AlertIcon size={12} line={P.amber} accent={P.amber}/>}</span>
-                                    <span style={{ fontSize:"15px", color:P.grey600, fontFamily:font, display:"inline-flex", alignItems:"center" }}>{g.flight?.dep || <AlertIcon size={12} line={P.amber} accent={P.amber}/>}</span>
-                                    <span style={{ fontSize:"15px", fontWeight:700, fontFamily:font, color:g.arrDiff==="0"?P.green:P.red }}>{g.arrDiff}</span>
+                                    style={{ display:"grid", gridTemplateColumns:demoCols, padding:"11px 16px", gap:"12px", alignItems:"center", background:isExp?P.grey50:i%2===0?P.white:P.offWhite, borderTop:`1px solid ${P.grey100}`, cursor:"pointer", animation:"ggIn 0.3s ease", transition:"background 0.15s" }}>
+                                    <span style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, justifySelf:"start" }}>{g.first}</span>
+                                    <span style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font, justifySelf:"start" }}>{g.last}</span>
+                                    <span style={{ fontSize:"15px", color:P.grey600, fontFamily:font, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", minWidth:0, maxWidth:"100%", justifySelf:"stretch" }}>{g.email}</span>
+                                    <span style={{ fontSize:"14px", fontWeight:800, color:statusColor(g.status), background:statusBg(g.status), padding:"2px 10px 2px 8px", borderRadius:"20px", fontFamily:font, whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:"4px", justifySelf:"center" }}>{g.status==="error" ? <FlagIcon size={11} line={statusColor(g.status)} accent={statusColor(g.status)}/> : g.status==="warn" ? <AlertIcon size={11} line={statusColor(g.status)} accent={statusColor(g.status)}/> : <ClearedIcon size={11} line={statusColor(g.status)} accent={statusColor(g.status)}/>}{statusLabel(g.status)}</span>
+                                    <span style={{ fontSize:"15px", color:P.grey600, fontFamily:font, display:"inline-flex", alignItems:"center", justifySelf:"center" }}>{g.flight?.arr || <AlertIcon size={12} line={P.amber} accent={P.amber}/>}</span>
+                                    <span style={{ fontSize:"15px", color:P.grey600, fontFamily:font, display:"inline-flex", alignItems:"center", justifySelf:"center" }}>{g.flight?.dep || <AlertIcon size={12} line={P.amber} accent={P.amber}/>}</span>
+                                    <span style={{ fontSize:"15px", fontWeight:700, fontFamily:font, color:g.arrDiff==="0"?P.green:g.arrDiff==="—"?P.grey400:P.red, justifySelf:"end" }}>{g.arrDiff}</span>
                                   </div>
                                   {/* Expanded detail */}
                                   {isExp && (
-                                    <div style={{ background:"#F4F6FB", borderTop:`1px solid ${P.grey100}`, padding:"14px 16px", animation:"ggIn 0.2s ease" }}>
+                                    <div style={{ background:P.grey50, borderTop:`1px solid ${P.grey100}`, padding:"16px 18px", animation:"ggIn 0.2s ease" }}>
                                       {g.issues.length > 0 && (
-                                        <div style={{ display:"flex", gap:"8px", marginBottom:"12px", flexWrap:"wrap" }}>
+                                        <div style={{ display:"flex", gap:"8px", marginBottom:"14px", flexWrap:"wrap" }}>
                                           {g.issues.map(iss => (
-                                            <div key={iss} style={{ display:"flex", alignItems:"center", gap:"6px", background:"#FDECEC", border:"1px solid #F5C6C6", borderRadius:"8px", padding:"5px 10px" }}>
+                                            <div key={iss} style={{ display:"flex", alignItems:"center", gap:"6px", background:P.redLight, border:`1px solid ${P.red}33`, borderRadius:"8px", padding:"5px 10px" }}>
                                               <FlagIcon size={12} line={P.red} accent={P.red}/>
                                               <span style={{ fontSize:"15px", fontWeight:700, color:P.red, fontFamily:font }}>{iss}</span>
                                             </div>
                                           ))}
                                         </div>
                                       )}
-                                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1fr", gap:"10px" }}>
+                                      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(158px, 1fr))", gap:"10px" }}>
                                         {/* Registration card — the source of truth */}
                                         <div style={{ background:P.white, border:`1.5px solid ${g.reg?"#00A89633":"#FDECEC"}`, borderRadius:"10px", padding:"12px 14px" }}>
                                           <div style={{ fontSize:"15px", fontWeight:800, color:"#00A896", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em", display:"inline-flex", alignItems:"center", gap:"5px" }}><PeopleIcon size={12} line="#00A896" accent="#00A896"/>Registration</div>
@@ -3763,8 +3843,8 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                                           </> : <div style={{ fontSize:"15px", fontWeight:700, color:P.red, fontFamily:font, display:"inline-flex", alignItems:"center", gap:"4px" }}><FlagIcon size={12} line={P.red} accent={P.red}/>Not on registration list</div>}
                                         </div>
                                         {/* Flight card */}
-                                        <div style={{ background:P.white, border:`1.5px solid #4DA3FF22`, borderRadius:"10px", padding:"12px 14px" }}>
-                                          <div style={{ fontSize:"15px", fontWeight:800, color:"#4DA3FF", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em", display:"inline-flex", alignItems:"center", gap:"5px" }}><PlaneIcon size={12} line="#4DA3FF" accent="#4DA3FF"/>Flight</div>
+                                        <div style={{ background:P.white, border:`1.5px solid #4F8EF722`, borderRadius:"10px", padding:"12px 14px" }}>
+                                          <div style={{ fontSize:"15px", fontWeight:800, color:"#4F8EF7", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em", display:"inline-flex", alignItems:"center", gap:"5px" }}><PlaneIcon size={12} line="#4F8EF7" accent="#4F8EF7"/>Flight</div>
                                           {g.flight ? <>
                                             <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Arrival: <strong style={{ color:P.navy }}>{g.flight.arr}</strong></div>
                                             <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Departure: <strong style={{ color:P.navy }}>{g.flight.dep}</strong></div>
@@ -3772,8 +3852,8 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                                           </> : <div style={{ fontSize:"15px", fontWeight:700, color:P.red, fontFamily:font, display:"inline-flex", alignItems:"center", gap:"4px" }}><FlagIcon size={12} line={P.red} accent={P.red}/>No flight booked</div>}
                                         </div>
                                         {/* Hotel card */}
-                                        <div style={{ background:P.white, border:`1.5px solid ${g.hotel?"#E3B04B22":"#FDECEC"}`, borderRadius:"10px", padding:"12px 14px" }}>
-                                          <div style={{ fontSize:"15px", fontWeight:800, color:"#E3B04B", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em", display:"inline-flex", alignItems:"center", gap:"5px" }}><HotelIcon size={12} line="#E3B04B" accent="#E3B04B"/>Hotel</div>
+                                        <div style={{ background:P.white, border:`1.5px solid ${g.hotel?"#C97A0A22":"#FDECEC"}`, borderRadius:"10px", padding:"12px 14px" }}>
+                                          <div style={{ fontSize:"15px", fontWeight:800, color:"#C97A0A", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em", display:"inline-flex", alignItems:"center", gap:"5px" }}><HotelIcon size={12} line="#C97A0A" accent="#C97A0A"/>Hotel</div>
                                           {g.hotel ? <>
                                             <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Check-in: <strong style={{ color: g.status!=="ok"&&g.issues[0]?.includes("check-in")?P.red:P.navy }}>{g.hotel.in}</strong></div>
                                             <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Check-out: <strong style={{ color:P.navy }}>{g.hotel.out}</strong></div>
@@ -3996,7 +4076,7 @@ function PricingPage({ onBack, nav }) {
         {/* Questions */}
         <div style={{ marginTop:"36px", background:P.white, borderRadius:"14px", border:`1px solid ${P.grey100}`, padding:"20px 24px", textAlign:"center" }}>
           <div style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"6px" }}>Questions?</div>
-          <div style={{ fontSize:"17px", color:P.grey600, fontFamily:font }}>Email us at <a href="mailto:groupgrid@outlook.com" style={{ color:P.periwinkleD, fontWeight:600, textDecoration:"none" }}>groupgrid@outlook.com</a> and we'll get back to you within one business day.</div>
+          <div style={{ fontSize:"17px", color:P.grey600, fontFamily:font }}>Email us at <a href="mailto:billing@groupgrid.io" style={{ color:P.periwinkleD, fontWeight:600, textDecoration:"none" }}>billing@groupgrid.io</a> and we'll get back to you within one business day.</div>
         </div>
       </div>
     </div>
@@ -4315,6 +4395,7 @@ function SetupScreen({
   departureAirports, setDepartureAirports,
   arrivalCutoff, setArrivalCutoff,
   departureCutoff, setDepartureCutoff,
+  lateArrivalCutoff, setLateArrivalCutoff,
   contacts, setContacts, setContactsOpen,
   registrationFile, setRegistrationFile, flightFile, setFlightFile, hotelFile, setHotelFile,
   hotelProperty, setHotelProperty, extraHotels, setExtraHotels,
@@ -4325,20 +4406,21 @@ function SetupScreen({
   const hasName = !!(projectName && projectName.trim());
   const canRun = hasName && ready && !loading;
   const hasContacts = contacts && (contacts.hotel?.email || contacts.travel?.email || contacts.car?.email);
-  const anyTravel = !!(arrivalStart || arrivalEnd || departureStart || departureEnd || arrivalCutoff || departureCutoff || preferredAirports || departureAirports);
+  const anyTravel = !!(arrivalStart || arrivalEnd || departureStart || departureEnd || arrivalCutoff || departureCutoff || lateArrivalCutoff || preferredAirports || departureAirports);
   const updateContact = (group, field, val) => setContacts(prev => ({ ...prev, [group]: { ...prev[group], [field]: val } }));
+  const [optionalOpen, setOptionalOpen] = useState(false);
+  const optionalCount = (anyTravel ? 1 : 0) + (hasContacts ? 1 : 0);
   return (
     <div style={{ maxWidth:"760px", margin:"0 auto", width:"100%" }}>
       <h1 style={{ fontSize:"clamp(20px,3vw,24px)", fontWeight:600, color:P.navy, fontFamily:font, letterSpacing:"-0.02em", margin:"0 0 4px" }}>New project</h1>
-      <p style={{ fontSize:"13.5px", color:P.grey600, fontFamily:font, margin:"0 0 18px", lineHeight:1.55 }}>Work through the four steps below, then run the cross-check. Steps 2 and 3 are optional.</p>
+      <p style={{ fontSize:"13.5px", color:P.grey600, fontFamily:font, margin:"0 0 18px", lineHeight:1.55 }}>Name your project, upload your files, then run the cross-check. Travel parameters and contacts are optional.</p>
 
       <div style={{ display:"flex", alignItems:"center", marginBottom:"18px", flexWrap:"wrap", gap:"8px" }}>
         {[
           { n:"1", label:"Project", state: hasName ? "done" : "active" },
-          { n:"2", label:"Travel", state: anyTravel ? "done" : "todo" },
-          { n:"3", label:"Contacts", state: hasContacts ? "done" : "todo" },
-          { n:"4", label:"Upload", state: hasName ? (ready ? "done" : "active") : "todo" },
-          { n:"5", label:"Review", state:"todo" },
+          { n:"2", label:"Upload", state: hasName ? (ready ? "done" : "active") : "todo" },
+          { n:"3", label:"Details", state: optionalCount ? "done" : "todo" },
+          { n:"4", label:"Review", state:"todo" },
         ].map(({ n, label, state }, i) => (
           <React.Fragment key={label}>
             {i > 0 && <div className="gg-step-line" style={{ flex:1, height:"1.5px", background:P.grey100, margin:"0 12px", minWidth:"20px" }} />}
@@ -4350,8 +4432,8 @@ function SetupScreen({
         ))}
       </div>
 
-      <div className="gg-setup-cols" style={{ display:"grid", gridTemplateColumns:"1fr", gap:"14px", alignItems:"start" }}>
-      <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)" }}>
+      <div className="gg-setup-cols" style={{ display:"flex", flexDirection:"column", gap:"0px", alignItems:"stretch" }}>
+      <div style={{ order:1, background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)" }}>
         <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 1 · Project info</div>
         <div style={{ fontSize:"12.5px", color:P.grey600, fontFamily:font, marginBottom:"14px", lineHeight:1.5 }}>Name your project and set the event name guests see in their emails.</div>
         <div style={{ marginBottom:"14px" }}>
@@ -4368,9 +4450,23 @@ function SetupScreen({
         </div>
       </div>
 
+      {/* ── Optional details drawer: collapses Travel + Contacts (Option F) ── */}
+      <button onClick={() => setOptionalOpen(o => !o)} type="button"
+        style={{ order:3, display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"15px 20px", marginBottom:"14px", cursor:"pointer", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)", boxSizing:"border-box" }}>
+        <span style={{ display:"flex", alignItems:"center", gap:"10px" }}>
+          <span style={{ display:"inline-flex", transform: optionalOpen ? "rotate(90deg)" : "none", transition:"transform 0.18s", color:P.grey600 }}><ChevronRight size={18} strokeWidth={2} /></span>
+          <span style={{ fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font }}>Step 3 · Optional details</span>
+          <span style={{ fontSize:"13px", fontWeight:400, color:P.grey600, fontFamily:font }}>· travel parameters and contacts</span>
+        </span>
+        <span style={{ fontSize:"13px", fontWeight:500, color: optionalCount ? P.accentD : P.grey600, fontFamily:font }}>{optionalCount ? `${optionalCount} added · ${optionalOpen ? "hide" : "edit"}` : (optionalOpen ? "hide" : "add — optional")}</span>
+      </button>
+
+      {/* Collapse wrapper holds Box 2 (Travel) + Box 3 (Contacts) */}
+      <div style={{ order:3, display: optionalOpen ? "block" : "none" }}>
+
       {/* ── Box 2 · Travel parameters ── */}
       <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)" }}>
-        <div style={{ fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 2 · Travel parameters <span style={{ fontSize:"19px", fontWeight:400, color:P.grey600 }}>· optional</span></div>
+        <div style={{ fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Travel parameters <span style={{ fontSize:"19px", fontWeight:400, color:P.grey600 }}>· optional</span></div>
         <div style={{ fontSize:"12.5px", color:P.grey600, fontFamily:font, marginBottom:"16px", lineHeight:1.5 }}>Set your approved travel window, cutoffs, and airports. GroupGrid flags anyone who falls outside them. Skip this to run without travel flags.</div>
 
         {/* Arrival */}
@@ -4404,9 +4500,21 @@ function SetupScreen({
             <div style={{ fontSize:"11.5px", color:P.grey600, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Codes for your arrival city.</div>
           </div>
         </div>
+        <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px", marginBottom:"10px" }}>
+          <div>
+            <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Late-arrival cutoff</label>
+            <input type="time" value={lateArrivalCutoff} onChange={e => setLateArrivalCutoff(e.target.value)}
+              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${lateArrivalCutoff?P.amber+"88":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"18px", color:lateArrivalCutoff?P.navy:P.grey600, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
+            <div style={{ fontSize:"11.5px", color:P.grey600, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Lands after this with a room booked, flags a possible late arrival so you can tell the hotel to hold it. Default 10:30 PM. Clear to turn off.</div>
+          </div>
+          <div style={{ display:"flex", alignItems:"flex-end" }}>
+            <button type="button" onClick={() => setLateArrivalCutoff(lateArrivalCutoff ? "" : "22:30")}
+              style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"12.5px", fontWeight:600, fontFamily:font, cursor:"pointer", padding:"0 0 8px" }}>{lateArrivalCutoff ? "Turn off late-arrival flag" : "Turn on (10:30 PM)"}</button>
+          </div>
+        </div>
         <div style={{ display:"flex", gap:"8px", alignItems:"flex-start", fontSize:"19px", color:P.grey600, fontFamily:font, lineHeight:1.5, background:P.amber+"12", borderRadius:"9px", padding:"9px 12px", marginBottom:"16px" }}>
           <span style={{ flexShrink:0, marginTop:"1px" }}><FlagIcon size={14} line={P.amber} accent={P.amber} /></span>
-          <span><strong style={{ color:P.navyLight, fontWeight:600 }}>Flags</strong> arrivals outside the window, early landings with no prior-night room, or landings at other airports.</span>
+          <span><strong style={{ color:P.navyLight, fontWeight:600 }}>Flags</strong> arrivals outside the window, early landings with no prior-night room, late arrivals after your cutoff, or landings at other airports.</span>
         </div>
 
         {/* Departure */}
@@ -4448,7 +4556,7 @@ function SetupScreen({
 
       {/* ── Box 3 · Contact details (expanded inline) ── */}
       <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)" }}>
-        <div style={{ fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 3 · Contact details <span style={{ fontSize:"19px", fontWeight:400, color:P.grey600 }}>· optional</span></div>
+        <div style={{ fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Contacts <span style={{ fontSize:"19px", fontWeight:400, color:P.grey600 }}>· optional</span></div>
         <div style={{ fontSize:"12.5px", color:P.grey600, fontFamily:font, marginBottom:"16px", lineHeight:1.5 }}>Add your hotel, travel agency, and transfer contacts so you can email them directly from your results.</div>
         {[
           { key:"hotel", label:"Hotel", color:P.navy },
@@ -4475,8 +4583,11 @@ function SetupScreen({
         </button>
       </div>
 
-      <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)", opacity: hasName ? 1 : 0.55, pointerEvents: hasName ? "auto" : "none", transition:"opacity 0.2s" }}>
-        <div style={{ fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 4 · Upload files {!hasName && <span style={{ fontSize:"19px", fontWeight:400, color:P.grey600 }}>· name your project first</span>}</div>
+      </div>
+      {/* end optional details drawer */}
+
+      <div style={{ order:2, background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)", opacity: hasName ? 1 : 0.55, pointerEvents: hasName ? "auto" : "none", transition:"opacity 0.2s" }}>
+        <div style={{ fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 2 · Upload files {!hasName && <span style={{ fontSize:"19px", fontWeight:400, color:P.grey600 }}>· name your project first</span>}</div>
         <div style={{ fontSize:"19px", color:P.grey600, fontFamily:font, marginBottom:"14px" }}>Upload whatever you have — registration, flights, hotels, cars. GroupGrid cross-checks any 2 or more. Excel or CSV. Hover a tile for expected columns.</div>
         <div style={{ fontSize:"19px", fontWeight:500, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>Upload any 2 or more</div>
         <div className="gg-setup-tiles3" style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"10px", marginBottom:"14px" }}>
@@ -4549,6 +4660,51 @@ function SetupScreen({
   );
 }
 
+// Multi-select dropdown for a group of report columns. Checkmarks + live count.
+function ReportFieldDropdown({ group, fields, selected, onToggle, onSetGroup }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+  const count = fields.filter(f => selected.has(f.key)).length;
+  const allOn = count === fields.length && count > 0;
+  return (
+    <div ref={ref} style={{ position:"relative" }}>
+      <button type="button" onClick={() => setOpen(o => !o)}
+        style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:P.white, border:`1.5px solid ${count?P.accent+"66":P.grey200}`, borderRadius:"9px", padding:"8px 13px", fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font, cursor:"pointer" }}>
+        {group}
+        <span style={{ background:count?P.accent+"1F":P.grey100, color:count?P.accentD:P.grey600, borderRadius:"20px", fontSize:"13px", fontWeight:700, padding:"1px 8px", minWidth:"20px", textAlign:"center" }}>{count}</span>
+        <ChevronDown size={15} strokeWidth={2} style={{ color:P.grey400, transform: open?"rotate(180deg)":"none", transition:"transform 0.15s" }} />
+      </button>
+      {open && (
+        <div style={{ position:"absolute", zIndex:40, top:"calc(100% + 6px)", left:0, minWidth:"216px", background:P.white, border:`1px solid ${P.grey200}`, borderRadius:"11px", boxShadow:"0 10px 30px rgba(12,30,63,0.18)", padding:"6px" }}>
+          <div onClick={() => onSetGroup(fields.map(f => f.key), !allOn)}
+            style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"6px 9px 8px", margin:"0 0 4px", borderBottom:`1px solid ${P.grey100}`, cursor:"pointer", fontSize:"14px", fontWeight:600, color:P.periwinkleD, fontFamily:font }}>
+            <span>{allOn ? "Clear all" : "Select all"}</span>
+            <span style={{ fontSize:"13px", color:P.grey600, fontWeight:500 }}>{count}/{fields.length}</span>
+          </div>
+          {fields.map(fl => {
+            const on = selected.has(fl.key);
+            return (
+              <div key={fl.key} onClick={() => onToggle(fl.key)}
+                style={{ display:"flex", alignItems:"center", gap:"9px", padding:"8px 9px", borderRadius:"7px", fontSize:"16px", color:P.navy, fontFamily:font, cursor:"pointer" }}
+                onMouseEnter={e => e.currentTarget.style.background = P.grey50}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                <span style={{ width:16, height:16, borderRadius:"5px", background:on?P.accent:P.white, border:`1.5px solid ${on?P.accent:P.grey200}`, display:"inline-flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{on && <Check size={11} strokeWidth={3} color={P.white} />}</span>
+                {fl.label}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const REPORT_PRESETS = {
   general: ["lastName","firstName","email","company","note","status","issues","flightArrival","arrivalTime","arrivalAirport","flightIn","flightDeparture","departureTime","departureAirport","flightOut","hotel","checkIn","checkOut","room","carPickup","carPickupTime","carDropoff"],
   hotel: ["lastName","firstName","email","note","hotel","checkIn","checkOut","room","status","issues"],
@@ -4586,6 +4742,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
   const [departureAirports, setDepartureAirports] = useState(""); // departure-side airports; empty = falls back to arrival list
   const [arrivalCutoff, setArrivalCutoff] = useState(""); // "HH:MM" — early-arrival cutoff; empty = off
   const [departureCutoff, setDepartureCutoff] = useState(""); // "HH:MM" — earliest allowed departure time; empty = off
+  const [lateArrivalCutoff, setLateArrivalCutoff] = useState("22:30"); // "HH:MM" — flag arrivals after this as possible late arrivals; empty = off
   const [lastRunSig, setLastRunSig] = useState(""); // snapshot of params at last run, to detect post-run edits
   const [eventName, setEventName] = useState("");
   const [projectName, setProjectName] = useState(""); // internal save label, distinct from eventName (used in comms)
@@ -4696,7 +4853,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
   // (the old bug: every note/date change reset the 60s countdown, so it rarely fired).
   const autosaveData = useRef({});
   useEffect(() => {
-    autosaveData.current = { results, meta, projectName, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, storageKey };
+    autosaveData.current = { results, meta, projectName, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, lateArrivalCutoff, storageKey };
   }, [results, meta, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, storageKey]);
 
   useEffect(() => {
@@ -4711,7 +4868,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
           name: d.projectName || d.eventName || `Session ${new Date().toLocaleDateString()}`,
           date: new Date().toISOString(),
           meta: d.meta, projectName: d.projectName, eventName: d.eventName, arrivalStart: d.arrivalStart, arrivalEnd: d.arrivalEnd, departureStart: d.departureStart, departureEnd: d.departureEnd,
-          preferredAirports: d.preferredAirports, departureAirports: d.departureAirports, arrivalCutoff: d.arrivalCutoff, departureCutoff: d.departureCutoff,
+          preferredAirports: d.preferredAirports, departureAirports: d.departureAirports, arrivalCutoff: d.arrivalCutoff, departureCutoff: d.departureCutoff, lateArrivalCutoff: d.lateArrivalCutoff,
           guestCount: d.results.length,
           issueCount: d.results.filter(r => r.status !== "ok").length,
           autoSaved: true,
@@ -4763,10 +4920,10 @@ function GroupGrid({ user, onLogin, onLogout }) {
       for (const ex of extraDietary) { if (ex.file) { const w = await readXlsx(ex.file); dietary = dietary.concat(tagSrc(parseDietarySheet(w), ex.source || ex.file.name)); } }
       if (registrationFile) { const w = await readXlsx(registrationFile); registration = tagSrc(parseRegistrationSheet(w), registrationFile.name); }
       for (const ex of extraReg) { if (ex.file) { const w = await readXlsx(ex.file); registration = registration.concat(tagSrc(parseRegistrationSheet(w), ex.source || ex.file.name)); } }
-      const aw = { arrivalStart:parseDate(arrivalStart), arrivalEnd:parseDate(arrivalEnd), departureStart:parseDate(departureStart), departureEnd:parseDate(departureEnd), preferredAirports: preferredAirports.split(",").map(s=>s.trim()).filter(Boolean), departureAirports: departureAirports.split(",").map(s=>s.trim()).filter(Boolean), arrivalCutoff, departureCutoff };
+      const aw = { arrivalStart:parseDate(arrivalStart), arrivalEnd:parseDate(arrivalEnd), departureStart:parseDate(departureStart), departureEnd:parseDate(departureEnd), preferredAirports: preferredAirports.split(",").map(s=>s.trim()).filter(Boolean), departureAirports: departureAirports.split(",").map(s=>s.trim()).filter(Boolean), arrivalCutoff, departureCutoff, lateArrivalCutoff };
       const allResults = crossMatch(flights, hotels, cars, dietary, aw, meta, registration);
       setResults(allResults); setShowSetup(false);
-      setLastRunSig(JSON.stringify({ arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, eventName }));
+      setLastRunSig(JSON.stringify({ arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, lateArrivalCutoff, eventName }));
     } catch (err) { setError("Could not read files: " + err.message); }
     setLoading(false);
   }
@@ -4791,7 +4948,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
   function saveSession() {
     if (!results) return;
-    const session = { id:Date.now(), name:(projectName||eventName)||`Session ${new Date().toLocaleDateString()}`, date:new Date().toISOString(), meta, projectName, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, guestCount:results.length, issueCount:results.filter(r=>r.status!=="ok").length, results };
+    const session = { id:Date.now(), name:(projectName||eventName)||`Session ${new Date().toLocaleDateString()}`, date:new Date().toISOString(), meta, projectName, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, lateArrivalCutoff, guestCount:results.length, issueCount:results.filter(r=>r.status!=="ok").length, results };
     const next = [session, ...savedSessions.filter(s => s.name !== session.name)].slice(0, 50);
     setSavedSessions(next);
     try {
@@ -4971,6 +5128,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
   ];
   const applyReportTarget = (t) => { setReportTarget(t); setReportFields(new Set(REPORT_PRESETS[t])); };
   const toggleReportField = (k) => setReportFields(prev => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n; });
+  const setReportFieldGroup = (keys, on) => setReportFields(prev => { const n = new Set(prev); keys.forEach(k => on ? n.add(k) : n.delete(k)); return n; });
   const byLastName = (a,b) => (a.lastName||a.displayName||"").localeCompare(b.lastName||b.displayName||"", undefined, { sensitivity:"base" });
   function exportCustomReport() {
     const cols = REPORT_FIELDS.filter(f => reportFields.has(f.key));
@@ -5072,18 +5230,18 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
     // ── helpers ──
     function sBadge(status) {
-      if (status === "ok")   return '<span style="background:#E3F7F0;color:#2FBF8B;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;">Aligned</span>';
-      if (status === "warn") return '<span style="background:#FEF2DC;color:#E3B04B;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;">1 Issue</span>';
-      return '<span style="background:#FDECEC;color:#F2685A;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;">Action Needed</span>';
+      if (status === "ok")   return '<span style="background:#E3F7F0;color:#0D9E6E;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;">Aligned</span>';
+      if (status === "warn") return '<span style="background:#FEF2DC;color:#C97A0A;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;">1 Issue</span>';
+      return '<span style="background:#FDECEC;color:#C0392B;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;">Action Needed</span>';
     }
     function sDelta(val) {
       if (val === null || val === undefined) return "\u2014";
-      if (val === 0) return '<span style="color:#2FBF8B;font-weight:600;">On time</span>';
+      if (val === 0) return '<span style="color:#0D9E6E;font-weight:600;">On time</span>';
       const days = Math.abs(val), word = days === 1 ? "day" : "days", dir = val > 0 ? "late" : "early";
-      return '<span style="color:' + (days <= 1 ? "#E3B04B" : "#F2685A") + ';font-weight:600;">' + days + " " + word + " " + dir + "</span>";
+      return '<span style="color:' + (days <= 1 ? "#C97A0A" : "#C0392B") + ';font-weight:600;">' + days + " " + word + " " + dir + "</span>";
     }
     function sCell(val) { return val || "\u2014"; }
-    function missingCell() { return '<span style="color:#F2685A;font-weight:600;">Missing</span>'; }
+    function missingCell() { return '<span style="color:#C0392B;font-weight:600;">Missing</span>'; }
 
     // ── guest rows ──
     var guestRows = "";
@@ -5092,10 +5250,10 @@ function GroupGrid({ user, onLogin, onLogout }) {
       var activeIssues = r.issues.filter(function(x) { return !(r.resolved || []).includes(x.text); });
       var issueHtml = "";
       if (activeIssues.length === 0) {
-        issueHtml = '<span style="color:#2FBF8B;">&#10003; Clear</span>';
+        issueHtml = '<span style="color:#0D9E6E;">&#10003; Clear</span>';
       } else {
         for (var ii = 0; ii < activeIssues.length; ii++) {
-          var ic = activeIssues[ii].type === "missing" ? "#E3B04B" : activeIssues[ii].type === "window" ? "#6B3FA0" : "#F2685A";
+          var ic = activeIssues[ii].type === "missing" ? "#C97A0A" : activeIssues[ii].type === "window" ? "#6B3FA0" : "#C0392B";
           issueHtml += '<div style="color:' + ic + ';font-size:12px;margin:1px 0;">&bull; ' + activeIssues[ii].text + "</div>";
         }
       }
@@ -5134,9 +5292,9 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
     // ── summary cards ──
     var summaryCards = [
-      { label:"Total Guests",   val:results.length,                                    color:"#0F1D35", bg:"white" },
-      { label:"Fully Aligned",  val:aligned.length,                                    color:"#2FBF8B", bg:"#E3F7F0" },
-      { label:"Action Needed",  val:flagged.length, color:"#F2685A", bg:"#FDECEC" },
+      { label:"Total Guests",   val:results.length,                                    color:"#0F1F3D", bg:"white" },
+      { label:"Fully Aligned",  val:aligned.length,                                    color:"#0D9E6E", bg:"#E3F7F0" },
+      { label:"Action Needed",  val:flagged.length, color:"#C0392B", bg:"#FDECEC" },
       { label:"Alignment Rate", val:Math.round(aligned.length / results.length * 100) + "%", color:"#00A896", bg:"#E0FAF7" },
     ];
     var cardsHtml = "";
@@ -5152,11 +5310,11 @@ function GroupGrid({ user, onLogin, onLogout }) {
     var issueBreakdown = "";
     if (flagged.length > 0) {
       var chips = "";
-      if (localCounts.missing > 0) chips += '<div style="background:#FEF2DC;border-radius:8px;padding:10px 16px;"><div style="font-size:12px;color:#E3B04B;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Missing Record</div><div style="font-size:22px;font-weight:700;color:#E3B04B;">' + localCounts.missing + "</div></div>";
-      if (localCounts.mismatch > 0) chips += '<div style="background:#FDECEC;border-radius:8px;padding:10px 16px;"><div style="font-size:12px;color:#F2685A;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Date Mismatch</div><div style="font-size:22px;font-weight:700;color:#F2685A;">' + localCounts.mismatch + "</div></div>";
+      if (localCounts.missing > 0) chips += '<div style="background:#FEF2DC;border-radius:8px;padding:10px 16px;"><div style="font-size:12px;color:#C97A0A;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Missing Record</div><div style="font-size:22px;font-weight:700;color:#C97A0A;">' + localCounts.missing + "</div></div>";
+      if (localCounts.mismatch > 0) chips += '<div style="background:#FDECEC;border-radius:8px;padding:10px 16px;"><div style="font-size:12px;color:#C0392B;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Date Mismatch</div><div style="font-size:22px;font-weight:700;color:#C0392B;">' + localCounts.mismatch + "</div></div>";
       if (localCounts.window > 0)  chips += '<div style="background:#EEE5F9;border-radius:8px;padding:10px 16px;"><div style="font-size:12px;color:#6B3FA0;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Outside Window</div><div style="font-size:22px;font-weight:700;color:#6B3FA0;">' + localCounts.window + "</div></div>";
       if (localCounts.duplicate > 0) chips += '<div style="background:#FFF3E0;border-radius:8px;padding:10px 16px;"><div style="font-size:12px;color:#E65100;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Duplicates</div><div style="font-size:22px;font-weight:700;color:#E65100;">' + localCounts.duplicate + "</div></div>";
-      issueBreakdown = '<div style="background:white;border:1px solid #DDE1EE;border-radius:10px;padding:20px 24px;margin-bottom:24px;"><div style="font-size:15px;font-weight:700;margin-bottom:14px;color:#0F1D35;">Issue Breakdown</div><div style="display:flex;gap:12px;flex-wrap:wrap;">' + chips + "</div></div>";
+      issueBreakdown = '<div style="background:white;border:1px solid #DDE1EE;border-radius:10px;padding:20px 24px;margin-bottom:24px;"><div style="font-size:15px;font-weight:700;margin-bottom:14px;color:#0F1F3D;">Issue Breakdown</div><div style="display:flex;gap:12px;flex-wrap:wrap;">' + chips + "</div></div>";
     }
 
     // ── contacts block ──
@@ -5178,7 +5336,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
           + (contacts.travel.email ? '<div style="font-size:13px;color:#4C62C4;margin-top:4px;">' + contacts.travel.email + "</div>" : "")
           + (contacts.travel.phone ? '<div style="font-size:13px;color:#4A5166;">' + contacts.travel.phone + "</div>" : "")
           + "</div>" : "";
-      contactsBlock = '<div style="background:white;border:1px solid #DDE1EE;border-radius:10px;padding:20px 24px;margin-bottom:24px;"><div style="font-size:15px;font-weight:700;margin-bottom:14px;color:#0F1D35;">Event Contacts</div><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">' + hotelDiv + travelDiv + "</div></div>";
+      contactsBlock = '<div style="background:white;border:1px solid #DDE1EE;border-radius:10px;padding:20px 24px;margin-bottom:24px;"><div style="font-size:15px;font-weight:700;margin-bottom:14px;color:#0F1F3D;">Event Contacts</div><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">' + hotelDiv + travelDiv + "</div></div>";
     }
 
     // ── diet table ──
@@ -5210,12 +5368,12 @@ function GroupGrid({ user, onLogin, onLogout }) {
       + '<meta name="viewport" content="width=device-width,initial-scale=1"/>'
       + "<title>GroupGrid Report \u2014 " + evName + "</title>"
       + '<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet"/>'
-      + "<style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'Manrope',sans-serif;background:#F4F7FA;color:#0F1D35;font-size:14px;-webkit-font-smoothing:antialiased;}a{color:inherit;text-decoration:none;}@media print{body{background:white;}.no-print{display:none!important;}table{page-break-inside:auto;}tr{page-break-inside:avoid;}}</style>"
+      + "<style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'Manrope',sans-serif;background:#F0F2F7;color:#0F1F3D;font-size:14px;-webkit-font-smoothing:antialiased;}a{color:inherit;text-decoration:none;}@media print{body{background:white;}.no-print{display:none!important;}table{page-break-inside:auto;}tr{page-break-inside:avoid;}}</style>"
       + "</head><body>"
       + '<div style="max-width:1100px;margin:0 auto;padding:32px 24px;">'
 
       // header
-      + '<div style="background:#0F1D35;border-radius:12px;padding:28px 32px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">'
+      + '<div style="background:#0F1F3D;border-radius:12px;padding:28px 32px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">'
       + "<div>"
       + '<div style="font-size:22px;font-weight:700;color:white;margin-bottom:4px;">Group<span style="color:#00C9B1;font-weight:400;">Grid</span><span style="font-size:13px;font-weight:400;color:rgba(255,255,255,0.45);margin-left:12px;">Cross-Check Report</span></div>'
       + '<div style="font-size:18px;font-weight:600;color:rgba(255,255,255,0.9);">' + evName + "</div>"
@@ -5235,7 +5393,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
       // guest table
       + '<div style="background:white;border:1px solid #DDE1EE;border-radius:10px;overflow:hidden;margin-bottom:24px;">'
-      + '<div style="background:#0F1D35;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;">'
+      + '<div style="background:#0F1F3D;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;">'
       + '<span style="font-size:14px;font-weight:600;color:white;">All Guests</span>'
       + '<span style="font-size:13px;color:rgba(255,255,255,0.5);">' + results.length + " total \u00b7 " + flagged.length + " flagged</span>"
       + "</div>"
@@ -5288,7 +5446,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
   const counts = results ? { total:results.length, ok:results.filter(r=>r.status==="ok").length, flagged:results.filter(r=>r.status!=="ok").length, warn:results.filter(r=>r.status==="warn").length, error:results.filter(r=>r.status==="error").length, missing:results.filter(r=>r.issues.some(x=>x.type==="missing")).length, window:results.filter(r=>r.issues.some(x=>x.type==="window")).length, mismatch:results.filter(r=>r.issues.some(x=>x.type==="mismatch")).length, duplicate:results.filter(r=>r.issues.some(x=>x.type==="duplicate")).length, unregistered:results.filter(r=>r.issues.some(x=>x.type==="unregistered")).length, airport:results.filter(r=>r.issues.some(x=>x.type==="airport")).length, earlyarrival:results.filter(r=>r.issues.some(x=>x.type==="earlyarrival")).length, earlydeparture:results.filter(r=>r.issues.some(x=>x.type==="earlydeparture")).length, dietary:results.filter(r=>r.diet?.dietary||r.diet?.accessibility).length } : null;
 
   const hasCars = results?.some(r => r.car);
-  const paramsDirty = !!results && !!lastRunSig && lastRunSig !== JSON.stringify({ arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, eventName });
+  const paramsDirty = !!results && !!lastRunSig && lastRunSig !== JSON.stringify({ arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, lateArrivalCutoff, eventName });
   const hasDiet = SHOW_DIETARY && results?.some(r => r.diet);
   const hasHotelNames = results?.some(r => r.hotel?.hotel && r.hotel.hotel.trim());
   const uploadedCount = [registrationFile, flightFile, hotelFile, carFile, dietaryFile].filter(Boolean).length + [...extraHotels, ...extraFlights, ...extraCars, ...extraReg, ...extraDietary].filter(h=>h.file).length;
@@ -5296,7 +5454,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
 
   return (
-    <div style={{ minHeight:"100vh", width:"100%", maxWidth:"100vw", overflowX:"clip", background:"#F4F7FA", fontFamily:font, fontSize:"15px", WebkitFontSmoothing:"antialiased", boxSizing:"border-box" }}>
+    <div style={{ minHeight:"100vh", width:"100%", maxWidth:"100vw", overflowX:"clip", background:"#F0F2F7", fontFamily:font, fontSize:"15px", WebkitFontSmoothing:"antialiased", boxSizing:"border-box" }}>
       <GlobalStyles />
       <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet" />
 
@@ -5481,6 +5639,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                         setDepartureAirports(s.departureAirports||"");
                         setArrivalCutoff(s.arrivalCutoff||"");
                         setDepartureCutoff(s.departureCutoff||"");
+                        setLateArrivalCutoff(s.lateArrivalCutoff ?? "22:30");
                         if (s.results && s.results.length) { setResults(rehydrateResults(s.results)); setActiveTab("grid"); setFilter("all"); setExpanded(null); setShowSetup(false); }
                         else { setResults(null); setSaveMsg("This project was saved before full data was stored — re-upload its files to view it."); setTimeout(()=>setSaveMsg(""), 5000); }
                         if (isMobile) setSidebarOpen(false);
@@ -5708,6 +5867,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
             departureAirports={departureAirports} setDepartureAirports={setDepartureAirports}
             arrivalCutoff={arrivalCutoff} setArrivalCutoff={setArrivalCutoff}
             departureCutoff={departureCutoff} setDepartureCutoff={setDepartureCutoff}
+            lateArrivalCutoff={lateArrivalCutoff} setLateArrivalCutoff={setLateArrivalCutoff}
             isReRun={!!results}
             contacts={contacts} setContacts={setContacts} setContactsOpen={setContactsOpen}
             registrationFile={registrationFile} setRegistrationFile={setRegistrationFile}
@@ -5811,22 +5971,18 @@ function GroupGrid({ user, onLogin, onLogout }) {
                   ))}
                 </div>
 
-                {["Attendee","Status","Flight","Hotel","Car"].map(group => (
-                  <div key={group} style={{ marginBottom:"14px" }}>
-                    <div style={{ fontSize:"16px", fontWeight:700, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"8px" }}>{group}</div>
-                    <div style={{ display:"flex", flexWrap:"wrap", gap:"7px" }}>
-                      {REPORT_FIELDS.filter(fl => fl.group===group).map(fl => {
-                        const on = reportFields.has(fl.key);
-                        return (
-                          <button key={fl.key} onClick={() => toggleReportField(fl.key)} style={{ display:"inline-flex", alignItems:"center", gap:"6px", background:on?P.accent+"14":P.white, border:`1.5px solid ${on?P.accent+"66":P.grey100}`, borderRadius:"8px", padding:"6px 11px", fontSize:"17px", fontWeight:600, color:on?P.navy:P.grey600, fontFamily:font, cursor:"pointer" }}>
-                            <span style={{ width:14, height:14, borderRadius:"4px", background:on?P.accent:P.white, border:`1.5px solid ${on?P.accent:P.grey200}`, display:"inline-flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{on && <Check size={10} strokeWidth={3} color={P.white} />}</span>
-                            {fl.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"8px" }}>
+                  <div style={{ fontSize:"16px", fontWeight:700, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em" }}>Columns</div>
+                  {reportFields.size > 0 && <button onClick={() => setReportFields(new Set())} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"15px", fontWeight:600, fontFamily:font, cursor:"pointer" }}>Clear all</button>}
+                </div>
+                <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, lineHeight:1.5, marginBottom:"10px" }}>Open a category and check the fields you want. Pick a preset above to start, then fine-tune.</div>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:"8px", marginBottom:"4px" }}>
+                  {["Attendee","Status","Flight","Hotel","Car"].map(group => (
+                    <ReportFieldDropdown key={group} group={group}
+                      fields={REPORT_FIELDS.filter(fl => fl.group===group)}
+                      selected={reportFields} onToggle={toggleReportField} onSetGroup={setReportFieldGroup} />
+                  ))}
+                </div>
 
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:"14px", flexWrap:"wrap", marginTop:"18px", paddingTop:"16px", borderTop:`1px solid ${P.grey100}` }}>
                   <span style={{ fontSize:"17px", color:P.grey600, fontFamily:font }}>{reportFields.size} field{reportFields.size===1?"":"s"} selected · all {results.length} attendees</span>
@@ -6164,7 +6320,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                                 : <div style={{ display:"flex", flexDirection:"column", gap:"2px" }}>
                                     {activeIssues.some(x=>x.type==="missing") && <span style={{ color:P.amber, fontSize:"15px", fontWeight:700, fontFamily:font }}>○ missing</span>}
                                     {activeIssues.some(x=>x.type==="window") && <span style={{ color:P.purple, fontSize:"15px", fontWeight:700, fontFamily:font }}>🗓 window</span>}
-                                    {activeIssues.some(x=>x.type==="airport") && <span style={{ color:"#4DA3FF", fontSize:"15px", fontWeight:700, fontFamily:font }}>✈ airport</span>}
+                                    {activeIssues.some(x=>x.type==="airport") && <span style={{ color:"#4F8EF7", fontSize:"15px", fontWeight:700, fontFamily:font }}>✈ airport</span>}
                                     {activeIssues.some(x=>x.type==="mismatch") && <span style={{ color:P.red, fontSize:"15px", fontWeight:700, fontFamily:font }}>⚑ mismatch</span>}
                                     {activeIssues.some(x=>x.type==="duplicate") && <span style={{ color:"#E65100", fontSize:"15px", fontWeight:700, fontFamily:font }}>⚠ dupe</span>}
                                   </div>}
