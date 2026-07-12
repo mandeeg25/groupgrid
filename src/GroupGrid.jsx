@@ -42,23 +42,33 @@
 //   [ ] Custom report branding (logo upload)
 // ─────────────────────────────────────────────────────────────────────────────
 
+/*
+ * GroupGrid — React app (marketing website + product).
+ * Modules: ./theme.js (tokens), ./icons.jsx (brand marks + icons), ./format.js (helpers),
+ * ./templates.js (email templates + routing). This file holds the engine, pages, and screens.
+ * Section map (search the ── dividers to jump):
+ *
+ *   Global styles       GlobalStyles, MOBILE_CSS, keyframes + motion system
+ *   Parsing & dates     parseDate, parseTimeStr, findCol, parseSheet + per-file parsers
+ *   Cross-check engine   crossMatch (flags: missing, mismatch, early/late arrival, airport, window)
+ *   Email templates     DEFAULT_TEMPLATES, VENDOR_BODY(_OVERRIDE), routing tables, fillTemplate
+ *   UI primitives       StatusChip, Btn, modals, CommHub
+ *   Website pages       Landing, Pricing, FAQ, Contact, Privacy, Terms
+ *   Product             SetupScreen, ReportFieldDropdown, GroupGrid (grid / reporting / comms / summary)
+ *
+ * Conventions: colors come from P.*, never hardcoded hex. Body text 15px, captions 12.5–13px,
+ * headings via fontDisplay (Poppins). Customer-facing copy avoids em dashes.
+ */
 import React, { useState, useCallback, useEffect, useRef, Fragment } from "react";
 import * as XLSX from "xlsx";
-import { Plane, Hotel, Car, Salad, BarChart2, Mail, Lock, Calendar, Send, AlertTriangle, AlertCircle, Circle, Copy, Check, X, Plus, ShieldCheck, Ban, FileSpreadsheet, Users, Download, Save, Trash2, Pencil} from "lucide-react";
+import { Plane, Hotel, Car, Salad, BarChart2, Mail, Lock, Calendar, Send, AlertTriangle, AlertCircle, Circle, Copy, Check, X, Plus, ShieldCheck, Ban, FileSpreadsheet, Users, Download, Save, Trash2, Pencil, ChevronRight, ChevronDown, CreditCard} from "lucide-react";
+import { P, font, fontDisplay } from "./theme.js";
+import { BrandMark, BrandLogo, BrandWordmark, GridIcon, CrossCheckIcon, FlagIcon, ClearedIcon, SpreadsheetIcon, MagnifierIcon, UploadIcon, PlaneIcon, HotelIcon, CarIcon, CalendarIcon, PeopleIcon, AlertIcon, CityIcon, GlobeIcon, BadgeIcon } from "./icons.jsx";
+import { parseTimeStr, fmtTime, parseDate, atNoon, fmt, rehydrateDate, rehydrateResults, stripTime, diffDays, findCol, normName, normEmail, splitName } from "./format.js";
+import { DEFAULT_TEMPLATES, fillTemplate, getApplicableTemplates, TEMPLATE_AUDIENCE, TEMPLATE_CATEGORY, CATEGORY_ORDER, TemplateIcon, VENDOR_BODY, VENDOR_BODY_OVERRIDE } from "./templates.js";
 
-const P = {
-  navy:"#0C1E3F", navyLight:"#1A2E52", periwinkle:"#6B7FD4", periwinkleL:"#9BAAE8",
-  periwinkleD:"#4C62C4", white:"#FFFFFF", offWhite:"#F4F7FA", grey50:"#EEF1F8",
-  grey100:"#DDE2EF", grey200:"#B8C0D8", grey400:"#7E8BA8", grey600:"#4A5568",
-  green:"#2FBF8B", greenLight:"#E3F7F0", amber:"#E3B04B", amberLight:"#FEF2DC",
-  red:"#F2685A", redLight:"#FDECEC", purple:"#6B3FA0", purpleLight:"#EEE5F9",
-  teal:"#0A7B7A", tealLight:"#DCF2F2", blue:"#4DA3FF", blueLight:"#EAF2FE",
-  accent:"#00C9B1", accentLight:"#E0FAF7", accentD:"#00A896",
-};
-const font = "'Manrope', sans-serif";
-const fontDisplay = "'Poppins', sans-serif";
 // Build version — bump this whenever code is deployed so you can confirm at a glance which build is live.
-const APP_VERSION = "v7.7 · Jul 2026";
+const APP_VERSION = "v9.5 · Jun 2026";
 // Deep-linkable marketing/legal pages. Maps URL path <-> in-app page so groupgrid.io/privacy
 // loads the policy directly (and refresh/share keeps you there). Landing and app both live at "/".
 const PAGE_PATHS = { privacy:"/privacy", terms:"/terms", pricing:"/pricing", about:"/about", faq:"/faq", contact:"/contact" };
@@ -72,111 +82,6 @@ function pathToPage(pathname) {
 // flip this to true to bring the dietary upload, column, and detail back everywhere.
 const SHOW_DIETARY = false;
 
-// ── Official brand mark (from the GroupGrid logo kit): a navy rounded square with a
-// 3×3 dot grid. The diagonal (top-left, center, bottom-right) is teal — the clean
-// cross-check — and the other six dots are light blue-grey. One source of truth for
-// every logo placement so the mark is identical everywhere.
-const MARK_TEAL = "#00C9B1";
-const MARK_DOT  = "#A9C2DC";
-function markDots() {
-  // diagonal = teal, others = light blue-grey, exactly per the official artwork
-  const pos = [28, 50, 72];
-  const out = [];
-  pos.forEach((cy, r) => pos.forEach((cx, c) => {
-    out.push(<circle key={`${r}-${c}`} cx={cx} cy={cy} r="9" fill={r === c ? MARK_TEAL : MARK_DOT} />);
-  }));
-  return out;
-}
-function BrandMark({ size = 28, onDark = true }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0, display: "block" }}>
-      <rect width="100" height="100" rx="26" fill={onDark ? "#0A1A33" : "#0C1E3F"} />
-      {markDots()}
-    </svg>
-  );
-}
-// Full official lockup: the mark + the two-tone GroupGrid wordmark (Poppins).
-// viewBox 0 0 470 100, matching the kit's logo-onlight / logo-ondark SVGs.
-function BrandLogo({ height = 26, onDark = true }) {
-  return (
-    <svg width={height * 4.7} height={height} viewBox="0 0 470 100" xmlns="http://www.w3.org/2000/svg" style={{ display: "block", flexShrink: 0 }}>
-      <rect width="100" height="100" rx="26" fill={onDark ? "#0A1A33" : "#0C1E3F"} />
-      {markDots()}
-      <text x="120" y="50" dominantBaseline="central" fontFamily="'Poppins', 'Helvetica Neue', Arial, sans-serif" fontWeight="600" fontSize="54" letterSpacing="-1">
-        <tspan fill={onDark ? "#FFFFFF" : "#0C1E3F"}>Group</tspan><tspan fill={MARK_TEAL}>Grid</tspan>
-      </text>
-    </svg>
-  );
-}
-// Two-tone wordmark: "Group" in the foreground color, "Grid" in teal.
-function BrandWordmark({ light = true, size = 16 }) {
-  return (
-    <span style={{ fontFamily: fontDisplay, fontWeight: 700, fontSize: `${size}px`, letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>
-      <span style={{ color: light ? P.white : P.navy }}>Group</span>
-      <span style={{ color: P.accent }}>Grid</span>
-    </span>
-  );
-}
-
-// ── Signature icons: official Group Grid single-line set (from the brand kit),
-// navy line + one teal accent on the matched/active part. 1.8 stroke, round cap/join.
-const ICON_STROKE = 1.8;
-function GridIcon({ size = 20, line = P.navy, accent = P.accent }) {
-  const r = 1.9, pos = [7, 12, 17];
-  const dots = [];
-  pos.forEach((cy, ri) => pos.forEach((cx, ci) => {
-    dots.push(<circle key={`${ri}-${ci}`} cx={cx} cy={cy} r={r} fill={ri === ci ? accent : line} />);
-  }));
-  return <svg width={size} height={size} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>{dots}</svg>;
-}
-function svgIcon(size, line, paths) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={line} strokeWidth={ICON_STROKE} strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>{paths}</svg>;
-}
-function CrossCheckIcon({ size = 20, line = P.navy, accent = P.accent }) {
-  return svgIcon(size, line, <><path d="M5 8.5a7 7 0 0 1 11.5-2.7L19 8" /><path d="M19 16a7 7 0 0 1-11.5 2.7L5 16" /><path d="M19 4v4h-4" stroke={accent} /><path d="M5 20v-4h4" stroke={accent} /></>);
-}
-function FlagIcon({ size = 20, line = P.navy, accent = P.accent }) {
-  return svgIcon(size, line, <><path d="M6 21V4" /><path d="M6 4.5h11l-2.2 4 2.2 4H6" stroke={accent} /></>);
-}
-function ClearedIcon({ size = 20, line = P.navy, accent = P.accent }) {
-  return svgIcon(size, line, <><circle cx="12" cy="12" r="9.5" /><path d="M7.5 12.3l3.1 3.1L16.5 9" stroke={accent} /></>);
-}
-function SpreadsheetIcon({ size = 20, line = P.navy, accent = P.accent }) {
-  return svgIcon(size, line, <><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M4 10h16M10 10v10" stroke={accent} /></>);
-}
-function MagnifierIcon({ size = 20, line = P.navy, accent = P.accent }) {
-  return svgIcon(size, line, <><circle cx="11" cy="11" r="6.2" /><path d="M20 20l-4.6-4.6" /><path d="M8.4 11l2 2 3.4-3.4" stroke={accent} /></>);
-}
-function UploadIcon({ size = 20, line = P.navy, accent = P.accent }) {
-  return svgIcon(size, line, <><path d="M12 16V5" /><path d="M8 9l4-4 4 4" stroke={accent} /><path d="M5 20h14" /></>);
-}
-function PlaneIcon({ size = 20, line = P.navy, accent = P.accent }) {
-  return svgIcon(size, line, <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />);
-}
-function HotelIcon({ size = 20, line = P.navy, accent = P.accent }) {
-  return svgIcon(size, line, <><path d="M3 19v-6.5l2-1V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3.5l2 1V19" /><path d="M3 13h18" stroke={accent} /><path d="M7 11.5V10h4v1.5" /></>);
-}
-function CarIcon({ size = 20, line = P.navy, accent = P.accent }) {
-  return svgIcon(size, line, <><path d="M4 16l1.7-4.9A2 2 0 0 1 7.6 9.8h8.8a2 2 0 0 1 1.9 1.3L20 16" /><path d="M3 16h18v2.6h-2.3V16M5.3 18.6V16" /><circle cx="8" cy="16" r="1.3" /><circle cx="16" cy="16" r="1.3" /></>);
-}
-function CalendarIcon({ size = 20, line = P.navy, accent = P.accent }) {
-  return svgIcon(size, line, <><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 9.5h16M8 3v4M16 3v4" /><path d="M8.5 13.5l2 2 3.5-3.5" stroke={accent} /></>);
-}
-function PeopleIcon({ size = 20, line = P.navy, accent = P.accent }) {
-  return svgIcon(size, line, <><circle cx="9" cy="8.5" r="3" /><path d="M3.5 19c0-3.1 2.4-4.9 5.5-4.9s5.5 1.8 5.5 4.9" /><path d="M16 6.4a2.8 2.8 0 0 1 0 5.5" stroke={accent} /><path d="M17 14.3c2.4.4 3.7 2.1 3.7 4.7" stroke={accent} /></>);
-}
-function AlertIcon({ size = 20, line = P.navy, accent = P.amber }) {
-  return svgIcon(size, line, <><path d="M12 4 2.5 20.5h19z" /><path d="M12 10v4.5" stroke={accent} /><path d="M12 17.6v.2" stroke={accent} /></>);
-}
-function CityIcon({ size = 20, line = P.navy, accent = P.accent }) {
-  return svgIcon(size, line, <><path d="M3 20V9.5l5-2.5V20" /><path d="M8 20V4l6 2.6V20" /><path d="M14 20v-7l5 2V20" /><path d="M2.5 20h19" /><path d="M10.5 10v0M10.5 13.5v0M5.3 12v0" stroke={accent} /></>);
-}
-function GlobeIcon({ size = 20, line = P.navy, accent = P.accent }) {
-  return svgIcon(size, line, <><circle cx="12" cy="12" r="8.2" /><path d="M3.8 12h16.4" stroke={accent} /><path d="M12 3.8c2.6 2.3 2.6 14.1 0 16.4M12 3.8c-2.6 2.3-2.6 14.1 0 16.4" /></>);
-}
-function BadgeIcon({ size = 20, line = P.navy, accent = P.accent }) {
-  return svgIcon(size, line, <><rect x="7" y="3" width="10" height="6" rx="1.5" /><rect x="5.5" y="9" width="13" height="11" rx="2" /><path d="M9.5 14h5" stroke={accent} /></>);
-}
 
 // ── Responsive hook ───────────────────────────────────────────────────────────
 function useIsMobile(breakpoint = 768) {
@@ -240,10 +145,16 @@ const MOBILE_CSS = `
   }
   .gg-sidebar-overlay { display: none; }
   .gg-bottom-nav { display: none; }
+  /* Motion system (GroupGrid brand): rise and settle, then rest. Entrances 400-600ms,
+     micro 120-200ms, ease-out cubic-bezier(.2,.8,.2,1). Nothing bounces, spins, or loops behind text. */
   @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
-  @keyframes ggIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes ggIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
   @keyframes ggPulse { 0%,100%{opacity:.45} 50%{opacity:1} }
   @keyframes ggSlideUp { from { opacity:0; transform:translateY(100%); } to { opacity:1; transform:translateY(0); } }
+  /* Honor reduced-motion: settle instantly instead of moving. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
+  }
 `;
 
 function GlobalStyles() {
@@ -269,124 +180,6 @@ function GlobalStyles() {
     return () => { const e = document.getElementById("gg-mobile-css"); if (e) e.remove(); };
   }, []);
   return null;
-}
-const FEATURES = {
-  shareableReport: true,
-  emailTemplates:  true,
-  savedProjects:   true,
-  changeTracking:  false,
-  customBranding:  false,
-};
-
-// Times are stored canonically as 24h "HH:MM"; fmtTime renders them in the chosen format.
-function parseTimeStr(val) {
-  const p = n => String(n).padStart(2, "0");
-  if (val === null || val === undefined || val === "") return "";
-  if (typeof val === "number") {
-    const frac = val - Math.floor(val);
-    if (frac <= 0) return ""; // a pure date serial carries no time
-    const total = Math.round(frac * 24 * 60);
-    return p(Math.floor(total / 60) % 24) + ":" + p(total % 60);
-  }
-  if (val instanceof Date && !isNaN(val)) {
-    const hh = val.getHours(), mm = val.getMinutes();
-    if (hh === 0 && mm === 0) return ""; // midnight from a date-only cell is treated as "no time"
-    return p(hh) + ":" + p(mm);
-  }
-  const s = String(val).trim();
-  const m = s.match(/(\d{1,2}):(\d{2})\s*([ap]\.?m\.?)?/i); // 14:30, 2:30 PM, 9:05am, or embedded in a datetime
-  if (m) {
-    let hh = +m[1]; const mm = +m[2], ap = m[3] ? m[3].toLowerCase()[0] : null;
-    if (ap === "p" && hh < 12) hh += 12;
-    if (ap === "a" && hh === 12) hh = 0;
-    if (hh > 23 || mm > 59) return "";
-    return p(hh) + ":" + p(mm);
-  }
-  return "";
-}
-// Render a canonical "HH:MM" as 12h "2:30 PM" (default) or 24h "14:30".
-function fmtTime(hhmm, fmt) {
-  if (!hhmm) return "";
-  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
-  if (!m) return hhmm;
-  let hh = +m[1]; const mm = m[2];
-  if (fmt === "24hr") return String(hh).padStart(2, "0") + ":" + mm;
-  const ap = hh >= 12 ? "PM" : "AM"; let h12 = hh % 12; if (h12 === 0) h12 = 12;
-  return h12 + ":" + mm + " " + ap;
-}
-
-function parseDate(val) {
-  if (val === null || val === undefined || val === "") return null;
-  // Already a Date object
-  if (val instanceof Date && !isNaN(val)) return atNoon(val.getFullYear(), val.getMonth(), val.getDate());
-  // Excel serial number. Whole part = date; fractional part = time of day. We only want the calendar day.
-  if (typeof val === "number") {
-    const d = new Date(Math.round((Math.floor(val) - 25569) * 86400 * 1000)); // floor() drops the time fraction
-    if (isNaN(d)) return null;
-    // Excel serials are UTC-based; read UTC components so the day doesn't shift by timezone.
-    return atNoon(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-  }
-  const s = String(val).trim();
-  if (!s) return null;
-  // Pull the DATE part out of a combined "date + time" string so a late-night time can't roll the day over.
-  // Handles: "2026-06-18", "2026-06-18 23:45", "2026-06-18T23:45:00Z", "6/18/2026 11:45 PM", "06/18/2026"
-  let m = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);            // ISO-ish: YYYY-MM-DD (optionally followed by time)
-  if (m) return atNoon(+m[1], +m[2] - 1, +m[3]);
-  m = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/);              // US-ish: M/D/YYYY (optionally followed by time)
-  if (m) { let y = +m[3]; if (y < 100) y += 2000; return atNoon(y, +m[1] - 1, +m[2]); }
-  // Fallback: let the browser try, then normalize to noon-local on the day it landed on.
-  const d = new Date(s);
-  if (isNaN(d)) return null;
-  return atNoon(d.getFullYear(), d.getMonth(), d.getDate());
-}
-// Build a date at noon local time. Noon avoids any midnight/timezone edge from ever shifting the calendar day.
-function atNoon(y, mo, day) { const d = new Date(y, mo, day, 12, 0, 0, 0); return isNaN(d) ? null : d; }
-function fmt(date) { if (!date) return "—"; return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); }
-// When results are restored from localStorage (JSON), Date objects come back as strings.
-// Rehydrate every date field back into a real Date so .toLocaleDateString()/.getTime() work.
-function rehydrateDate(v) {
-  if (!v) return v;
-  if (v instanceof Date) return v;
-  const d = new Date(v);
-  return isNaN(d.getTime()) ? null : d;
-}
-function rehydrateResults(results) {
-  if (!Array.isArray(results)) return results;
-  return results.map(r => {
-    const out = { ...r };
-    if (out.flight) out.flight = { ...out.flight, flightArrival: rehydrateDate(out.flight.flightArrival), flightDeparture: rehydrateDate(out.flight.flightDeparture) };
-    if (out.hotel)  out.hotel  = { ...out.hotel,  checkIn: rehydrateDate(out.hotel.checkIn), checkOut: rehydrateDate(out.hotel.checkOut) };
-    if (out.car)    out.car    = { ...out.car,    pickupDate: rehydrateDate(out.car.pickupDate), dropoffDate: rehydrateDate(out.car.dropoffDate) };
-    if (out.reg)    out.reg    = { ...out.reg,    regCheckIn: rehydrateDate(out.reg.regCheckIn), regCheckOut: rehydrateDate(out.reg.regCheckOut) };
-    if (out.regCheckIn)  out.regCheckIn  = rehydrateDate(out.regCheckIn);
-    if (out.regCheckOut) out.regCheckOut = rehydrateDate(out.regCheckOut);
-    return out;
-  });
-}
-function stripTime(d) { if (!d) return null; const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
-function diffDays(a, b) { if (!a || !b) return null; return Math.round((stripTime(a) - stripTime(b)) / 86400000); }
-function findCol(headers, candidates) {
-  const h = headers.map(x => String(x || "").toLowerCase().trim());
-  // Exact header match first (so "Arrival" the date isn't confused with "Arrival Airport").
-  for (const c of candidates) { const i = h.indexOf(c); if (i !== -1) return i; }
-  // Then substring match as a fallback.
-  for (const c of candidates) { const i = h.findIndex(x => x.includes(c)); if (i !== -1) return i; }
-  return -1;
-}
-function normName(n) { return String(n || "").toLowerCase().replace(/[^a-z]/g, ""); }
-function normEmail(e) { return String(e || "").toLowerCase().trim(); }
-function splitName(full) {
-  const s = String(full || "").trim();
-  if (!s) return { firstName: "", lastName: "" };
-  // Handle "Last, First" format
-  if (s.includes(",")) {
-    const [last, ...rest] = s.split(",");
-    return { firstName: rest.join(",").trim(), lastName: last.trim() };
-  }
-  const parts = s.split(/\s+/);
-  if (parts.length === 1) return { firstName: parts[0], lastName: "" };
-  const lastName = parts.pop();
-  return { firstName: parts.join(" "), lastName };
 }
 function isOutside(date, ws, we) {
   if (!date) return false;
@@ -506,7 +299,7 @@ function parseRegistrationSheet(wb) {
     departCity:["departing city","departure city","origin city","home city","city"],
     departState:["departing state","state","province","region"],
     departCountry:["departing country","country","nation"],
-    regNotes:["registration notes","reg notes","notes","comments","special requests"],
+    regNotes:["notes","note","registration notes","reg notes","comments","comment","special requests","remark","remarks","exception","exceptions","approval","approvals","approved"],
     reason:["reason","justification","exception reason","no travel reason","opt out reason","explanation"],
     assignedHotel:["assigned hotel","hotel assignment","assigned property","designated hotel","hotel block","room block","expected hotel"],
   });
@@ -517,7 +310,7 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
   const hasReg = registration.length > 0;
   const hasFlights = flights.length > 0;
   const hasHotels = hotels.length > 0;
-  const { arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff } = aw || {};
+  const { arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, lateArrivalCutoff } = aw || {};
   const mkMaps = (arr) => { const byE = new Map(), byN = new Map(); arr.forEach(x => { if (x.email) byE.set(x.email, x); const k = normName(x.name); if (k) byN.set(k, x); }); return [byE, byN]; };
   const [fByE, fByN] = mkMaps(flights), [hByE, hByN] = mkMaps(hotels), [cByE, cByN] = mkMaps(cars), [dByE, dByN] = mkMaps(dietary), [rByE, rByN] = mkMaps(registration);
   const allLists = [...flights,...hotels,...cars,...dietary,...registration];
@@ -525,8 +318,13 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
   const nameKeys = new Set(allLists.map(x => normName(x.name)).filter(Boolean));
   const emailMatchedNames = new Set();
   emailKeys.forEach(ek => [fByE.get(ek),hByE.get(ek),cByE.get(ek),dByE.get(ek),rByE.get(ek)].forEach(r => { if (r) emailMatchedNames.add(normName(r.name)); }));
-  const dupNames = new Set();
-  [flights,hotels,cars].forEach(list => { const seen = new Map(); list.forEach(x => { const k = normName(x.name); seen.set(k,(seen.get(k)||0)+1); }); seen.forEach((v,k) => { if (v>1) dupNames.add(k); }); });
+  const dupSources = new Map();
+  [flights,hotels,cars,dietary,registration].forEach(list => {
+    const seen = new Map();
+    list.forEach(x => { const k = normName(x.name); if (!k) return; if (!seen.has(k)) seen.set(k, []); seen.get(k).push(x.source || ""); });
+    seen.forEach((srcs, k) => { if (srcs.length > 1) { if (!dupSources.has(k)) dupSources.set(k, new Set()); srcs.forEach(sc => { if (sc) dupSources.get(k).add(sc); }); } });
+  });
+  const dupNames = new Set([...dupSources.keys()]);
 
   // Helper: does this registration row have a noted reason (in notes OR a dedicated reason column)?
   const hasReason = (reg) => {
@@ -631,6 +429,20 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
     if (departureCutoff && flight && flight.departureTime && flight.flightDeparture && flight.departureTime < departureCutoff) {
       issues.push({ type:"earlydeparture", text:`Departs ${fmtTime(flight.departureTime,"ampm")} (before ${fmtTime(departureCutoff,"ampm")} earliest departure)` });
     }
+    // ── Late-arrival rule (after-cutoff hotel risk) ──
+    // If a guest's flight lands (or their inbound car transfer picks up) after the late-arrival
+    // cutoff AND they have a hotel room booked, flag it so the planner can warn the hotel to hold
+    // the room. Many hotels release a room if the guest has not checked in by ~11 PM local time.
+    if (lateArrivalCutoff && hotel && hotel.checkIn) {
+      const flightLate = flight && flight.arrivalTime && flight.flightArrival && flight.arrivalTime > lateArrivalCutoff;
+      const carLate = car && car.pickupTime && car.pickupDate && car.pickupTime > lateArrivalCutoff;
+      const hotelName = hotel.hotel ? hotel.hotel.trim() : "the hotel";
+      if (flightLate) {
+        issues.push({ type:"latearrival", text:`Arrives ${fmtTime(flight.arrivalTime,"ampm")} (after ${fmtTime(lateArrivalCutoff,"ampm")} cutoff). Possible late arrival, notify ${hotelName} to hold the room` });
+      } else if (carLate) {
+        issues.push({ type:"latearrival", text:`Car pickup ${fmtTime(car.pickupTime,"ampm")} (after ${fmtTime(lateArrivalCutoff,"ampm")} cutoff). Possible late arrival, notify ${hotelName} to hold the room` });
+      }
+    }
     const arrDate = flight?.flightArrival || hotel?.checkIn || reg?.regCheckIn, depDate = flight?.flightDeparture || hotel?.checkOut || reg?.regCheckOut;
     if (arrDate && isOutside(arrDate, arrivalStart, arrivalEnd)) issues.push({ type:"window", text:`Arrival ${fmt(arrDate)} outside approved window` });
     if (depDate && isOutside(depDate, departureStart, departureEnd)) issues.push({ type:"window", text:`Departure ${fmt(depDate)} outside approved window` });
@@ -638,15 +450,17 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
     const depAptList = (departureAirports && departureAirports.length) ? departureAirports : preferredAirports;
     if (arrApt && isWrongAirport(arrApt, preferredAirports)) issues.push({ type:"airport", text:`Arrives at ${arrApt.toUpperCase()} (not a preferred airport)` });
     if (depApt && depApt !== arrApt && isWrongAirport(depApt, depAptList)) issues.push({ type:"airport", text:`Departs from ${depApt.toUpperCase()} (not a preferred airport)` });
-    if (dupNames.has(normName(displayName))) issues.push({ type:"duplicate", text:"Duplicate name detected across lists" });
+    if (dupNames.has(normName(displayName))) { const _srcs = [...(dupSources.get(normName(displayName)) || [])]; issues.push({ type:"duplicate", text: _srcs.length ? `Appears in multiple files (${_srcs.join(", ")})` : "Appears in more than one file" }); }
     const seen = new Set(); const uniqueIssues = issues.filter(x => { if (seen.has(x.text)) return false; seen.add(x.text); return true; });
+    // Notes from the registration file are informational only. Flags are cleared in-app with Resolve.
+    const fileNote = (reg?.regNotes && String(reg.regNotes).trim()) ? String(reg.regNotes).trim() : "";
     const resolved = existing.resolved || [];
     const active = uniqueIssues.filter(x => !resolved.includes(x.text));
     const status = active.length === 0 ? "ok" : active.length === 1 ? "warn" : "error";
     const { firstName, lastName } = splitName(displayName);
     const resolvedFirstName = reg?.firstName || flight?.firstName || hotel?.firstName || car?.firstName || diet?.firstName || firstName;
     const resolvedLastName  = reg?.lastName  || flight?.lastName  || hotel?.lastName  || car?.lastName  || diet?.lastName  || lastName;
-    return { key, displayName, firstName:resolvedFirstName, lastName:resolvedLastName, email, matchedBy, flight, hotel, car, diet, reg, registered: !!reg, issues:uniqueIssues, status, details, note:existing.note||"", resolved };
+    return { key, displayName, firstName:resolvedFirstName, lastName:resolvedLastName, email, matchedBy, flight, hotel, car, diet, reg, registered: !!reg, issues:uniqueIssues, status, details, note: fileNote || existing.note || "", noteBy: existing.noteBy || "", noteAt: existing.noteAt || "", resolved };
   }
 
   const results = [];
@@ -675,26 +489,6 @@ function diffResults(prev, curr) {
 
 
 // ── UI ────────────────────────────────────────────────────────────────────────
-function DropZone({ label, icon, sub, onFile, fileName, accent, optional }) {
-  const [drag, setDrag] = useState(false);
-  const onDrop = useCallback(e => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) onFile(f); }, [onFile]);
-  return (
-    <label onDragOver={e => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)} onDrop={onDrop}
-      style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", border:`2px dashed ${drag ? accent : fileName ? accent+"88" : P.grey200}`, borderRadius:"10px", padding:"18px 12px", cursor:"pointer", minHeight:"110px", background: fileName ? accent+"07" : P.white, transition:"all 0.2s", position:"relative" }}>
-      <input type="file" accept=".xlsx,.xls,.csv" style={{ display:"none" }} onChange={e => e.target.files[0] && onFile(e.target.files[0])} />
-      {optional && !fileName && <span style={{ position:"absolute", top:7, right:10, fontSize:"10px", color:P.grey400, fontFamily:font, fontWeight:500, textTransform:"uppercase" }}>Optional</span>}
-      <div style={{ marginBottom:"6px", color:P.grey400, display:"flex", alignItems:"center", justifyContent:"center" }}>{icon}</div>
-      {fileName ? <>
-        <div style={{ color:accent, fontSize:"15px", fontWeight:700, textAlign:"center", maxWidth:"120px", wordBreak:"break-word", fontFamily:font }}>{fileName}</div>
-        <div style={{ marginTop:"5px", background:P.greenLight, color:P.green, fontSize:"15px", fontWeight:800, padding:"2px 10px", borderRadius:"20px", fontFamily:font }}><Check size={10} strokeWidth={2.5} style={{display:"inline",marginRight:3}}/>Ready</div>
-      </> : <>
-        <div style={{ color:P.navy, fontWeight:800, fontSize:"14px", marginBottom:"2px", fontFamily:font }}>{label}</div>
-        <div style={{ color:P.navyLight, fontSize:"15px", fontFamily:font, textAlign:"center" }}>{sub}</div>
-      </>}
-    </label>
-  );
-}
-
 function StatusChip({ status }) {
   const cfg = { ok:{label:"Aligned",bg:P.greenLight,color:P.green}, warn:{label:"1 Issue",bg:P.amberLight,color:P.amber}, error:{label:"Action Needed",bg:P.redLight,color:P.red} };
   const s = cfg[status] || cfg.ok;
@@ -702,7 +496,7 @@ function StatusChip({ status }) {
 }
 
 function Delta({ val }) {
-  if (val === null || val === undefined) return <span style={{ color:P.grey400 }}>—</span>;
+  if (val === null || val === undefined) return <span style={{ color:P.grey600 }}>—</span>;
   if (val === 0) return <span style={{ color:P.green, fontWeight:700, fontFamily:font, fontSize:"15px" }}>On time</span>;
   const days = Math.abs(val);
   const word = days === 1 ? "day" : "days";
@@ -711,14 +505,14 @@ function Delta({ val }) {
 }
 
 function IssueTag({ issue, resolved, onResolve }) {
-  const cfg = { missing:{bg:P.amberLight,color:P.amber,border:`1px solid ${P.amber}44`,icon:<Circle size={11} strokeWidth={1.8}/>}, mismatch:{bg:P.redLight,color:P.red,border:`1px solid ${P.red}44`,icon:<AlertTriangle size={11} strokeWidth={1.8}/>}, window:{bg:P.purpleLight,color:P.purple,border:`1px solid ${P.purple}44`,icon:<Calendar size={11} strokeWidth={1.8}/>}, duplicate:{bg:"#FFF3E0",color:"#E65100",border:"1px solid #E6510044",icon:<AlertCircle size={11} strokeWidth={1.8}/>}, unregistered:{bg:P.purpleLight,color:P.purple,border:`1px solid ${P.purple}44`,icon:<Ban size={11} strokeWidth={1.8}/>}, airport:{bg:"#EAF2FE",color:"#4DA3FF",border:"1px solid #4DA3FF44",icon:<Plane size={11} strokeWidth={1.8}/>}, earlyarrival:{bg:"#EEF0FB",color:P.periwinkleD,border:`1px solid ${P.periwinkleD}44`,icon:<Calendar size={11} strokeWidth={1.8}/>}, earlydeparture:{bg:"#EEF0FB",color:P.periwinkleD,border:`1px solid ${P.periwinkleD}44`,icon:<Calendar size={11} strokeWidth={1.8}/>} };
+  const cfg = { missing:{bg:P.amberLight,color:P.amber,border:`1px solid ${P.amber}44`,icon:<Circle size={11} strokeWidth={1.8}/>}, mismatch:{bg:P.redLight,color:P.red,border:`1px solid ${P.red}44`,icon:<AlertTriangle size={11} strokeWidth={1.8}/>}, window:{bg:P.purpleLight,color:P.purple,border:`1px solid ${P.purple}44`,icon:<Calendar size={11} strokeWidth={1.8}/>}, duplicate:{bg:"#FEF2DC",color:"#C97A0A",border:"1px solid #C97A0A44",icon:<AlertCircle size={11} strokeWidth={1.8}/>}, unregistered:{bg:P.purpleLight,color:P.purple,border:`1px solid ${P.purple}44`,icon:<Ban size={11} strokeWidth={1.8}/>}, airport:{bg:"#EAF2FE",color:"#4F8EF7",border:"1px solid #4F8EF744",icon:<Plane size={11} strokeWidth={1.8}/>}, earlyarrival:{bg:"#EAF2FE",color:P.periwinkleD,border:`1px solid ${P.periwinkleD}44`,icon:<Calendar size={11} strokeWidth={1.8}/>}, earlydeparture:{bg:"#EAF2FE",color:P.periwinkleD,border:`1px solid ${P.periwinkleD}44`,icon:<Calendar size={11} strokeWidth={1.8}/>} };
   const s = cfg[issue.type] || cfg.mismatch;
   const isRes = (resolved || []).includes(issue.text);
   return (
-    <div style={{ background:isRes?"#f8f8f8":s.bg, border:isRes?`1px solid ${P.grey100}`:s.border, borderRadius:"8px", padding:"7px 11px", fontSize:"15px", color:isRes?P.grey400:s.color, fontWeight:700, fontFamily:font, marginBottom:"6px", display:"flex", alignItems:"flex-start", gap:"6px", opacity:isRes?0.6:1 }}>
+    <div style={{ background:isRes?"#EEF1F8":s.bg, border:isRes?`1px solid ${P.grey100}`:s.border, borderRadius:"8px", padding:"7px 11px", fontSize:"15px", color:isRes?P.grey600:s.color, fontWeight:700, fontFamily:font, marginBottom:"6px", display:"flex", alignItems:"flex-start", gap:"6px", opacity:isRes?0.6:1 }}>
       <span style={{ flexShrink:0, display:"flex", alignItems:"center" }}>{isRes?<Check size={11} strokeWidth={2.5}/>:s.icon}</span>
       <span style={{ flex:1, textDecoration:isRes?"line-through":"none" }}>{issue.text}</span>
-      <button onClick={e => { e.stopPropagation(); onResolve(issue.text); }} style={{ background:"transparent", border:`1px solid ${isRes?P.grey200:s.color}`, borderRadius:"6px", padding:"2px 8px", fontSize:"15px", color:isRes?P.grey400:s.color, fontWeight:700, fontFamily:font, cursor:"pointer", flexShrink:0 }}>{isRes?"Unresolve":"Resolve"}</button>
+      <button onClick={e => { e.stopPropagation(); onResolve(issue.text); }} style={{ background:"transparent", border:`1px solid ${isRes?P.grey200:s.color}`, borderRadius:"6px", padding:"2px 8px", fontSize:"15px", color:isRes?P.grey600:s.color, fontWeight:700, fontFamily:font, cursor:"pointer", flexShrink:0 }}>{isRes?"Unresolve":"Resolve"}</button>
     </div>
   );
 }
@@ -726,7 +520,7 @@ function IssueTag({ issue, resolved, onResolve }) {
 function Card({ title, color, children }) {
   return (
     <div style={{ background:P.white, borderRadius:"10px", padding:"14px 16px", border:`1px solid ${P.grey100}` }}>
-      <div style={{ fontSize:"14px", color, fontWeight:800, letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:font, marginBottom:"10px" }}>{title}</div>
+      <div style={{ fontSize:"17px", color, fontWeight:800, letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:font, marginBottom:"10px" }}>{title}</div>
       {children}
     </div>
   );
@@ -734,25 +528,16 @@ function Card({ title, color, children }) {
 
 function DR({ label, val, accent, warn }) {
   return (
-    <div style={{ display:"flex", justifyContent:"space-between", gap:"8px", fontSize:"14px", fontFamily:font, marginBottom:"4px" }}>
+    <div style={{ display:"flex", justifyContent:"space-between", gap:"8px", fontSize:"15px", fontFamily:font, marginBottom:"4px" }}>
       <span style={{ color:P.navy, fontWeight:600, flexShrink:0 }}>{label}</span>
       <span style={{ color:warn?P.red:accent?P.periwinkleD:P.navy, fontWeight:accent||warn?700:500, textAlign:"right", wordBreak:"break-all" }}>{val||"—"}</span>
     </div>
   );
 }
 
-function DateInput({ label, value, onChange }) {
-  return (
-    <div style={{ display:"flex", flexDirection:"column", gap:"4px" }}>
-      <label style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font }}>{label}</label>
-      <input type="date" value={value} onChange={e => onChange(e.target.value)} style={{ background:P.white, border:`1.5px solid ${P.grey200}`, borderRadius:"10px", padding:"7px 10px", color:value?P.navy:P.grey400, fontSize:"14px", fontFamily:font, fontWeight:600, outline:"none" }} />
-    </div>
-  );
-}
-
 function Btn({ onClick, children, color, outline, small, disabled }) {
   return (
-    <button onClick={onClick} disabled={disabled} style={{ background:disabled?P.grey100:outline?"transparent":(color||P.navy), color:disabled?P.grey400:outline?(color||P.navy):P.white, border:`1.5px solid ${disabled?P.grey200:(color||P.navy)}`, borderRadius:"7px", padding:small?"4px 11px":"8px 18px", fontSize:small?"11px":"12px", fontWeight:500, fontFamily:font, cursor:disabled?"not-allowed":"pointer", whiteSpace:"nowrap" }}>{children}</button>
+    <button onClick={onClick} disabled={disabled} style={{ background:disabled?P.grey100:outline?"transparent":(color||P.navy), color:disabled?P.grey600:outline?(color||P.navy):P.white, border:`1.5px solid ${disabled?P.grey200:(color||P.navy)}`, borderRadius:"7px", padding:small?"4px 11px":"8px 18px", fontSize:small?"11px":"12px", fontWeight:500, fontFamily:font, cursor:disabled?"not-allowed":"pointer", whiteSpace:"nowrap" }}>{children}</button>
   );
 }
 
@@ -774,24 +559,25 @@ function SupportModal({ user, onClose }) {
       stEmail.trim() ? `Reply to: ${stEmail.trim()}` : "",
       "Sent from the GroupGrid in-app support form",
     ].filter(Boolean);
-    window.location.href = `mailto:groupgrid@outlook.com?subject=${encodeURIComponent(subjectLine)}&body=${encodeURIComponent(lines.join("\n"))}`;
+    const routeAddr = stCategory === "Account / billing" ? "billing@groupgrid.io" : "support@groupgrid.io";
+    window.location.href = `mailto:${routeAddr}?subject=${encodeURIComponent(subjectLine)}&body=${encodeURIComponent(lines.join("\n"))}`;
   };
-  const inputStyle = (filled) => ({ width:"100%", background:P.grey50, border:`1.5px solid ${filled?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"11px 13px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" });
-  const labelStyle = { display:"block", fontSize:"13px", fontWeight:600, color:P.grey600, fontFamily:font, marginBottom:"6px" };
+  const inputStyle = (filled) => ({ width:"100%", background:P.grey50, border:`1.5px solid ${filled?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"11px 13px", fontSize:"15px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" });
+  const labelStyle = { display:"block", fontSize:"16px", fontWeight:600, color:P.grey600, fontFamily:font, marginBottom:"6px" };
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(27,42,74,0.55)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:"20px" }}>
       <div className="gg-modal" style={{ background:P.white, borderRadius:"22px", width:"100%", maxWidth:"560px", maxHeight:"90vh", overflow:"auto", boxShadow:"0 20px 60px rgba(27,42,74,0.3)" }}>
         <div style={{ padding:"20px 24px", borderBottom:`1px solid ${P.grey100}`, display:"flex", alignItems:"center", justifyContent:"space-between", gap:"14px" }}>
           <div>
             <div style={{ fontWeight:700, fontSize:"16px", color:P.navy, fontFamily:font }}>Contact support</div>
-            <div style={{ fontSize:"13px", color:P.grey400, fontFamily:font, marginTop:"2px", lineHeight:1.5 }}>We reply within one business day. This opens a pre-filled email to groupgrid@outlook.com in your mail app.</div>
+            <div style={{ fontSize:"16px", color:P.grey600, fontFamily:font, marginTop:"2px", lineHeight:1.5 }}>We reply within one business day. This opens a pre-filled email to {stCategory === "Account / billing" ? "billing@groupgrid.io" : "support@groupgrid.io"} in your mail app.</div>
           </div>
           <button onClick={onClose} style={{ background:P.grey100, border:"none", borderRadius:"10px", width:30, height:30, cursor:"pointer", color:P.navy, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><X size={15} strokeWidth={1.8}/></button>
         </div>
         <div style={{ padding:"20px 24px" }}>
           <div className="gg-contacts-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"14px" }}>
             <div>
-              <label style={labelStyle}>Your email <span style={{ color:P.grey400, fontWeight:400 }}>· so we can reply</span></label>
+              <label style={labelStyle}>Your email <span style={{ color:P.grey600, fontWeight:400 }}>· so we can reply</span></label>
               <input type="email" value={stEmail} onChange={e=>setStEmail(e.target.value)} placeholder="you@company.com" style={inputStyle(stEmail.trim())} />
             </div>
             <div>
@@ -810,8 +596,8 @@ function SupportModal({ user, onClose }) {
             <textarea value={stBody} onChange={e=>setStBody(e.target.value)} rows={5} placeholder="What happened, what you expected, and any steps to reproduce it. Include your event name if it helps." style={{ ...inputStyle(stBody.trim()), resize:"vertical", lineHeight:1.6 }} />
           </div>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"flex-end", gap:"12px", flexWrap:"wrap" }}>
-            <button onClick={onClose} style={{ background:"transparent", border:`1.5px solid ${P.grey200}`, borderRadius:"10px", padding:"10px 18px", fontSize:"14px", fontWeight:600, color:P.grey600, fontFamily:font, cursor:"pointer" }}>Cancel</button>
-            <button onClick={send} disabled={!ready} style={{ background:ready?P.accent:P.grey100, color:ready?P.white:P.grey400, border:"none", borderRadius:"10px", padding:"11px 22px", fontSize:"14px", fontWeight:800, fontFamily:font, cursor:ready?"pointer":"not-allowed", boxShadow:ready?"0 2px 12px rgba(0,201,177,0.35)":"none", transition:"all 0.18s", whiteSpace:"nowrap" }}>Send support ticket →</button>
+            <button onClick={onClose} style={{ background:"transparent", border:`1.5px solid ${P.grey200}`, borderRadius:"10px", padding:"10px 18px", fontSize:"17px", fontWeight:600, color:P.grey600, fontFamily:font, cursor:"pointer" }}>Cancel</button>
+            <button onClick={send} disabled={!ready} style={{ background:ready?P.accent:P.grey100, color:ready?P.white:P.grey600, border:"none", borderRadius:"10px", padding:"11px 22px", fontSize:"15px", fontWeight:800, fontFamily:font, cursor:ready?"pointer":"not-allowed", boxShadow:ready?"0 2px 12px rgba(0,201,177,0.35)":"none", transition:"all 0.18s", whiteSpace:"nowrap" }}>Send support ticket →</button>
           </div>
         </div>
       </div>
@@ -834,20 +620,20 @@ function ContactsModal({ contacts, onSave, onClose }) {
         <div style={{ padding:"20px 24px", borderBottom:`1px solid ${P.grey100}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
           <div>
             <div style={{ fontWeight:600, fontSize:"15px", color:P.navy, fontFamily:font }}>Event Contacts</div>
-            <div style={{ fontSize:"14px", color:P.navyLight, fontFamily:font, marginTop:"2px" }}>Pre-load contacts so emails auto-populate and reports can be shared directly</div>
+            <div style={{ fontSize:"15px", color:P.navyLight, fontFamily:font, marginTop:"2px" }}>Pre-load contacts so emails auto-populate and reports can be shared directly</div>
           </div>
-          <button onClick={onClose} style={{ background:P.grey100, border:"none", borderRadius:"10px", width:30, height:30, cursor:"pointer", fontSize:"14px", color:P.navy, display:"flex", alignItems:"center", justifyContent:"center" }}><X size={15} strokeWidth={1.8}/></button>
+          <button onClick={onClose} style={{ background:P.grey100, border:"none", borderRadius:"10px", width:30, height:30, cursor:"pointer", fontSize:"15px", color:P.navy, display:"flex", alignItems:"center", justifyContent:"center" }}><X size={15} strokeWidth={1.8}/></button>
         </div>
         <div style={{ padding:"20px 24px" }}>
           {fields.map(({ key, label, color, fields: flds }) => (
             <div key={key} style={{ marginBottom:"24px" }}>
-              <div style={{ fontSize:"14px", fontWeight:600, color, marginBottom:"12px", fontFamily:font, display:"flex", alignItems:"center", gap:"8px" }}>
+              <div style={{ fontSize:"15px", fontWeight:600, color, marginBottom:"12px", fontFamily:font, display:"flex", alignItems:"center", gap:"8px" }}>
                 <div style={{ width:3, height:16, background:color, borderRadius:"2px" }} />{label}
               </div>
               <div className="gg-contacts-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px" }}>
                 {flds.map(({ f, ph }) => (
                   <div key={f}>
-                    <div style={{ fontSize:"15px", fontWeight:700, color:P.navyLight, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"4px" }}>{f}</div>
+                    <div style={{ fontSize:"16px", fontWeight:700, color:P.navyLight, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"4px" }}>{f}</div>
                     <input value={local[key]?.[f]||""} onChange={e => update(key, f, e.target.value)} placeholder={ph}
                       style={{ width:"100%", background:P.offWhite, border:`1.5px solid ${local[key]?.[f]?color+"44":P.grey100}`, borderRadius:"10px", padding:"9px 12px", fontSize:"15px", fontFamily:font, fontWeight:600, color:P.navy, outline:"none", boxSizing:"border-box" }} />
                   </div>
@@ -857,30 +643,30 @@ function ContactsModal({ contacts, onSave, onClose }) {
           ))}
           {/* Per-property hotel contacts (multi-hotel) */}
           <div style={{ marginBottom:"24px" }}>
-            <div style={{ fontSize:"14px", fontWeight:600, color:P.navy, marginBottom:"4px", fontFamily:font, display:"flex", alignItems:"center", gap:"8px" }}>
-              <div style={{ width:3, height:16, background:"#F5A623", borderRadius:"2px" }} />Additional hotel properties
+            <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, marginBottom:"4px", fontFamily:font, display:"flex", alignItems:"center", gap:"8px" }}>
+              <div style={{ width:3, height:16, background:"#C97A0A", borderRadius:"2px" }} />Additional hotel properties
             </div>
-            <div style={{ fontSize:"13px", color:P.navyLight, fontFamily:font, marginBottom:"12px" }}>Running multiple hotels? Add a contact per property. Emails about each guest's room route to the matching property automatically.</div>
+            <div style={{ fontSize:"15px", color:P.navyLight, fontFamily:font, marginBottom:"12px" }}>Running multiple hotels? Add a contact per property. Emails about each guest's room route to the matching property automatically.</div>
             {(local.hotels||[]).map((h, idx) => (
               <div key={idx} style={{ display:"flex", gap:"8px", marginBottom:"8px", alignItems:"center", flexWrap:"wrap" }}>
                 <input value={h.property||""} onChange={e => setLocal(prev => ({ ...prev, hotels: prev.hotels.map((x,i)=>i===idx?{...x,property:e.target.value}:x) }))} placeholder="Property name"
-                  style={{ flex:"1 1 140px", background:P.offWhite, border:`1.5px solid ${h.property?"#F5A62344":P.grey100}`, borderRadius:"9px", padding:"9px 11px", fontSize:"14px", fontFamily:font, fontWeight:500, color:P.navy, outline:"none", minWidth:0 }} />
+                  style={{ flex:"1 1 140px", background:P.offWhite, border:`1.5px solid ${h.property?"#C97A0A44":P.grey100}`, borderRadius:"9px", padding:"9px 11px", fontSize:"15px", fontFamily:font, fontWeight:500, color:P.navy, outline:"none", minWidth:0 }} />
                 <input value={h.name||""} onChange={e => setLocal(prev => ({ ...prev, hotels: prev.hotels.map((x,i)=>i===idx?{...x,name:e.target.value}:x) }))} placeholder="Contact name"
-                  style={{ flex:"1 1 120px", background:P.offWhite, border:`1.5px solid ${P.grey100}`, borderRadius:"9px", padding:"9px 11px", fontSize:"14px", fontFamily:font, fontWeight:500, color:P.navy, outline:"none", minWidth:0 }} />
+                  style={{ flex:"1 1 120px", background:P.offWhite, border:`1.5px solid ${P.grey100}`, borderRadius:"9px", padding:"9px 11px", fontSize:"15px", fontFamily:font, fontWeight:500, color:P.navy, outline:"none", minWidth:0 }} />
                 <input value={h.email||""} onChange={e => setLocal(prev => ({ ...prev, hotels: prev.hotels.map((x,i)=>i===idx?{...x,email:e.target.value}:x) }))} placeholder="email@hotel.com"
-                  style={{ flex:"2 1 160px", background:P.offWhite, border:`1.5px solid ${h.email?"#F5A62344":P.grey100}`, borderRadius:"9px", padding:"9px 11px", fontSize:"14px", fontFamily:font, fontWeight:500, color:P.navy, outline:"none", minWidth:0 }} />
-                <button onClick={() => setLocal(prev => ({ ...prev, hotels: prev.hotels.filter((_,i)=>i!==idx) }))} style={{ background:"transparent", border:"none", color:P.grey400, cursor:"pointer", flexShrink:0, padding:"4px" }} title="Remove"><X size={15} strokeWidth={1.8}/></button>
+                  style={{ flex:"2 1 160px", background:P.offWhite, border:`1.5px solid ${h.email?"#C97A0A44":P.grey100}`, borderRadius:"9px", padding:"9px 11px", fontSize:"15px", fontFamily:font, fontWeight:500, color:P.navy, outline:"none", minWidth:0 }} />
+                <button onClick={() => setLocal(prev => ({ ...prev, hotels: prev.hotels.filter((_,i)=>i!==idx) }))} style={{ background:"transparent", border:"none", color:P.grey600, cursor:"pointer", flexShrink:0, padding:"4px" }} title="Remove"><X size={15} strokeWidth={1.8}/></button>
               </div>
             ))}
             <button onClick={() => setLocal(prev => ({ ...prev, hotels:[...(prev.hotels||[]), {property:"",name:"",email:""}] }))}
-              style={{ background:"transparent", border:"none", color:P.accentD, fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer", marginTop:"4px", padding:"4px 0" }}>+ Add hotel property contact</button>
+              style={{ background:"transparent", border:"none", color:P.accentD, fontSize:"15px", fontWeight:500, fontFamily:font, cursor:"pointer", marginTop:"4px", padding:"4px 0" }}>+ Add hotel property contact</button>
           </div>
           <div style={{ marginBottom:"24px" }}>
-            <div style={{ fontSize:"14px", fontWeight:800, color:P.navy, marginBottom:"12px", fontFamily:font, display:"flex", alignItems:"center", gap:"8px" }}>
-              <div style={{ width:3, height:16, background:P.grey400, borderRadius:"2px" }} />✍ Your Name (used in email signatures)
+            <div style={{ fontSize:"15px", fontWeight:800, color:P.navy, marginBottom:"12px", fontFamily:font, display:"flex", alignItems:"center", gap:"8px" }}>
+              <div style={{ width:3, height:16, background:P.grey600, borderRadius:"2px" }} />✍ Your Name (used in email signatures)
             </div>
             <input value={local.plannerName||""} onChange={e => setLocal(prev => ({...prev, plannerName:e.target.value}))} placeholder="e.g. Your name, Events Team"
-              style={{ width:"100%", background:P.offWhite, border:`1.5px solid ${local.plannerName?P.grey400+"44":P.grey100}`, borderRadius:"10px", padding:"9px 12px", fontSize:"15px", fontFamily:font, fontWeight:600, color:P.navy, outline:"none", boxSizing:"border-box" }} />
+              style={{ width:"100%", background:P.offWhite, border:`1.5px solid ${local.plannerName?P.grey600+"44":P.grey100}`, borderRadius:"10px", padding:"9px 12px", fontSize:"15px", fontFamily:font, fontWeight:600, color:P.navy, outline:"none", boxSizing:"border-box" }} />
           </div>
           <div style={{ display:"flex", gap:"10px", paddingTop:"8px", borderTop:`1px solid ${P.grey100}` }}>
             <Btn onClick={() => { onSave(local); onClose(); }} color={P.accent}>Save Contacts <Save size={13} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></Btn>
@@ -928,14 +714,14 @@ function ShareModal({ html, filename, onClose }) {
           <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
             <div>
               <div style={{ fontWeight:800, fontSize:"15px", color:P.white, fontFamily:font }}>Share Report</div>
-              <div style={{ fontSize:"12px", color:"rgba(255,255,255,0.45)", fontFamily:font, marginTop:"1px" }}>{filename}</div>
+              <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.45)", fontFamily:font, marginTop:"1px" }}>{filename}</div>
             </div>
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
             {/* Tab toggle */}
             <div style={{ display:"flex", background:"rgba(255,255,255,0.08)", borderRadius:"8px", padding:"3px", gap:"3px" }}>
               {[["options","Options"],["preview","Preview"]].map(([t,label]) => (
-                <button key={t} onClick={() => setTab(t)} style={{ padding:"4px 12px", borderRadius:"6px", border:"none", cursor:"pointer", fontFamily:font, fontSize:"12px", fontWeight:700, background:tab===t?"rgba(255,255,255,0.15)":"transparent", color:tab===t?P.white:"rgba(255,255,255,0.45)", transition:"all 0.15s" }}>{label}</button>
+                <button key={t} onClick={() => setTab(t)} style={{ padding:"4px 12px", borderRadius:"6px", border:"none", cursor:"pointer", fontFamily:font, fontSize:"15px", fontWeight:700, background:tab===t?"rgba(255,255,255,0.15)":"transparent", color:tab===t?P.white:"rgba(255,255,255,0.45)", transition:"all 0.15s" }}>{label}</button>
               ))}
             </div>
             <button onClick={onClose} style={{ background:"rgba(255,255,255,0.1)", border:"none", borderRadius:"8px", width:28, height:28, cursor:"pointer", color:"rgba(255,255,255,0.6)", display:"flex", alignItems:"center", justifyContent:"center" }}><X size={14} strokeWidth={1.8}/></button>
@@ -951,23 +737,23 @@ function ShareModal({ html, filename, onClose }) {
                 <Download size={17} strokeWidth={1.8} color="white"/>
               </div>
               <div>
-                <div style={{ fontSize:"14px", fontWeight:700, color:downloaded?P.green:P.navy, fontFamily:font }}>{downloaded ? "✓ Downloaded!" : "Download HTML File"}</div>
-                <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginTop:"2px" }}>Save to your device. Email it, or upload to Google Drive to share with your team.</div>
+                <div style={{ fontSize:"15px", fontWeight:700, color:downloaded?P.green:P.navy, fontFamily:font }}>{downloaded ? "✓ Downloaded!" : "Download HTML File"}</div>
+                <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginTop:"2px" }}>Save to your device. Email it, or upload to Google Drive to share with your team.</div>
               </div>
             </button>
 
             {/* Copy HTML */}
-            <button onClick={copyHtml} style={{ display:"flex", alignItems:"center", gap:"14px", background:copied?"#EFF6FF":P.offWhite, border:`2px solid ${copied?P.periwinkleD:P.grey200}`, borderRadius:"12px", padding:"14px 18px", cursor:"pointer", textAlign:"left", transition:"all 0.15s" }}>
+            <button onClick={copyHtml} style={{ display:"flex", alignItems:"center", gap:"14px", background:copied?"#EAF2FE":P.offWhite, border:`2px solid ${copied?P.periwinkleD:P.grey200}`, borderRadius:"12px", padding:"14px 18px", cursor:"pointer", textAlign:"left", transition:"all 0.15s" }}>
               <div style={{ width:38, height:38, borderRadius:"10px", background:copied?P.periwinkleD:P.periwinkle, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"background 0.15s" }}>
                 <Copy size={17} strokeWidth={1.8} color="white"/>
               </div>
               <div>
-                <div style={{ fontSize:"14px", fontWeight:700, color:copied?P.periwinkleD:P.navy, fontFamily:font }}>{copied ? "✓ HTML copied!" : "Copy HTML Source"}</div>
-                <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginTop:"2px" }}>Copy the full HTML to paste into an email, CMS, or any editor that accepts HTML.</div>
+                <div style={{ fontSize:"15px", fontWeight:700, color:copied?P.periwinkleD:P.navy, fontFamily:font }}>{copied ? "✓ HTML copied!" : "Copy HTML Source"}</div>
+                <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginTop:"2px" }}>Copy the full HTML to paste into an email, CMS, or any editor that accepts HTML.</div>
               </div>
             </button>
 
-            <div style={{ background:P.offWhite, borderRadius:"8px", padding:"10px 14px", fontSize:"12px", color:P.grey400, fontFamily:font, lineHeight:1.6 }}>
+            <div style={{ background:P.offWhite, borderRadius:"8px", padding:"10px 14px", fontSize:"15px", color:P.grey600, fontFamily:font, lineHeight:1.6 }}>
               🔒 All guest data is embedded in the file only — nothing is uploaded anywhere.
             </div>
           </div>
@@ -976,8 +762,8 @@ function ShareModal({ html, filename, onClose }) {
         {tab === "preview" && (
           <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
             <div style={{ padding:"8px 16px", background:P.offWhite, borderBottom:`1px solid ${P.grey100}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-              <span style={{ fontSize:"12px", color:P.grey400, fontFamily:font }}>Report preview — scroll to explore</span>
-              <button onClick={download} style={{ display:"flex", alignItems:"center", gap:"6px", background:P.navy, border:"none", borderRadius:"8px", padding:"6px 14px", cursor:"pointer", fontFamily:font, fontSize:"12px", fontWeight:700, color:P.white }}>
+              <span style={{ fontSize:"15px", color:P.grey600, fontFamily:font }}>Report preview</span>
+              <button onClick={download} style={{ display:"flex", alignItems:"center", gap:"6px", background:P.navy, border:"none", borderRadius:"8px", padding:"6px 14px", cursor:"pointer", fontFamily:font, fontSize:"15px", fontWeight:700, color:P.white }}>
                 <Download size={13} strokeWidth={1.8} color="white"/> Download
               </button>
             </div>
@@ -1217,15 +1003,15 @@ ${evName ? evName + " Planning Team" : "Planning Team"}`,
         <div style={{ padding:"20px 24px", borderBottom:`1px solid ${P.grey100}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
           <div>
             <div style={{ fontWeight:600, fontSize:"15px", color:P.navy, fontFamily:font }}>Draft Email</div>
-            <div style={{ fontSize:"14px", color:P.navyLight, fontFamily:font, marginTop:"2px" }}>{record.displayName} · {issues.length} flag{issues.length !== 1 ? "s" : ""}</div>
+            <div style={{ fontSize:"15px", color:P.navyLight, fontFamily:font, marginTop:"2px" }}>{record.displayName} · {issues.length} flag{issues.length !== 1 ? "s" : ""}</div>
           </div>
-          <button onClick={onClose} style={{ background:P.grey100, border:"none", borderRadius:"10px", width:30, height:30, cursor:"pointer", fontSize:"14px", color:P.navy, display:"flex", alignItems:"center", justifyContent:"center" }}><X size={15} strokeWidth={1.8}/></button>
+          <button onClick={onClose} style={{ background:P.grey100, border:"none", borderRadius:"10px", width:30, height:30, cursor:"pointer", fontSize:"15px", color:P.navy, display:"flex", alignItems:"center", justifyContent:"center" }}><X size={15} strokeWidth={1.8}/></button>
         </div>
         <div style={{ padding:"18px 24px" }}>
           {/* Tabs with contact indicator */}
           <div style={{ display:"flex", gap:"8px", marginBottom:"18px" }}>
             {tabs.map(({ k, l, hasContact: hc }) => (
-              <button key={k} onClick={() => setType(k)} style={{ background:type===k?P.navy:P.offWhite, color:type===k?P.white:P.grey600, border:`1px solid ${type===k?P.navy:P.grey200}`, borderRadius:"7px", padding:"5px 12px", fontSize:"14px", fontWeight:500, fontFamily:font, cursor:"pointer", position:"relative", display:"flex", alignItems:"center", gap:"6px" }}>
+              <button key={k} onClick={() => setType(k)} style={{ background:type===k?P.navy:P.offWhite, color:type===k?P.white:P.grey600, border:`1px solid ${type===k?P.navy:P.grey200}`, borderRadius:"7px", padding:"5px 12px", fontSize:"15px", fontWeight:500, fontFamily:font, cursor:"pointer", position:"relative", display:"flex", alignItems:"center", gap:"6px" }}>
                 {l}
                 {hc
                   ? <span style={{ width:7, height:7, borderRadius:"50%", background:type===k?"rgba(255,255,255,0.7)":P.green, display:"inline-block" }} title="Contact saved" />
@@ -1236,7 +1022,7 @@ ${evName ? evName + " Planning Team" : "Planning Team"}`,
 
           {/* No contact warning */}
           {!hasContact && (
-            <div style={{ background:P.amberLight, border:`1px solid ${P.amber}44`, borderRadius:"10px", padding:"10px 14px", marginBottom:"14px", fontSize:"14px", color:P.amber, fontWeight:700, fontFamily:font, display:"flex", alignItems:"center", gap:"8px" }}>
+            <div style={{ background:P.amberLight, border:`1px solid ${P.amber}44`, borderRadius:"10px", padding:"10px 14px", marginBottom:"14px", fontSize:"15px", color:P.amber, fontWeight:700, fontFamily:font, display:"flex", alignItems:"center", gap:"8px" }}>
               <AlertTriangle size={13} strokeWidth={1.8}/>
               <span>No {type === "hotel" ? "hotel" : type === "travel" ? "travel agency" : "guest"} email on file.
                 {type !== "guest" && <span style={{ fontWeight:400, color:P.amber }}> Close this and click <strong>📇 Contacts</strong> to add one.</span>}
@@ -1246,14 +1032,14 @@ ${evName ? evName + " Planning Team" : "Planning Team"}`,
 
           {/* To field — editable */}
           <div style={{ marginBottom:"10px" }}>
-            <div style={{ fontSize:"15px", fontWeight:700, color:P.navyLight, fontFamily:font, marginBottom:"3px", textTransform:"uppercase", letterSpacing:"0.06em" }}>To</div>
+            <div style={{ fontSize:"16px", fontWeight:700, color:P.navyLight, fontFamily:font, marginBottom:"3px", textTransform:"uppercase", letterSpacing:"0.06em" }}>To</div>
             <input value={toEmail} onChange={e => setToEmail(e.target.value)} placeholder={draft.toDisplay || "Enter email address…"}
               style={{ width:"100%", background:toEmail?P.white:P.offWhite, border:`1.5px solid ${toEmail?P.periwinkle+"44":P.grey100}`, borderRadius:"9px", padding:"8px 12px", fontSize:"15px", fontFamily:font, fontWeight:600, color:P.navy, outline:"none", boxSizing:"border-box" }} />
           </div>
 
           {/* Subject — editable */}
           <div style={{ marginBottom:"10px" }}>
-            <div style={{ fontSize:"15px", fontWeight:700, color:P.navyLight, fontFamily:font, marginBottom:"3px", textTransform:"uppercase", letterSpacing:"0.06em" }}>Subject</div>
+            <div style={{ fontSize:"16px", fontWeight:700, color:P.navyLight, fontFamily:font, marginBottom:"3px", textTransform:"uppercase", letterSpacing:"0.06em" }}>Subject</div>
             <input value={currentSubject} onChange={e => setEditedSubject(e.target.value)}
               style={{ width:"100%", background:editedSubject!==null?P.white:P.offWhite, border:`1.5px solid ${editedSubject!==null?P.periwinkle+"66":P.grey100}`, borderRadius:"9px", padding:"8px 12px", fontSize:"15px", fontFamily:font, fontWeight:600, color:P.navy, outline:"none", boxSizing:"border-box" }} />
           </div>
@@ -1261,21 +1047,21 @@ ${evName ? evName + " Planning Team" : "Planning Team"}`,
           {/* Body — editable */}
           <div style={{ marginBottom:"16px" }}>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"3px" }}>
-              <div style={{ fontSize:"15px", fontWeight:700, color:P.navyLight, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em" }}>Body</div>
+              <div style={{ fontSize:"16px", fontWeight:700, color:P.navyLight, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em" }}>Body</div>
               {isDirtyEmail && (
                 <div style={{ display:"flex", gap:"6px" }}>
-                  <button onClick={saveEdits} style={{ background:saved?P.greenLight:P.periwinkleD, color:saved?P.green:P.white, border:"none", borderRadius:"6px", padding:"3px 10px", fontSize:"12px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>{saved ? <>Saved <Check size={12} strokeWidth={2.5} style={{verticalAlign:"-2px"}}/></> : <>Save <Save size={12} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></>}</button>
-                  <button onClick={resetEdits} style={{ background:P.offWhite, color:P.grey400, border:`1px solid ${P.grey200}`, borderRadius:"6px", padding:"3px 10px", fontSize:"12px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>Reset</button>
+                  <button onClick={saveEdits} style={{ background:saved?P.greenLight:P.periwinkleD, color:saved?P.green:P.white, border:"none", borderRadius:"6px", padding:"3px 10px", fontSize:"15px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>{saved ? <>Saved <Check size={12} strokeWidth={2.5} style={{verticalAlign:"-2px"}}/></> : <>Save <Save size={12} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></>}</button>
+                  <button onClick={resetEdits} style={{ background:P.offWhite, color:P.grey600, border:`1px solid ${P.grey200}`, borderRadius:"6px", padding:"3px 10px", fontSize:"15px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>Reset</button>
                 </div>
               )}
             </div>
             <textarea value={currentBody} onChange={e => setEditedBody(e.target.value)}
-              style={{ width:"100%", height:"220px", background:editedBody!==null?P.white:P.offWhite, border:`1.5px solid ${editedBody!==null?P.periwinkle+"66":P.grey100}`, borderRadius:"10px", padding:"12px", fontSize:"14px", fontFamily:font, color:P.navy, resize:"vertical", outline:"none", boxSizing:"border-box", lineHeight:1.6 }} />
+              style={{ width:"100%", height:"220px", background:editedBody!==null?P.white:P.offWhite, border:`1.5px solid ${editedBody!==null?P.periwinkle+"66":P.grey100}`, borderRadius:"10px", padding:"12px", fontSize:"15px", fontFamily:font, color:P.navy, resize:"vertical", outline:"none", boxSizing:"border-box", lineHeight:1.6 }} />
           </div>
 
           {/* Actions */}
           <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
-            <Btn onClick={openMailto} color={hasContact || toEmail ? P.navy : P.grey400} disabled={!hasContact && !toEmail}>
+            <Btn onClick={openMailto} color={hasContact || toEmail ? P.navy : P.grey600} disabled={!hasContact && !toEmail}>
               {hasContact || toEmail ? "Open in Mail App ↗" : "Open in Mail App ↗"}
             </Btn>
             <Btn onClick={copy} color={copied?P.green:P.periwinkleD} outline>{copied?"Copied!":"Copy to Clipboard"}</Btn>
@@ -1288,452 +1074,6 @@ ${evName ? evName + " Planning Team" : "Planning Team"}`,
   );
 }
 
-// ── Default Email Templates ───────────────────────────────────────────────────
-const DEFAULT_TEMPLATES = {
-  arrives_early: {
-    id: "arrives_early",
-    label: "Arrives Before Check-In",
-    icon: "✈",
-    color: P.amber,
-    description: "Guest flight arrives before hotel check-in date",
-    subject: "{{eventName}} [Arrival]: Could you confirm your travel details?",
-    body: `Hi {{guestName}},
-
-We are reviewing travel for {{eventName}} and spotted a timing gap to confirm with you:
-
-──────────────────────
-Flight arrives: {{flightArrival}}{{arrivalTimeTail}} into {{arrivalAirport}} (Flight {{flightIn}})
-Hotel check-in: {{checkIn}} at {{hotel}}
-
-Your flight lands the day before your hotel check-in.
-──────────────────────
-
-What we need: reply to let us know one of these.
-
-  My arrival night is covered, no change needed.
-  Please add an extra night at {{hotel}} for me.
-
-Happy to contact {{hotel}} for you if that is easier.
-
-Warmly,
-{{plannerName}}
-{{eventName}} Planning Team`,
-  },
-  departs_late: {
-    id: "departs_late",
-    label: "Departs After Check-Out",
-    icon: "🏨",
-    color: P.amber,
-    description: "Guest flight departs after hotel check-out date",
-    subject: "{{eventName}} [Departure]: Could you confirm your travel details?",
-    body: `Hi {{guestName}},
-
-We are reviewing travel for {{eventName}} and spotted a timing gap to confirm:
-
-──────────────────────
-Hotel check-out: {{checkOut}} at {{hotel}}
-Flight departs: {{flightDeparture}}{{departureTimeTail}} from {{departureAirport}} (Flight {{flightOut}})
-
-Your hotel checks out before your flight departs.
-──────────────────────
-
-What we need: reply to let us know one of these.
-
-  My departure night is covered, no change needed.
-  Please extend my stay at {{hotel}} by one night.
-
-Happy to contact {{hotel}} for you if that is easier.
-
-Warmly,
-{{plannerName}}
-{{eventName}} Planning Team`,
-  },
-  missing_hotel: {
-    id: "missing_hotel",
-    label: "No Hotel Record Found",
-    icon: "🏨",
-    color: P.red,
-    description: "Guest appears in flight list but no hotel booking on file",
-    subject: "{{eventName}} [Hotel]: Could you confirm your travel details?",
-    body: `Hi {{guestName}},
-
-We are reviewing travel for {{eventName}} and we do not have a hotel booking on file for you:
-
-──────────────────────
-Flight arrives: {{flightArrival}}{{arrivalTimeTail}} into {{arrivalAirport}} (Flight {{flightIn}})
-Hotel booking: Not on file
-──────────────────────
-
-We do not want you arriving without a room. What we need: reply with one of these.
-
-  I booked my own hotel. Confirmation: ___________
-  Please book a room for me.
-
-Warmly,
-{{plannerName}}
-{{eventName}} Planning Team`,
-  },
-  missing_flight: {
-    id: "missing_flight",
-    label: "No Flight Record Found",
-    icon: "✈",
-    color: P.red,
-    description: "Guest appears in hotel list but no flight on file",
-    subject: "{{eventName}} [Flight]: Could you confirm your travel details?",
-    body: `Hi {{guestName}},
-
-Your room at {{hotel}} is confirmed for {{eventName}}, but we do not have your flight details yet:
-
-──────────────────────
-Flight: Not on file
-Hotel check-in: {{checkIn}} at {{hotel}}
-──────────────────────
-
-What we need: reply with your inbound and outbound flight numbers, dates, and arrival airport. If you are not flying, just let us know and we will update your record.
-
-Warmly,
-{{plannerName}}
-{{eventName}} Planning Team`,
-  },
-  missing_transfer: {
-    id: "missing_transfer",
-    label: "No Transfer on File",
-    icon: "🚗",
-    color: P.amber,
-    description: "Guest has no car transfer record",
-    subject: "{{eventName}} [Transfer]: Could you confirm your travel details?",
-    body: `Hi {{guestName}},
-
-We are arranging ground transfers for {{eventName}} and do not have one on file for you:
-
-──────────────────────
-Flight arrives: {{flightArrival}}{{arrivalTimeTail}} into {{arrivalAirport}} (Flight {{flightIn}})
-Transfer: Not on file
-──────────────────────
-
-What we need: reply with your preference.
-
-  Yes, please arrange a transfer from {{arrivalAirport}} to {{hotel}}.
-  No thanks, I have my own transportation.
-
-Warmly,
-{{plannerName}}
-{{eventName}} Planning Team`,
-  },
-  car_mismatch: {
-    id: "car_mismatch",
-    label: "Car Transfer Timing",
-    icon: "🚗",
-    color: P.red,
-    description: "Car transfer time does not line up with the guest's flight",
-    subject: "{{eventName}} [Car Transfer]: Could you confirm your travel details?",
-    body: `Hi {{guestName}},
-
-We are reviewing ground transfers for {{eventName}} and your transfer times do not line up with your flights:
-
-──────────────────────
-Flight arrives: {{flightArrival}}{{arrivalTimeTail}}
-Car pickup: {{carPickup}}
-
-Flight departs: {{flightDeparture}}{{departureTimeTail}}
-Car dropoff: {{carDropoff}}
-──────────────────────
-
-What we need: reply to confirm these times are right, or tell us what to adjust.
-
-Warmly,
-{{plannerName}}
-{{eventName}} Planning Team`,
-  },
-  needs_registration: {
-    id: "needs_registration",
-    label: "Needs to Register",
-    icon: "📝",
-    color: P.purple,
-    description: "Guest has travel booked but is not on the registration list",
-    subject: "{{eventName}} [Registration]: Could you confirm your travel details?",
-    body: `Hi {{guestName}},
-
-We can see travel arranged for you for {{eventName}}, but you are not yet on our registration list:
-
-──────────────────────
-We have booked for you:
-{{bookedTravel}}
-
-Registration: Not on file
-──────────────────────
-
-What we need: complete your registration for {{eventName}}. It takes a minute and confirms your spot. If you believe you already registered, just reply and we will check.
-
-Warmly,
-{{plannerName}}
-{{eventName}} Planning Team`,
-  },
-  wrong_airport: {
-    id: "wrong_airport",
-    label: "Different Airport",
-    icon: "✈",
-    color: "#4DA3FF",
-    description: "Guest is flying into an airport that isn't a preferred event airport",
-    subject: "{{eventName}} [Airport]: Could you confirm your travel details?",
-    body: `Hi {{guestName}},
-
-We are reviewing travel for {{eventName}} and noticed your arrival airport:
-
-──────────────────────
-Flight arrives: {{arrivalAirport}} on {{flightArrival}}{{arrivalTimeTail}} (Flight {{flightIn}})
-
-This is not an airport we are coordinating arrivals around.
-──────────────────────
-
-This may be intentional. What we need: reply to confirm your airport is correct, or let us know if you would like help adjusting it.
-
-Warmly,
-{{plannerName}}
-{{eventName}} Planning Team`,
-  },
-  outside_window: {
-    id: "outside_window",
-    label: "Outside Approved Travel Window",
-    icon: "🗓",
-    color: P.purple,
-    description: "Guest travel dates fall outside the approved event window",
-    subject: "{{eventName}} [Travel Dates]: Could you confirm your travel details?",
-    body: `Hi {{guestName}},
-
-We are reviewing travel for {{eventName}} and your dates fall outside the event travel window:
-
-──────────────────────
-Flight arrives: {{flightArrival}}{{arrivalTimeTail}} into {{arrivalAirport}}
-Flight departs: {{flightDeparture}}{{departureTimeTail}} from {{departureAirport}}
-Event window: {{eventStart}} to {{eventEnd}}
-──────────────────────
-
-This may be intentional. What we need: reply to confirm your dates are correct, or tell us if they need a change.
-
-Warmly,
-{{plannerName}}
-{{eventName}} Planning Team`,
-  },
-  general_confirmation: {
-    id: "general_confirmation",
-    label: "General Travel Confirmation",
-    icon: "✅",
-    color: P.green,
-    description: "Proactive confirmation request for all guests",
-    subject: "{{eventName}} [Travel Review]: Could you confirm your travel details?",
-    body: `Hi {{guestName}},
-
-A quick travel check for {{eventName}}. Here is what we have on file:
-
-──────────────────────
-Arrival: {{flightArrival}}{{arrivalTimeTail}} into {{arrivalAirport}} (Flight {{flightIn}})
-Hotel: {{checkIn}} to {{checkOut}} at {{hotel}}
-Departure: {{flightDeparture}}{{departureTimeTail}} from {{departureAirport}} (Flight {{flightOut}})
-──────────────────────
-
-What we need: reply to confirm it is correct, or tell us what to change.
-
-  Looks good, I am all set.
-  Please update: ___________
-
-Warmly,
-{{plannerName}}
-{{eventName}} Planning Team`,
-  },
-};
-function fillTemplate(template, record, extra = {}) {
-  const map = {
-    "{{guestName}}": record.firstName || record.displayName || "",
-    "{{guestFirstName}}": record.firstName || record.displayName.split(" ")[0] || "",
-    "{{guestLastName}}": record.lastName || record.displayName.split(" ").slice(1).join(" ") || "",
-    "{{guestFullName}}": record.displayName || "",
-    "{{eventName}}": extra.eventName || "our event",
-    "{{flightArrival}}": fmt(record.flight?.flightArrival) || "—",
-    "{{flightDeparture}}": fmt(record.flight?.flightDeparture) || "—",
-    "{{arrivalTime}}": fmtTime(record.flight?.arrivalTime, "ampm") || "—",
-    "{{departureTime}}": fmtTime(record.flight?.departureTime, "ampm") || "—",
-    "{{arrivalTimeTail}}": record.flight?.arrivalTime ? ` at ${fmtTime(record.flight.arrivalTime, "ampm")}` : "",
-    "{{departureTimeTail}}": record.flight?.departureTime ? ` at ${fmtTime(record.flight.departureTime, "ampm")}` : "",
-    "{{carPickupTime}}": fmtTime(record.car?.pickupTime, "ampm") || "—",
-    "{{carDropoffTime}}": fmtTime(record.car?.dropoffTime, "ampm") || "—",
-    "{{flightIn}}": record.flight?.flightIn || "—",
-    "{{flightOut}}": record.flight?.flightOut || "—",
-    "{{arrivalAirport}}": record.flight?.arrivalAirport || record.flight?.airport || "the airport",
-    "{{departureAirport}}": record.flight?.departureAirport || record.flight?.airport || "the airport",
-    "{{airport}}": record.flight?.airport || record.flight?.arrivalAirport || record.flight?.departureAirport || "the airport",
-    "{{checkIn}}": fmt(record.hotel?.checkIn) || "—",
-    "{{checkOut}}": fmt(record.hotel?.checkOut) || "—",
-    "{{hotel}}": record.hotel?.hotel || "the hotel",
-    "{{bookedTravel}}": (() => {
-      const lines = [];
-      if (record.flight) {
-        const arr = fmt(record.flight.flightArrival);
-        const t = record.flight.arrivalTime ? ` at ${fmtTime(record.flight.arrivalTime, "ampm")}` : "";
-        const tail = record.flight.flightIn ? ` (Flight ${record.flight.flightIn})` : "";
-        lines.push(`Flight arrival: ${arr || "on file"}${t}${tail}`);
-      }
-      if (record.hotel) {
-        lines.push(`Hotel: ${record.hotel.hotel || "booking on file"}`);
-      }
-      if (record.car) {
-        const ct = record.car.pickupTime ? ` at ${fmtTime(record.car.pickupTime, "ampm")}` : "";
-        lines.push(`Car transfer: ${fmt(record.car.pickupDate) || "on file"}${ct}`);
-      }
-      if (!lines.length) lines.push("Travel details on file");
-      return lines.join("\n");
-    })(),
-    "{{hotelContact}}": extra.hotelName || "Hotel Team",
-    "{{travelContact}}": extra.travelName || "Travel Team",
-    "{{carContact}}": extra.carName || "Transfer Team",
-    "{{guestEmailParen}}": record.email ? ` (${record.email})` : "",
-    "{{flightInTail}}": record.flight?.flightIn ? ` — Flight ${record.flight.flightIn}` : "",
-    "{{flightOutTail}}": record.flight?.flightOut ? ` — Flight ${record.flight.flightOut}` : "",
-    "{{issueSummary}}": (record.issues || []).filter(x => !(record.resolved || []).includes(x.text)).map(x => x.text).join("; ") || "—",
-    "{{carPickup}}": fmt(record.car?.pickupDate) || "—",
-    "{{carDropoff}}": fmt(record.car?.dropoffDate) || "—",
-    "{{plannerName}}": extra.plannerName || "The Planning Team",
-    "{{arrivalEnd}}": extra.arrivalEnd ? fmt(parseDate(extra.arrivalEnd)) : "—",
-    "{{departureEnd}}": extra.departureEnd ? fmt(parseDate(extra.departureEnd)) : "—",
-    "{{eventStart}}": extra.arrivalStart ? fmt(parseDate(extra.arrivalStart)) : "—",
-    "{{eventEnd}}": extra.departureEnd ? fmt(parseDate(extra.departureEnd)) : "—",
-  };
-  let s = template;
-  Object.entries(map).forEach(([k, v]) => { s = s.split(k).join(v); });
-  return s;
-}
-
-function getApplicableTemplates(record) {
-  const applicable = [];
-  const issues = record.issues || [];
-  const has = (sub) => issues.some(x => x.text && x.text.includes(sub));
-  // Hotel arrival-timing issues (flight vs check-in, or check-in differs from registration) → hotel
-  if (has("check-in")) applicable.push("arrives_early");
-  // Hotel departure-timing issues (flight vs check-out, or check-out differs from registration) → hotel
-  else if (has("check-out")) applicable.push("departs_late");
-  // Missing hotel — matches both the registration-anchored text and the travel-vs-travel fallback text
-  if (has("no hotel booked") || has("Missing from hotel roster") || has("no hotel' but no reason")) applicable.push("missing_hotel");
-  // Missing flight — same, across both engine paths
-  if (has("no flight booked") || has("Missing from flight manifest") || has("no flight' but no reason")) applicable.push("missing_flight");
-  if (has("Missing from car transfers")) applicable.push("missing_transfer");
-  // Car transfer timing mismatch (pickup vs flight arrival, dropoff vs flight departure)
-  if (has("Car pickup") || has("Car dropoff")) applicable.push("car_mismatch");
-  if (has("not on registration list") || issues.some(x => x.type === "unregistered")) applicable.push("needs_registration");
-  if (issues.some(x => x.type === "window")) applicable.push("outside_window");
-  if (issues.some(x => x.type === "airport")) applicable.push("wrong_airport");
-  if (issues.some(x => x.type === "earlyarrival") && !applicable.includes("arrives_early")) applicable.push("arrives_early");
-  return applicable;
-}
-
-// ── Email routing: who each template is addressed TO, by default ───────────────
-// audience: "hotel" | "travel" | "car" | "guest". Vendor-routed templates carry a
-// vendor-addressed body so the recipient never gets a "Hi {{guestName}}" email meant
-// for the attendee. The original guest-addressed body stays on the template as a fallback.
-const TEMPLATE_AUDIENCE = {
-  arrives_early:      "hotel",
-  departs_late:       "hotel",
-  missing_hotel:      "hotel",
-  missing_flight:     "travel",
-  outside_window:     "guest",
-  wrong_airport:      "guest",
-  missing_transfer:   "car",
-  car_mismatch:       "car",
-  needs_registration: "guest",
-  general_confirmation: "guest",
-};
-// Group the comms by what they are about, so hotel/flight/car messages sit together.
-const TEMPLATE_CATEGORY = {
-  arrives_early:      "Hotel",
-  departs_late:       "Hotel",
-  missing_hotel:      "Hotel",
-  missing_flight:     "Flight",
-  wrong_airport:      "Flight",
-  outside_window:     "Flight",
-  missing_transfer:   "Car Transfer",
-  car_mismatch:       "Car Transfer",
-  needs_registration: "Registration & Confirmation",
-  general_confirmation: "Registration & Confirmation",
-};
-const CATEGORY_ORDER = ["Hotel", "Flight", "Car Transfer", "Registration & Confirmation", "Custom"];
-// Brand icon for each template (single-line GroupGrid icon set).
-const TEMPLATE_ICON_KEY = {
-  arrives_early:      "hotel",
-  departs_late:       "hotel",
-  missing_hotel:      "hotel",
-  missing_flight:     "plane",
-  wrong_airport:      "flag",
-  outside_window:     "calendar",
-  missing_transfer:   "car",
-  car_mismatch:       "car",
-  needs_registration: "people",
-  general_confirmation: "cleared",
-};
-const TEMPLATE_ICONS = { hotel: HotelIcon, plane: PlaneIcon, car: CarIcon, flag: FlagIcon, calendar: CalendarIcon, people: PeopleIcon, cleared: ClearedIcon };
-function TemplateIcon({ tmpl, size = 20 }) {
-  const Comp = TEMPLATE_ICONS[TEMPLATE_ICON_KEY[tmpl.id]];
-  if (Comp) return <Comp size={size} line={tmpl.color} accent={tmpl.color} />;
-  return <span style={{ fontSize: size - 2 }}>{tmpl.icon}</span>; // custom templates keep their emoji
-}
-// Vendor-addressed bodies, keyed by audience. The planner is writing TO the vendor about a guest.
-const VENDOR_BODY = {
-  hotel: `Dear {{hotelContact}},
-
-I am writing about {{guestFullName}}{{guestEmailParen}} for {{eventName}}. While reviewing guest records we found an issue to confirm:
-
-──────────────────────
-Guest: {{guestFullName}}
-Flight arrival: {{flightArrival}}{{arrivalTimeTail}}{{flightInTail}}
-Hotel check-in: {{checkIn}} at {{hotel}}
-Hotel check-out: {{checkOut}}
-Flight departure: {{flightDeparture}}{{departureTimeTail}}{{flightOutTail}}
-
-Issue: {{issueSummary}}
-──────────────────────
-
-Could you confirm the correct booking details at your earliest convenience? Thank you.
-
-Warm regards,
-{{plannerName}}
-{{eventName}} Planning Team`,
-  travel: `Dear {{travelContact}},
-
-I am writing about the itinerary for {{guestFullName}}{{guestEmailParen}} for {{eventName}}. While reviewing guest records we found something to confirm:
-
-──────────────────────
-Guest: {{guestFullName}}
-Inbound: {{flightArrival}}{{arrivalTimeTail}} into {{arrivalAirport}}{{flightInTail}}
-Hotel check-in: {{checkIn}} at {{hotel}}
-Hotel check-out: {{checkOut}}
-Outbound: {{flightDeparture}}{{departureTimeTail}} from {{departureAirport}}{{flightOutTail}}
-
-Issue: {{issueSummary}}
-──────────────────────
-
-Please advise on the correct details and any changes needed. Thank you.
-
-Warm regards,
-{{plannerName}}
-{{eventName}} Planning Team`,
-  car: `Dear {{carContact}},
-
-I am writing about the ground transfer for {{guestFullName}}{{guestEmailParen}} for {{eventName}}. While reviewing guest records we found something to confirm:
-
-──────────────────────
-Guest: {{guestFullName}}
-Flight arrival: {{flightArrival}}{{arrivalTimeTail}}{{flightInTail}}
-Car pickup: {{carPickup}}
-Car dropoff: {{carDropoff}}
-Flight departure: {{flightDeparture}}{{departureTimeTail}}{{flightOutTail}}
-
-Issue: {{issueSummary}}
-──────────────────────
-
-Could you confirm the transfer times are correct, or let us know if they need adjusting? Thank you.
-
-Warm regards,
-{{plannerName}}
-{{eventName}} Planning Team`,
-};
 
 // ── New Template Modal ────────────────────────────────────────────────────────
 const ICON_OPTIONS = ["✉","📋","⭐","🔔","🎯","🚨","💬","📌","🏷","👋","🎉","⚡","📣","🤝","📝","🔁","❓","✅","🛎","💡"];
@@ -1745,6 +1085,7 @@ const TRIGGER_OPTIONS = [
   { value:"car_mismatch", label:"Car transfer timing mismatch" },
   { value:"needs_registration", label:"Booked travel but not registered" },
   { value:"arrives_early", label:"Arrives before check-in" },
+  { value:"arrives_late", label:"Possible late arrival" },
   { value:"departs_late", label:"Departs after check-out" },
   { value:"outside_window", label:"Outside travel window" },
   { value:"has_flags", label:"Any flag / issue" },
@@ -1784,9 +1125,9 @@ function NewTemplateModal({ onSave, onClose }) {
         <div style={{ padding:"20px 26px", borderBottom:`1px solid ${P.grey100}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
           <div>
             <div style={{ fontWeight:600, fontSize:"15px", color:P.navy, fontFamily:font }}>New Template</div>
-            <div style={{ fontSize:"14px", color:P.navyLight, marginTop:"2px", fontFamily:font }}>Create a custom email template for your event</div>
+            <div style={{ fontSize:"15px", color:P.navyLight, marginTop:"2px", fontFamily:font }}>Create a custom email template for your event</div>
           </div>
-          <button onClick={onClose} style={{ background:P.grey100, border:"none", borderRadius:"10px", width:30, height:30, cursor:"pointer", fontSize:"14px", color:P.navy, display:"flex", alignItems:"center", justifyContent:"center" }}><X size={15} strokeWidth={1.8}/></button>
+          <button onClick={onClose} style={{ background:P.grey100, border:"none", borderRadius:"10px", width:30, height:30, cursor:"pointer", fontSize:"15px", color:P.navy, display:"flex", alignItems:"center", justifyContent:"center" }}><X size={15} strokeWidth={1.8}/></button>
         </div>
 
         <div style={{ padding:"22px 26px", display:"flex", flexDirection:"column", gap:"18px" }}>
@@ -1794,13 +1135,13 @@ function NewTemplateModal({ onSave, onClose }) {
           {/* Name + Icon row */}
           <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:"14px", alignItems:"start" }}>
             <div>
-              <div style={{ fontSize:"15px", fontWeight:700, color:P.navyLight, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px", fontFamily:font }}>Template Name *</div>
+              <div style={{ fontSize:"16px", fontWeight:700, color:P.navyLight, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px", fontFamily:font }}>Template Name *</div>
               <input value={label} onChange={e => setLabel(e.target.value)} placeholder="e.g. VIP Welcome Message"
                 style={{ width:"100%", background:errors.label?P.redLight:P.offWhite, border:`1.5px solid ${errors.label?P.red:P.grey200}`, borderRadius:"10px", padding:"10px 14px", fontSize:"15px", fontFamily:font, fontWeight:600, color:P.navy, outline:"none", boxSizing:"border-box" }} />
               {errors.label && <div style={{ fontSize:"15px", color:P.red, fontFamily:font, marginTop:"4px" }}>{errors.label}</div>}
             </div>
             <div>
-              <div style={{ fontSize:"15px", fontWeight:700, color:P.navyLight, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px", fontFamily:font }}>Icon</div>
+              <div style={{ fontSize:"16px", fontWeight:700, color:P.navyLight, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px", fontFamily:font }}>Icon</div>
               <div style={{ display:"flex", flexWrap:"wrap", gap:"4px", maxWidth:"210px" }}>
                 {ICON_OPTIONS.map(ic => (
                   <button key={ic} onClick={() => setIcon(ic)}
@@ -1814,7 +1155,7 @@ function NewTemplateModal({ onSave, onClose }) {
 
           {/* Trigger */}
           <div>
-            <div style={{ fontSize:"15px", fontWeight:700, color:P.navyLight, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px", fontFamily:font }}>Auto-Send Trigger</div>
+            <div style={{ fontSize:"16px", fontWeight:700, color:P.navyLight, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px", fontFamily:font }}>Auto-Send Trigger</div>
             <div style={{ fontSize:"15px", color:P.navyLight, fontFamily:font, marginBottom:"8px" }}>When should this template be included in the send queue?</div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"6px" }}>
               {TRIGGER_OPTIONS.map(opt => (
@@ -1836,7 +1177,7 @@ function NewTemplateModal({ onSave, onClose }) {
 
           {/* Subject */}
           <div>
-            <div style={{ fontSize:"15px", fontWeight:700, color:P.navyLight, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px", fontFamily:font }}>Subject Line *</div>
+            <div style={{ fontSize:"16px", fontWeight:700, color:P.navyLight, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px", fontFamily:font }}>Subject Line *</div>
             <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="e.g. Welcome to {{eventName}}, {{guestName}}!"
               style={{ width:"100%", background:errors.subject?P.redLight:P.offWhite, border:`1.5px solid ${errors.subject?P.red:P.grey200}`, borderRadius:"10px", padding:"10px 14px", fontSize:"15px", fontFamily:font, fontWeight:600, color:P.navy, outline:"none", boxSizing:"border-box" }} />
             {errors.subject && <div style={{ fontSize:"15px", color:P.red, fontFamily:font, marginTop:"4px" }}>{errors.subject}</div>}
@@ -1844,9 +1185,9 @@ function NewTemplateModal({ onSave, onClose }) {
 
           {/* Body */}
           <div>
-            <div style={{ fontSize:"15px", fontWeight:700, color:P.navyLight, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px", fontFamily:font }}>Email Body *</div>
+            <div style={{ fontSize:"16px", fontWeight:700, color:P.navyLight, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px", fontFamily:font }}>Email Body *</div>
             <textarea value={body} onChange={e => setBody(e.target.value)} placeholder={`Hi {{guestName}},\n\nWe're looking forward to seeing you at {{eventName}}!\n\n{{plannerName}}\n{{eventName}} Planning Team`}
-              style={{ width:"100%", height:"240px", background:errors.body?P.redLight:P.offWhite, border:`1.5px solid ${errors.body?P.red:P.grey200}`, borderRadius:"10px", padding:"14px", fontSize:"14px", fontFamily:font, color:P.navy, resize:"vertical", outline:"none", boxSizing:"border-box", lineHeight:1.7 }} />
+              style={{ width:"100%", height:"240px", background:errors.body?P.redLight:P.offWhite, border:`1.5px solid ${errors.body?P.red:P.grey200}`, borderRadius:"10px", padding:"14px", fontSize:"15px", fontFamily:font, color:P.navy, resize:"vertical", outline:"none", boxSizing:"border-box", lineHeight:1.7 }} />
             {errors.body && <div style={{ fontSize:"15px", color:P.red, fontFamily:font, marginTop:"4px" }}>{errors.body}</div>}
           </div>
 
@@ -1903,6 +1244,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
       case "missing_flight": return issues.some(x => x.text === "Missing from flight manifest");
       case "missing_transfer": return issues.some(x => x.text === "Missing from car transfers");
       case "arrives_early": return issues.some(x => x.text?.includes("before check-in"));
+      case "arrives_late": return issues.some(x => x.type === "latearrival");
       case "departs_late": return issues.some(x => x.text?.includes("before check-out"));
       case "outside_window": return issues.some(x => x.type === "window");
       case "manual_only": return false;
@@ -1920,13 +1262,17 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                       : audience === "travel" ? contacts?.travel?.email
                       : audience === "car" ? contacts?.car?.email
                       : "";
-    if (audience !== "guest" && vendorEmail && VENDOR_BODY[audience]) {
+    const vendorBody = VENDOR_BODY_OVERRIDE[templateId] || VENDOR_BODY[audience];
+    if (audience !== "guest" && vendorEmail && vendorBody) {
       const tag = audience === "hotel" ? "Hotel" : audience === "travel" ? "Flight" : "Transfer";
+      const subject = templateId === "arrives_late"
+        ? `${(extra.eventName && extra.eventName !== "our event") ? extra.eventName + " " : ""}[Late Arrival] Please hold the room for ${record.displayName || record.firstName || ""}`
+        : `${(extra.eventName && extra.eventName !== "our event") ? extra.eventName + " " : ""}[${tag}] — Guest Review: ${record.displayName || record.firstName || ""}`;
       return {
         to: vendorEmail,
         audience,
-        subject: `${(extra.eventName && extra.eventName !== "our event") ? extra.eventName + " " : ""}[${tag}] — Guest Review: ${record.displayName || record.firstName || ""}`,
-        body: fillTemplate(VENDOR_BODY[audience], record, extra),
+        subject,
+        body: fillTemplate(vendorBody, record, extra),
       };
     }
     // guest audience, or vendor contact missing → guest-addressed body to the guest
@@ -2165,27 +1511,27 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
             <div style={{ padding:"20px 26px", borderBottom:`1px solid ${P.grey100}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
               <div>
                 <div style={{ fontWeight:600, fontSize:"15px", color:P.navy }}>Edit Template</div>
-                <div style={{ fontSize:"14px", color:P.navyLight, marginTop:"2px" }}>{templates[editingTemplate]?.label}</div>
+                <div style={{ fontSize:"15px", color:P.navyLight, marginTop:"2px" }}>{templates[editingTemplate]?.label}</div>
               </div>
-              <button onClick={() => setEditingTemplate(null)} style={{ background:P.grey100, border:"none", borderRadius:"10px", width:30, height:30, cursor:"pointer", fontSize:"14px", color:P.navy, display:"flex", alignItems:"center", justifyContent:"center" }}><X size={15} strokeWidth={1.8}/></button>
+              <button onClick={() => setEditingTemplate(null)} style={{ background:P.grey100, border:"none", borderRadius:"10px", width:30, height:30, cursor:"pointer", fontSize:"15px", color:P.navy, display:"flex", alignItems:"center", justifyContent:"center" }}><X size={15} strokeWidth={1.8}/></button>
             </div>
             <div style={{ padding:"20px 26px" }}>
               <div style={{ background:P.offWhite, borderRadius:"10px", padding:"10px 14px", marginBottom:"16px", fontSize:"15px", color:P.navy }}>
                 <strong>Available variables:</strong> {"{{"}<span>guestName</span>{"}}"}, {"{{"}<span>eventName</span>{"}}"}, {"{{"}<span>eventStart</span>{"}}"}, {"{{"}<span>eventEnd</span>{"}}"}, {"{{"}<span>flightArrival</span>{"}}"}, {"{{"}<span>flightDeparture</span>{"}}"}, {"{{"}<span>flightIn</span>{"}}"}, {"{{"}<span>flightOut</span>{"}}"}, {"{{"}<span>airport</span>{"}}"}, {"{{"}<span>checkIn</span>{"}}"}, {"{{"}<span>checkOut</span>{"}}"}, {"{{"}<span>hotel</span>{"}}"}, {"{{"}<span>plannerName</span>{"}}"}
               </div>
               <div style={{ marginBottom:"14px" }}>
-                <div style={{ fontSize:"15px", fontWeight:700, color:P.navyLight, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px" }}>Subject Line</div>
+                <div style={{ fontSize:"16px", fontWeight:700, color:P.navyLight, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px" }}>Subject Line</div>
                 <input value={editSubject} onChange={e => setEditSubject(e.target.value)}
                   style={{ width:"100%", background:P.offWhite, border:`1.5px solid ${P.grey200}`, borderRadius:"10px", padding:"10px 14px", fontSize:"15px", fontFamily:font, fontWeight:600, color:P.navy, outline:"none", boxSizing:"border-box" }} />
               </div>
               <div style={{ marginBottom:"16px" }}>
-                <div style={{ fontSize:"15px", fontWeight:700, color:P.navyLight, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px" }}>Email Body</div>
+                <div style={{ fontSize:"16px", fontWeight:700, color:P.navyLight, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px" }}>Email Body</div>
                 <textarea value={editBody} onChange={e => setEditBody(e.target.value)}
-                  style={{ width:"100%", height:"300px", background:P.offWhite, border:`1.5px solid ${P.grey200}`, borderRadius:"10px", padding:"14px", fontSize:"14px", fontFamily:font, color:P.navy, resize:"vertical", outline:"none", boxSizing:"border-box", lineHeight:1.7 }} />
+                  style={{ width:"100%", height:"300px", background:P.offWhite, border:`1.5px solid ${P.grey200}`, borderRadius:"10px", padding:"14px", fontSize:"15px", fontFamily:font, color:P.navy, resize:"vertical", outline:"none", boxSizing:"border-box", lineHeight:1.7 }} />
               </div>
               <div style={{ display:"flex", gap:"10px" }}>
                 <Btn onClick={saveEdit} color={P.accent}>Save Template <Save size={13} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></Btn>
-                <Btn onClick={() => { setTemplates(prev => ({...prev, [editingTemplate]: DEFAULT_TEMPLATES[editingTemplate]})); setEditSubject(DEFAULT_TEMPLATES[editingTemplate].subject); setEditBody(DEFAULT_TEMPLATES[editingTemplate].body); }} outline color={P.grey400}>↺ Reset to Default</Btn>
+                <Btn onClick={() => { setTemplates(prev => ({...prev, [editingTemplate]: DEFAULT_TEMPLATES[editingTemplate]})); setEditSubject(DEFAULT_TEMPLATES[editingTemplate].subject); setEditBody(DEFAULT_TEMPLATES[editingTemplate].body); }} outline color={P.grey600}>↺ Reset to Default</Btn>
                 <Btn onClick={() => setEditingTemplate(null)} outline>Cancel</Btn>
               </div>
             </div>
@@ -2200,7 +1546,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
             <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"4px" }}>
               {flaggedWithEmail.length > 0 ? `${flaggedWithEmail.length} guest${flaggedWithEmail.length!==1?"s":""} need a message` : "No messages needed right now"}
             </div>
-            <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font, lineHeight:1.6, marginBottom:"16px" }}>
+            <div style={{ fontSize:"16px", color:P.grey600, fontFamily:font, lineHeight:1.6, marginBottom:"16px" }}>
               {flaggedWithEmail.length > 0
                 ? "GroupGrid drafted a personalized email for each flagged guest, explaining exactly what's missing or mismatched. Review them, then send."
                 : "When a cross-check turns up flagged guests with an email on file, you'll be able to review and send personalized messages here."}
@@ -2208,32 +1554,32 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
             <div style={{ display:"flex", gap:"10px", marginBottom:"18px", flexWrap:"wrap" }}>
               {[
                 { n: flaggedWithEmail.length, l:"flagged, with email", c:P.amber },
-                { n: (results||[]).filter(r=>!r.email&&r.issues.length>0).length, l:"flagged, no email", c:P.grey400 },
+                { n: (results||[]).filter(r=>!r.email&&r.issues.length>0).length, l:"flagged, no email", c:P.grey600 },
                 { n: (results||[]).length, l:"total guests", c:P.periwinkleD },
               ].map(({n,l,c}) => (
                 <div key={l} style={{ display:"flex", alignItems:"center", gap:"8px", background:P.grey50, border:`1px solid ${P.grey100}`, borderRadius:"10px", padding:"8px 13px" }}>
                   <span style={{ fontSize:"17px", fontWeight:600, color:c, fontFamily:font }}>{n}</span>
-                  <span style={{ fontSize:"12px", color:P.grey600, fontFamily:font }}>{l}</span>
+                  <span style={{ fontSize:"15px", color:P.grey600, fontFamily:font }}>{l}</span>
                 </div>
               ))}
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:"16px", flexWrap:"wrap" }}>
               {flaggedWithEmail.length > 0
-                ? <button onClick={buildQueue} style={{ background:P.accent, color:P.white, border:"none", borderRadius:"11px", padding:"12px 24px", fontSize:"14px", fontWeight:600, fontFamily:font, cursor:"pointer" }}>Review &amp; send {flaggedWithEmail.length} message{flaggedWithEmail.length!==1?"s":""} <Mail size={14} strokeWidth={1.8} style={{verticalAlign:"-2px",marginLeft:"2px"}}/></button>
-                : <span style={{ fontSize:"13px", color:P.grey400, fontFamily:font }}>Run a cross-check to generate messages.</span>}
-              <button onClick={() => setShowTemplateConfig(v=>!v)} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>{showTemplateConfig ? "Hide send settings" : "Send settings"}</button>
+                ? <button onClick={buildQueue} style={{ background:P.accent, color:P.white, border:"none", borderRadius:"11px", padding:"12px 24px", fontSize:"15px", fontWeight:600, fontFamily:font, cursor:"pointer" }}>Review &amp; send {flaggedWithEmail.length} message{flaggedWithEmail.length!==1?"s":""} <Mail size={14} strokeWidth={1.8} style={{verticalAlign:"-2px",marginLeft:"2px"}}/></button>
+                : <span style={{ fontSize:"16px", color:P.grey600, fontFamily:font }}>Run a cross-check to generate messages.</span>}
+              <button onClick={() => setShowTemplateConfig(v=>!v)} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"15px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>{showTemplateConfig ? "Hide send settings" : "Send settings"}</button>
             </div>
           </div>
-          {queue && <button onClick={() => setActiveView("queue")} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer", marginBottom:"14px" }}>← Back to your send queue ({pendingCount} pending)</button>}
+          {queue && <button onClick={() => setActiveView("queue")} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"15px", fontWeight:500, fontFamily:font, cursor:"pointer", marginBottom:"14px" }}>← Back to your send queue ({pendingCount} pending)</button>}
         </>
       )}
 
       {/* Queue-view actions bar */}
       {activeView === "queue" && queue && (
         <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"16px", flexWrap:"wrap" }}>
-          <button onClick={() => setActiveView("templates")} style={{ background:P.white, color:P.grey600, border:`1px solid ${P.grey100}`, borderRadius:"8px", padding:"7px 14px", fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>← Back</button>
-          <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font }}>{sentCount} sent · {skippedCount} skipped · {pendingCount} pending</div>
-          {sendMsg && <span style={{ fontSize:"13px", color:P.green, fontWeight:600, fontFamily:font }}>{sendMsg}</span>}
+          <button onClick={() => setActiveView("templates")} style={{ background:P.white, color:P.grey600, border:`1px solid ${P.grey100}`, borderRadius:"8px", padding:"7px 14px", fontSize:"16px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>← Back</button>
+          <div style={{ fontSize:"16px", color:P.grey600, fontFamily:font }}>{sentCount} sent · {skippedCount} skipped · {pendingCount} pending</div>
+          {sendMsg && <span style={{ fontSize:"15px", color:P.green, fontWeight:600, fontFamily:font }}>{sendMsg}</span>}
           {pendingCount > 0 && <div style={{ marginLeft:"auto", display:"flex", gap:"8px" }}>
             <button onClick={() => {
               const text = (queue||[]).filter(x=>x.status==="pending").map(item =>
@@ -2243,8 +1589,8 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
               const blob = new Blob([text], {type:"text/plain"});
               const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
               a.download = `groupgrid-email-queue-${new Date().toISOString().slice(0,10)}.txt`; a.click();
-            }} style={{ background:P.white, color:P.periwinkleD, border:`1px solid ${P.grey200}`, borderRadius:"8px", padding:"7px 14px", fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>Download .txt <Download size={13} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></button>
-            <button onClick={sendAll} style={{ background:P.accent, color:P.white, border:"none", borderRadius:"8px", padding:"7px 16px", fontSize:"13px", fontWeight:600, fontFamily:font, cursor:"pointer" }}>Open all {pendingCount} in mail app <Mail size={13} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></button>
+            }} style={{ background:P.white, color:P.periwinkleD, border:`1px solid ${P.grey200}`, borderRadius:"8px", padding:"7px 14px", fontSize:"15px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>Download .txt <Download size={13} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></button>
+            <button onClick={sendAll} style={{ background:P.accent, color:P.white, border:"none", borderRadius:"8px", padding:"7px 16px", fontSize:"15px", fontWeight:600, fontFamily:font, cursor:"pointer" }}>Open all {pendingCount} in mail app <Mail size={13} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></button>
           </div>}
         </div>
       )}
@@ -2256,7 +1602,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
           <div style={{ background:P.white, borderRadius:"10px", padding:"16px 20px", border:`1px solid ${P.grey100}`, marginBottom:"20px", display:"flex", alignItems:"center", gap:"20px" }}>
             <div>
               <div style={{ fontSize:"15px", fontWeight:600, color:P.navy }}>Send Mode</div>
-              <div style={{ fontSize:"13px", color:P.navyLight, marginTop:"2px" }}>Controls how emails are handled when the queue is built</div>
+              <div style={{ fontSize:"15px", color:P.navyLight, marginTop:"2px" }}>Controls how emails are handled when the queue is built</div>
             </div>
             <div style={{ display:"flex", gap:"8px", marginLeft:"auto" }}>
               {[
@@ -2265,8 +1611,8 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                 { k:"auto", l:"⚡ Build & Send", sub:"Open all in mail app at once" },
               ].map(({k,l,sub}) => (
                 <button key={k} onClick={() => setSendMode(k)} style={{ background:sendMode===k?P.navy:P.offWhite, color:sendMode===k?P.white:P.grey600, border:`1px solid ${sendMode===k?P.navy:P.grey100}`, borderRadius:"8px", padding:"9px 14px", cursor:"pointer", textAlign:"left", fontFamily:font }}>
-                  <div style={{ fontSize:"14px", fontWeight:500, color:sendMode===k?P.white:P.navy }}>{l}</div>
-                  <div style={{ fontSize:"15px", color:sendMode===k?"rgba(255,255,255,0.6)":P.grey400, marginTop:"2px", maxWidth:"140px" }}>{sub}</div>
+                  <div style={{ fontSize:"15px", fontWeight:500, color:sendMode===k?P.white:P.navy }}>{l}</div>
+                  <div style={{ fontSize:"15px", color:sendMode===k?"rgba(255,255,255,0.6)":P.grey600, marginTop:"2px", maxWidth:"140px" }}>{sub}</div>
                 </button>
               ))}
             </div>
@@ -2281,8 +1627,8 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
             ].map(({label,val,sub,color}) => (
               <div key={label} style={{ background:P.white, borderRadius:"8px", padding:"12px 16px", border:`1px solid ${P.grey100}` }}>
                 <div style={{ fontSize:"22px", fontWeight:600, color, fontFamily:font }}>{val}</div>
-                <div style={{ fontSize:"13px", fontWeight:600, color:P.navy, marginTop:"3px" }}>{label}</div>
-                <div style={{ fontSize:"12px", color:P.navyLight, marginTop:"2px" }}>{sub}</div>
+                <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, marginTop:"3px" }}>{label}</div>
+                <div style={{ fontSize:"15px", color:P.navyLight, marginTop:"2px" }}>{sub}</div>
               </div>
             ))}
           </div>
@@ -2294,7 +1640,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
         <>
           {/* Templates grid */}
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"12px" }}>
-            <div style={{ fontSize:"14px", fontWeight:600, color:P.navy }}>Email Templates</div>
+            <div style={{ fontSize:"15px", fontWeight:600, color:P.navy }}>Email Templates</div>
             <Btn onClick={() => setNewTemplateOpen(true)} outline color={P.periwinkleD} small>New Template <Plus size={12} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></Btn>
           </div>
           {(() => {
@@ -2303,7 +1649,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
             const cats = CATEGORY_ORDER.filter(c => byCat[c]?.length).concat(Object.keys(byCat).filter(c => !CATEGORY_ORDER.includes(c)));
             return cats.map(cat => (
             <div key={cat} style={{ marginBottom:"22px" }}>
-              <div style={{ fontSize:"12px", fontWeight:800, color:P.navyLight, textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 10px" }}>{cat}</div>
+              <div style={{ fontSize:"15px", fontWeight:800, color:P.navyLight, textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 10px" }}>{cat}</div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px" }}>
                 {byCat[cat].map(tmpl => {
               const applicable = (results||[]).filter(r => r.email && (getApplicableTemplates(r).includes(tmpl.id) || getCustomApplicable(r, tmpl)));
@@ -2315,21 +1661,21 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                       <div style={{ width:36, height:36, borderRadius:"10px", background:tmpl.color+"18", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><TemplateIcon tmpl={tmpl} size={20} /></div>
                       <div>
                         <div style={{ fontSize:"15px", fontWeight:600, color:P.navy }}>{tmpl.label}</div>
-                        <div style={{ fontSize:"13px", color:P.navyLight, marginTop:"2px" }}>{tmpl.description}</div>
+                        <div style={{ fontSize:"15px", color:P.navyLight, marginTop:"2px" }}>{tmpl.description}</div>
                       </div>
                     </div>
-                    {isCustomized && <span style={{ background:P.periwinkle+"22", color:P.periwinkleD, fontSize:"12px", fontWeight:500, padding:"2px 8px", borderRadius:"20px", flexShrink:0, marginLeft:"8px" }}>Edited</span>}
-                    {tmpl.isCustom && <span style={{ background:P.periwinkleD+"18", color:P.periwinkleD, fontSize:"12px", fontWeight:500, padding:"2px 8px", borderRadius:"20px", flexShrink:0, marginLeft:"4px" }}>Custom</span>}
+                    {isCustomized && <span style={{ background:P.periwinkle+"22", color:P.periwinkleD, fontSize:"15px", fontWeight:500, padding:"2px 8px", borderRadius:"20px", flexShrink:0, marginLeft:"8px" }}>Edited</span>}
+                    {tmpl.isCustom && <span style={{ background:P.periwinkleD+"18", color:P.periwinkleD, fontSize:"15px", fontWeight:500, padding:"2px 8px", borderRadius:"20px", flexShrink:0, marginLeft:"4px" }}>Custom</span>}
                   </div>
                   <div style={{ background:P.offWhite, borderRadius:"8px", padding:"10px 12px", marginBottom:"12px" }}>
-                    <div style={{ fontSize:"11px", fontWeight:500, color:P.grey400, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"4px" }}>Subject preview</div>
-                    <div style={{ fontSize:"14px", color:P.navy, fontWeight:600 }}>{tmpl.subject.replace(/\{\{[^}]+\}\}/g, "…")}</div>
+                    <div style={{ fontSize:"15px", fontWeight:500, color:P.grey600, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"4px" }}>Subject preview</div>
+                    <div style={{ fontSize:"15px", color:P.navy, fontWeight:600 }}>{tmpl.subject.replace(/\{\{[^}]+\}\}/g, "…")}</div>
                   </div>
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
                       {applicable.length > 0
-                        ? <span style={{ background:tmpl.color+"18", color:tmpl.color, fontSize:"12px", fontWeight:500, padding:"3px 10px", borderRadius:"20px" }}>Applies to {applicable.length} guest{applicable.length!==1?"s":""}</span>
-                        : <span style={{ background:P.grey50, color:P.navyLight, fontSize:"12px", fontWeight:500, padding:"3px 10px", borderRadius:"20px" }}>No guests currently</span>}
+                        ? <span style={{ background:tmpl.color+"18", color:tmpl.color, fontSize:"15px", fontWeight:500, padding:"3px 10px", borderRadius:"20px" }}>Applies to {applicable.length} guest{applicable.length!==1?"s":""}</span>
+                        : <span style={{ background:P.grey50, color:P.navyLight, fontSize:"15px", fontWeight:500, padding:"3px 10px", borderRadius:"20px" }}>No guests currently</span>}
                     </div>
                     <div style={{ display:"flex", gap:"6px" }}>
                       {tmpl.isCustom && (
@@ -2385,10 +1731,10 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                 {/* Select all checkbox */}
                 <label style={{ display:"flex", alignItems:"center", gap:"8px", cursor:"pointer", flexShrink:0 }}>
                   <div onClick={toggleCheckAll} style={{ width:20, height:20, borderRadius:"6px", border:`2px solid ${allChecked ? P.periwinkleD : someChecked ? P.periwinkle : P.grey200}`, background:allChecked ? P.periwinkleD : someChecked ? P.periwinkle+"33" : P.white, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", transition:"all 0.15s", flexShrink:0 }}>
-                    {allChecked && <span style={{ color:P.white, fontSize:"14px", lineHeight:1, fontWeight:900 }}>✓</span>}
+                    {allChecked && <span style={{ color:P.white, fontSize:"15px", lineHeight:1, fontWeight:900 }}>✓</span>}
                     {!allChecked && someChecked && <span style={{ color:P.periwinkleD, fontSize:"15px", lineHeight:1, fontWeight:900 }}>—</span>}
                   </div>
-                  <span style={{ fontSize:"14px", fontWeight:700, color:P.navy, fontFamily:font }}>
+                  <span style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font }}>
                     {someChecked ? `${checkedPending.length} selected` : `Select all (${pendingItems.length} pending)`}
                   </span>
                 </label>
@@ -2409,16 +1755,16 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                       title={!available ? "Add this contact first" : ""}
                       style={{ background:bulkRecipient===k ? P.navy : available ? P.offWhite : P.grey50, color:bulkRecipient===k ? P.white : available ? P.navy : P.grey300, border:`1.5px solid ${bulkRecipient===k ? P.navy : available ? P.grey200 : P.grey100}`, borderRadius:"8px", padding:"5px 12px", fontSize:"15px", fontWeight:800, fontFamily:font, cursor:available?"pointer":"not-allowed", transition:"all 0.15s", opacity: available ? 1 : 0.5 }}>
                       {l}
-                      {!available && <span style={{ fontSize:"14px", marginLeft:"4px" }}>⚠</span>}
+                      {!available && <span style={{ fontSize:"15px", marginLeft:"4px" }}>⚠</span>}
                     </button>
                   ))}
                 </div>
 
                 <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:"8px", flexWrap:"wrap" }}>
-                  {sendMsg && <span style={{ fontSize:"14px", color:P.green, fontWeight:700 }}>{sendMsg}</span>}
+                  {sendMsg && <span style={{ fontSize:"15px", color:P.green, fontWeight:700 }}>{sendMsg}</span>}
                   {unsavedCount > 0 && (
                     <button onClick={saveAllEdits}
-                      style={{ background:P.amber+"18", border:`1.5px solid ${P.amber}66`, borderRadius:"9px", padding:"7px 14px", fontSize:"13px", fontWeight:800, fontFamily:font, color:P.amber, cursor:"pointer", display:"flex", alignItems:"center", gap:"6px" }}>
+                      style={{ background:P.amber+"18", border:`1.5px solid ${P.amber}66`, borderRadius:"9px", padding:"7px 14px", fontSize:"15px", fontWeight:800, fontFamily:font, color:P.amber, cursor:"pointer", display:"flex", alignItems:"center", gap:"6px" }}>
                       💾 Save All Edits ({unsavedCount})
                     </button>
                   )}
@@ -2448,7 +1794,7 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                       {/* Checkbox — only for pending items */}
                       {item.status === "pending" ? (
                         <div onClick={() => toggleCheck(item.id)} style={{ width:20, height:20, borderRadius:"6px", border:`2px solid ${isChecked ? P.periwinkleD : P.grey200}`, background:isChecked ? P.periwinkleD : P.white, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", transition:"all 0.15s", flexShrink:0 }}>
-                          {isChecked && <span style={{ color:P.white, fontSize:"14px", lineHeight:1, fontWeight:900 }}>✓</span>}
+                          {isChecked && <span style={{ color:P.white, fontSize:"15px", lineHeight:1, fontWeight:900 }}>✓</span>}
                         </div>
                       ) : (
                         <div style={{ width:20, height:20, flexShrink:0 }} />
@@ -2465,19 +1811,19 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                             {item.status==="sent" && <span style={{ background:P.greenLight, color:P.green, fontSize:"15px", fontWeight:800, padding:"1px 8px", borderRadius:"20px" }}>✓ Sent</span>}
                             {item.status==="skipped" && <span style={{ background:P.grey50, color:P.navyLight, fontSize:"15px", fontWeight:800, padding:"1px 8px", borderRadius:"20px" }}>Skipped</span>}
                             {editedIds.has(item.id) && item.status==="pending" && <span style={{ background:P.amber+"22", color:P.amber, fontSize:"15px", fontWeight:800, padding:"1px 8px", borderRadius:"20px" }}>Edited</span>}
-                            {hasUnsavedEdits(item.id) && <span style={{ background:P.amber+"22", color:P.amber, fontSize:"13px", fontWeight:800, padding:"1px 8px", borderRadius:"20px" }}>⚠ Unsaved</span>}
+                            {hasUnsavedEdits(item.id) && <span style={{ background:P.amber+"22", color:P.amber, fontSize:"15px", fontWeight:800, padding:"1px 8px", borderRadius:"20px" }}>⚠ Unsaved</span>}
                           </div>
-                          <div style={{ fontSize:"14px", color:P.navy, marginTop:"2px", fontWeight:600 }}>{item.subject}</div>
+                          <div style={{ fontSize:"15px", color:P.navy, marginTop:"2px", fontWeight:600 }}>{item.subject}</div>
                         </div>
                       </div>
                       {item.status === "pending" && (
                         <div style={{ display:"flex", gap:"6px", flexShrink:0 }}>
                           <Btn onClick={e => { e.stopPropagation(); openMailto(item); }} small color={P.navy}>Open in Mail ↗</Btn>
-                          <Btn onClick={e => { e.stopPropagation(); markSkipped(item.id); }} small outline color={P.grey400}>Skip</Btn>
+                          <Btn onClick={e => { e.stopPropagation(); markSkipped(item.id); }} small outline color={P.grey600}>Skip</Btn>
                         </div>
                       )}
                       {item.status === "sent" && (
-                        <Btn onClick={e => { e.stopPropagation(); updateQueueItem(item.id, {status:"pending"}); setSentIds(prev => { const n = new Set(prev); n.delete(item.id); return n; }); }} small outline color={P.grey400}>Undo</Btn>
+                        <Btn onClick={e => { e.stopPropagation(); updateQueueItem(item.id, {status:"pending"}); setSentIds(prev => { const n = new Set(prev); n.delete(item.id); return n; }); }} small outline color={P.grey600}>Undo</Btn>
                       )}
                     </div>
 
@@ -2485,12 +1831,12 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
                     {isActive && item.status === "pending" && (
                       <div style={{ borderTop:`1px solid ${P.grey100}`, padding:"18px 20px", background:P.grey50 }} onClick={e => e.stopPropagation()}>
                         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"14px" }}>
-                          <div style={{ fontSize:"14px", fontWeight:800, color:P.navy }}>
+                          <div style={{ fontSize:"15px", fontWeight:800, color:P.navy }}>
                             Edit Email
                             {editedIds.has(item.id) && <span style={{ marginLeft:"8px", background:P.amber+"22", color:P.amber, fontSize:"15px", fontWeight:800, padding:"2px 8px", borderRadius:"20px" }}>Edited — will use your version on bulk send</span>}
                           </div>
                           {editedIds.has(item.id) && (
-                            <button onClick={() => resetToOriginal(item)} style={{ background:"transparent", border:`1px solid ${P.grey200}`, borderRadius:"7px", padding:"4px 10px", fontSize:"15px", fontWeight:700, color:P.grey500||P.grey400, fontFamily:font, cursor:"pointer" }}>
+                            <button onClick={() => resetToOriginal(item)} style={{ background:"transparent", border:`1px solid ${P.grey200}`, borderRadius:"7px", padding:"4px 10px", fontSize:"15px", fontWeight:700, color:P.grey500||P.grey600, fontFamily:font, cursor:"pointer" }}>
                               Reset to original
                             </button>
                           )}
@@ -2498,42 +1844,42 @@ function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd, depar
 
                         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"12px" }}>
                           <div>
-                            <div style={{ fontSize:"15px", fontWeight:700, color:P.navy, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px" }}>To</div>
+                            <div style={{ fontSize:"16px", fontWeight:700, color:P.navy, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px" }}>To</div>
                             <input value={getStagedField(item, "to")} onChange={e => stageEdit(item.id, "to", e.target.value)}
-                              style={{ width:"100%", background:P.white, border:`1.5px solid ${localEdits[item.id]?.to !== undefined ? P.amber+"88" : P.grey200}`, borderRadius:"9px", padding:"8px 12px", fontSize:"14px", fontFamily:font, fontWeight:600, color:P.navy, outline:"none", boxSizing:"border-box" }} />
+                              style={{ width:"100%", background:P.white, border:`1.5px solid ${localEdits[item.id]?.to !== undefined ? P.amber+"88" : P.grey200}`, borderRadius:"9px", padding:"8px 12px", fontSize:"15px", fontFamily:font, fontWeight:600, color:P.navy, outline:"none", boxSizing:"border-box" }} />
                           </div>
                           <div>
-                            <div style={{ fontSize:"15px", fontWeight:700, color:P.navy, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px" }}>Subject</div>
+                            <div style={{ fontSize:"16px", fontWeight:700, color:P.navy, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px" }}>Subject</div>
                             <input value={getStagedField(item, "subject")} onChange={e => stageEdit(item.id, "subject", e.target.value)}
-                              style={{ width:"100%", background:P.white, border:`1.5px solid ${localEdits[item.id]?.subject !== undefined ? P.amber+"88" : P.grey200}`, borderRadius:"9px", padding:"8px 12px", fontSize:"14px", fontFamily:font, fontWeight:600, color:P.navy, outline:"none", boxSizing:"border-box" }} />
+                              style={{ width:"100%", background:P.white, border:`1.5px solid ${localEdits[item.id]?.subject !== undefined ? P.amber+"88" : P.grey200}`, borderRadius:"9px", padding:"8px 12px", fontSize:"15px", fontFamily:font, fontWeight:600, color:P.navy, outline:"none", boxSizing:"border-box" }} />
                           </div>
                         </div>
 
                         <div style={{ marginBottom:"12px" }}>
-                          <div style={{ fontSize:"15px", fontWeight:700, color:P.navy, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px" }}>Email Body</div>
+                          <div style={{ fontSize:"16px", fontWeight:700, color:P.navy, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px" }}>Email Body</div>
                           <textarea value={getStagedField(item, "body")} onChange={e => stageEdit(item.id, "body", e.target.value)}
-                            style={{ width:"100%", height:"240px", background:P.white, border:`1.5px solid ${localEdits[item.id]?.body !== undefined ? P.amber+"88" : P.grey200}`, borderRadius:"10px", padding:"12px 14px", fontSize:"14px", fontFamily:font, color:P.navy, resize:"vertical", outline:"none", boxSizing:"border-box", lineHeight:1.7 }} />
+                            style={{ width:"100%", height:"240px", background:P.white, border:`1.5px solid ${localEdits[item.id]?.body !== undefined ? P.amber+"88" : P.grey200}`, borderRadius:"10px", padding:"12px 14px", fontSize:"15px", fontFamily:font, color:P.navy, resize:"vertical", outline:"none", boxSizing:"border-box", lineHeight:1.7 }} />
                         </div>
 
                         <div style={{ display:"flex", gap:"8px", alignItems:"center" }}>
                           {hasUnsavedEdits(item.id) ? (
                             <button onClick={() => { saveEdits(item.id); setReviewIdx(-1); }}
-                              style={{ background:P.green, border:"none", borderRadius:"10px", padding:"9px 20px", fontSize:"14px", fontWeight:800, fontFamily:font, color:P.white, cursor:"pointer", boxShadow:"0 2px 8px rgba(34,197,94,0.3)", display:"flex", alignItems:"center", gap:"7px" }}>
+                              style={{ background:P.green, border:"none", borderRadius:"10px", padding:"9px 20px", fontSize:"15px", fontWeight:800, fontFamily:font, color:P.white, cursor:"pointer", boxShadow:"0 2px 8px rgba(34,197,94,0.3)", display:"flex", alignItems:"center", gap:"7px" }}>
                               ✓ Save Changes
                             </button>
                           ) : (
                             <button onClick={() => openMailto({ ...item, to: getStagedField(item,"to"), subject: getStagedField(item,"subject"), body: getStagedField(item,"body") })}
-                              style={{ background:P.navy, border:"none", borderRadius:"10px", padding:"9px 20px", fontSize:"14px", fontWeight:800, fontFamily:font, color:P.white, cursor:"pointer" }}>
+                              style={{ background:P.navy, border:"none", borderRadius:"10px", padding:"9px 20px", fontSize:"15px", fontWeight:800, fontFamily:font, color:P.white, cursor:"pointer" }}>
                               Open in Mail App ↗
                             </button>
                           )}
                           {hasUnsavedEdits(item.id) && (
                             <button onClick={() => openMailto({ ...item, to: getStagedField(item,"to"), subject: getStagedField(item,"subject"), body: getStagedField(item,"body") })}
-                              style={{ background:"transparent", border:`1.5px solid ${P.navy}`, borderRadius:"10px", padding:"9px 20px", fontSize:"14px", fontWeight:800, fontFamily:font, color:P.navy, cursor:"pointer" }}>
+                              style={{ background:"transparent", border:`1.5px solid ${P.navy}`, borderRadius:"10px", padding:"9px 20px", fontSize:"15px", fontWeight:800, fontFamily:font, color:P.navy, cursor:"pointer" }}>
                               Send without saving ↗
                             </button>
                           )}
-                          <Btn onClick={() => markSkipped(item.id)} outline color={P.grey400}>Skip</Btn>
+                          <Btn onClick={() => markSkipped(item.id)} outline color={P.grey600}>Skip</Btn>
                           {hasUnsavedEdits(item.id) && <span style={{ fontSize:"15px", color:P.amber, fontFamily:font, fontWeight:700 }}>⚠ Save to include in bulk send — or use "Save All Edits" above</span>}
                         </div>
                       </div>
@@ -2556,14 +1902,14 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.error) {
       return (
-        <div style={{ padding:"40px", fontFamily:"'Manrope',sans-serif", maxWidth:"600px", margin:"40px auto" }}>
-          <div style={{ background:"#FDEAEA", border:"1.5px solid #C53B3B44", borderRadius:"16px", padding:"24px" }}>
-            <div style={{ fontSize:"16px", fontWeight:900, color:"#C53B3B", marginBottom:"8px" }}><AlertTriangle size={16} style={{display:"inline",marginRight:6,verticalAlign:"middle"}}/>Something went wrong</div>
-            <div style={{ fontSize:"15px", color:"#1B2A4A", fontWeight:600, marginBottom:"12px" }}>Error details (copy these to report the issue):</div>
-            <pre style={{ background:"white", borderRadius:"10px", padding:"12px", fontSize:"15px", color:"#C53B3B", overflowX:"auto", whiteSpace:"pre-wrap", wordBreak:"break-all" }}>
+        <div style={{ padding:"40px", fontFamily:"'IBM Plex Sans',sans-serif", maxWidth:"600px", margin:"40px auto" }}>
+          <div style={{ background:"#FDECEC", border:"1.5px solid #C0392B44", borderRadius:"16px", padding:"24px" }}>
+            <div style={{ fontSize:"16px", fontWeight:900, color:"#C0392B", marginBottom:"8px" }}><AlertTriangle size={16} style={{display:"inline",marginRight:6,verticalAlign:"middle"}}/>Something went wrong</div>
+            <div style={{ fontSize:"15px", color:"#1A2E52", fontWeight:600, marginBottom:"12px" }}>Error details (copy these to report the issue):</div>
+            <pre style={{ background:"white", borderRadius:"10px", padding:"12px", fontSize:"15px", color:"#C0392B", overflowX:"auto", whiteSpace:"pre-wrap", wordBreak:"break-all" }}>
               {this.state.error?.message}{"\n\n"}{this.state.error?.stack}
             </pre>
-            <button onClick={() => this.setState({error:null})} style={{ marginTop:"14px", background:"#1B2A4A", color:"white", border:"none", borderRadius:"10px", padding:"8px 20px", fontSize:"14px", fontWeight:800, fontFamily:"'Manrope',sans-serif", cursor:"pointer" }}>Try Again</button>
+            <button onClick={() => this.setState({error:null})} style={{ marginTop:"14px", background:"#1A2E52", color:"white", border:"none", borderRadius:"10px", padding:"8px 20px", fontSize:"15px", fontWeight:800, fontFamily:"'IBM Plex Sans',sans-serif", cursor:"pointer" }}>Try Again</button>
           </div>
         </div>
       );
@@ -2676,7 +2022,7 @@ function LoginPanel({ onLogin, onClose }) {
           <div style={{ display:"flex", background:"rgba(255,255,255,0.06)", borderRadius:"10px", padding:"3px", gap:"2px", marginBottom:"28px" }}>
             {[["signin","Sign In"],["signup","Create Account"]].map(([k,l]) => (
               <button key={k} onClick={() => { setMode(k); clearForm(); }}
-                style={{ flex:1, padding:"8px", borderRadius:"8px", border:"none", cursor:"pointer", fontFamily:font, fontSize:"13px", fontWeight:700, transition:"all 0.15s", background:mode===k?"rgba(255,255,255,0.12)":"transparent", color:mode===k?P.white:"rgba(255,255,255,0.4)" }}>
+                style={{ flex:1, padding:"8px", borderRadius:"8px", border:"none", cursor:"pointer", fontFamily:font, fontSize:"15px", fontWeight:700, transition:"all 0.15s", background:mode===k?"rgba(255,255,255,0.12)":"transparent", color:mode===k?P.white:"rgba(255,255,255,0.4)" }}>
                 {l}
               </button>
             ))}
@@ -2688,7 +2034,7 @@ function LoginPanel({ onLogin, onClose }) {
           <div style={{ fontSize:"22px", fontWeight:900, color:P.white, marginBottom:"6px" }}>
             {mode==="signin" ? "Welcome back" : mode==="signup" ? "Create your account" : "Reset your password"}
           </div>
-          <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.4)", lineHeight:1.5 }}>
+          <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.4)", lineHeight:1.5 }}>
             {mode==="signin" ? "Sign in to access your saved projects and event history." :
              mode==="signup" ? "Save projects, sync across devices, and access your event history." :
              "Enter your email and we'll send you a reset link."}
@@ -2697,14 +2043,14 @@ function LoginPanel({ onLogin, onClose }) {
 
         {/* Success message */}
         {success && (
-          <div style={{ background:"rgba(0,201,177,0.12)", border:"1px solid rgba(0,201,177,0.3)", borderRadius:"10px", padding:"12px 14px", fontSize:"14px", color:P.accent, fontWeight:600, marginBottom:"20px", lineHeight:1.5 }}>
+          <div style={{ background:"rgba(0,201,177,0.12)", border:"1px solid rgba(0,201,177,0.3)", borderRadius:"10px", padding:"12px 14px", fontSize:"15px", color:P.accent, fontWeight:600, marginBottom:"20px", lineHeight:1.5 }}>
             ✓ {success}
           </div>
         )}
 
         {/* Error message */}
         {error && (
-          <div style={{ background:"rgba(197,59,59,0.15)", border:"1px solid rgba(197,59,59,0.35)", borderRadius:"10px", padding:"10px 14px", fontSize:"14px", color:"#F08080", fontWeight:700, marginBottom:"20px" }}>
+          <div style={{ background:"rgba(192,57,43,0.15)", border:"1px solid rgba(192,57,43,0.35)", borderRadius:"10px", padding:"10px 14px", fontSize:"15px", color:"#C0392B", fontWeight:700, marginBottom:"20px" }}>
             ⚠ {error}
           </div>
         )}
@@ -2713,13 +2059,13 @@ function LoginPanel({ onLogin, onClose }) {
         {mode === "signin" && !success && (
           <form onSubmit={handleSignIn} style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
             <div>
-              <label style={{ display:"block", fontSize:"12px", fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"7px" }}>Email</label>
+              <label style={{ display:"block", fontSize:"15px", fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"7px" }}>Email</label>
               <input type="email" value={email} onChange={e => { setEmail(e.target.value); setError(""); }} onFocus={() => setFocused("email")} onBlur={() => setFocused("")} placeholder="you@company.com" style={inputStyle("email")} />
             </div>
             <div>
               <div style={{ display:"flex", justifyContent:"space-between", marginBottom:"7px" }}>
-                <label style={{ fontSize:"12px", fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:"0.07em" }}>Password</label>
-                <button type="button" onClick={() => { setMode("reset"); clearForm(); }} style={{ background:"transparent", border:"none", color:P.periwinkleL, fontSize:"13px", fontWeight:700, cursor:"pointer", padding:0 }}>Forgot password?</button>
+                <label style={{ fontSize:"15px", fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:"0.07em" }}>Password</label>
+                <button type="button" onClick={() => { setMode("reset"); clearForm(); }} style={{ background:"transparent", border:"none", color:P.periwinkleL, fontSize:"15px", fontWeight:700, cursor:"pointer", padding:0 }}>Forgot password?</button>
               </div>
               <div style={{ position:"relative" }}>
                 <input type={showPw?"text":"password"} value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onFocus={() => setFocused("password")} onBlur={() => setFocused("")} placeholder="••••••••" style={{ ...inputStyle("password"), paddingRight:"42px" }} />
@@ -2737,21 +2083,21 @@ function LoginPanel({ onLogin, onClose }) {
         {mode === "signup" && !success && (
           <form onSubmit={handleSignUp} style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
             <div>
-              <label style={{ display:"block", fontSize:"12px", fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"7px" }}>Your Name</label>
+              <label style={{ display:"block", fontSize:"15px", fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"7px" }}>Your Name</label>
               <input type="text" value={name} onChange={e => { setName(e.target.value); setError(""); }} onFocus={() => setFocused("name")} onBlur={() => setFocused("")} placeholder="First Name Last Name" style={inputStyle("name")} />
             </div>
             <div>
-              <label style={{ display:"block", fontSize:"12px", fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"7px" }}>Email</label>
+              <label style={{ display:"block", fontSize:"15px", fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"7px" }}>Email</label>
               <input type="email" value={email} onChange={e => { setEmail(e.target.value); setError(""); }} onFocus={() => setFocused("email")} onBlur={() => setFocused("")} placeholder="you@company.com" style={inputStyle("email")} />
             </div>
             <div>
-              <label style={{ display:"block", fontSize:"12px", fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"7px" }}>Password <span style={{ fontWeight:400, textTransform:"none", letterSpacing:0 }}>(min. 8 characters)</span></label>
+              <label style={{ display:"block", fontSize:"15px", fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"7px" }}>Password <span style={{ fontWeight:400, textTransform:"none", letterSpacing:0 }}>(min. 8 characters)</span></label>
               <div style={{ position:"relative" }}>
                 <input type={showPw?"text":"password"} value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onFocus={() => setFocused("password")} onBlur={() => setFocused("")} placeholder="Create a strong password" style={{ ...inputStyle("password"), paddingRight:"42px" }} />
                 <button type="button" onClick={() => setShowPw(s => !s)} style={{ position:"absolute", right:13, top:"50%", transform:"translateY(-50%)", background:"transparent", border:"none", color:"rgba(255,255,255,0.3)", cursor:"pointer", fontSize:"15px", padding:0 }}>{showPw?"🙈":"👁"}</button>
               </div>
               {password.length > 0 && password.length < 8 && (
-                <div style={{ fontSize:"12px", color:"rgba(197,59,59,0.8)", marginTop:"5px" }}>Password too short ({password.length}/8)</div>
+                <div style={{ fontSize:"15px", color:"rgba(192,57,43,0.8)", marginTop:"5px" }}>Password too short ({password.length}/8)</div>
               )}
             </div>
             <button type="submit" disabled={loading}
@@ -2765,7 +2111,7 @@ function LoginPanel({ onLogin, onClose }) {
         {mode === "reset" && !success && (
           <form onSubmit={handleReset} style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
             <div>
-              <label style={{ display:"block", fontSize:"12px", fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"7px" }}>Email Address</label>
+              <label style={{ display:"block", fontSize:"15px", fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"7px" }}>Email Address</label>
               <input type="email" value={email} onChange={e => { setEmail(e.target.value); setError(""); }} onFocus={() => setFocused("email")} onBlur={() => setFocused("")} placeholder="you@company.com" style={inputStyle("email")} />
             </div>
             <button type="submit" disabled={loading}
@@ -2773,7 +2119,7 @@ function LoginPanel({ onLogin, onClose }) {
               {loading ? "Sending…" : "Send Reset Link →"}
             </button>
             <button type="button" onClick={() => { setMode("signin"); clearForm(); }}
-              style={{ background:"transparent", border:"none", color:"rgba(255,255,255,0.35)", fontSize:"14px", fontWeight:600, cursor:"pointer", fontFamily:font, padding:"4px" }}>
+              style={{ background:"transparent", border:"none", color:"rgba(255,255,255,0.35)", fontSize:"15px", fontWeight:600, cursor:"pointer", fontFamily:font, padding:"4px" }}>
               ← Back to Sign In
             </button>
           </form>
@@ -2782,7 +2128,7 @@ function LoginPanel({ onLogin, onClose }) {
         {/* What you get when signed in */}
         {mode !== "reset" && !success && (
           <div style={{ marginTop:"32px" }}>
-            <div style={{ fontSize:"12px", fontWeight:800, color:"rgba(255,255,255,0.25)", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:"14px" }}>When signed in you get</div>
+            <div style={{ fontSize:"15px", fontWeight:800, color:"rgba(255,255,255,0.25)", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:"14px" }}>When signed in you get</div>
             {[
               { icon:<FileSpreadsheet size={14} strokeWidth={1.8}/>, label:"Save & restore projects across sessions" },
               { icon:<Mail size={14} strokeWidth={1.8}/>, label:"Custom email templates saved to your account" },
@@ -2791,7 +2137,7 @@ function LoginPanel({ onLogin, onClose }) {
             ].map(({ icon, label }) => (
               <div key={label} style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"12px" }}>
                 <div style={{ width:30, height:30, borderRadius:"9px", background:"rgba(123,143,212,0.15)", border:"1px solid rgba(123,143,212,0.25)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{icon}</div>
-                <span style={{ fontSize:"14px", color:"rgba(255,255,255,0.45)", fontWeight:600, lineHeight:1.4 }}>{label}</span>
+                <span style={{ fontSize:"15px", color:"rgba(255,255,255,0.45)", fontWeight:600, lineHeight:1.4 }}>{label}</span>
               </div>
             ))}
           </div>
@@ -2800,7 +2146,7 @@ function LoginPanel({ onLogin, onClose }) {
 
       {/* Footer */}
       <div style={{ padding:"16px 28px", borderTop:"1px solid rgba(255,255,255,0.07)", flexShrink:0 }}>
-        <div style={{ fontSize:"12px", color:"rgba(255,255,255,0.18)", textAlign:"center" }}>© 2026 GroupGrid · Built for event professionals · {APP_VERSION}</div>
+        <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.18)", textAlign:"center" }}>© 2026 GroupGrid · Built for event professionals · {APP_VERSION}</div>
       </div>
     </div>
   );
@@ -2814,7 +2160,7 @@ function PageShell({ title, onBack, nav, children }) {
     <div style={{ minHeight:"100vh", background:P.offWhite, fontFamily:font }}>
       {nav ? <MarketingNav nav={nav} /> : (
       <div style={{ background:P.navy, padding:"0 32px", height:"52px", display:"flex", alignItems:"center", gap:"16px", boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
-        <button onClick={onBack} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:"8px", padding:"5px 12px", color:"rgba(255,255,255,0.7)", fontSize:"13px", fontFamily:font, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:"6px" }}>← Back</button>
+        <button onClick={onBack} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:"8px", padding:"5px 12px", color:"rgba(255,255,255,0.7)", fontSize:"15px", fontFamily:font, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:"6px" }}>← Back</button>
         <span style={{ color:P.white, fontSize:"15px", fontWeight:700, fontFamily:font }}>{title}</span>
       </div>
       )}
@@ -2829,7 +2175,7 @@ function Section({ title, children }) {
   return (
     <div style={{ marginBottom:"36px" }}>
       <h2 style={{ fontSize:"18px", fontWeight:800, color:P.navy, fontFamily:font, margin:"0 0 12px", letterSpacing:"-0.02em" }}>{title}</h2>
-      <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, lineHeight:1.8 }}>{children}</div>
+      <div style={{ fontSize:"16px", color:P.grey600, fontFamily:font, lineHeight:1.8 }}>{children}</div>
     </div>
   );
 }
@@ -2854,11 +2200,11 @@ function MarketingNav({ nav }) {
         {tabs.map(t => {
           const active = nav?.current === t.key;
           return (
-            <button key={t.key} onClick={t.go} style={{ background: active ? "rgba(0,201,177,0.15)" : "transparent", border:"none", borderRadius:"7px", padding:"6px 12px", color: active ? P.accent : "rgba(255,255,255,0.7)", fontSize:"13px", fontWeight: active ? 700 : 500, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>{t.label}</button>
+            <button key={t.key} onClick={t.go} style={{ background: active ? "rgba(0,201,177,0.15)" : "transparent", border:"none", borderRadius:"7px", padding:"6px 12px", color: active ? P.accent : "rgba(255,255,255,0.7)", fontSize:"15px", fontWeight: active ? 700 : 500, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>{t.label}</button>
           );
         })}
         </div>
-        <button onClick={nav?.onApp} style={{ marginLeft:"4px", background:P.accent, border:"none", borderRadius:"8px", padding:"8px 14px", fontSize:"13px", fontWeight:700, color:P.white, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 }}>Open App →</button>
+        <button onClick={nav?.onApp} style={{ marginLeft:"4px", background:P.accent, border:"none", borderRadius:"8px", padding:"8px 14px", fontSize:"15px", fontWeight:700, color:P.white, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 }}>Open App →</button>
       </div>
     </div>
   );
@@ -2869,8 +2215,8 @@ function TermsPage({ onBack, nav }) {
     <PageShell title="Terms of Service" onBack={onBack} nav={nav}>
       <div style={{ marginBottom:"40px" }}>
         <h1 style={{ fontSize:"32px", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 8px", letterSpacing:"-0.03em" }}>Terms of Service</h1>
-        <p style={{ fontSize:"14px", color:P.grey400, fontFamily:font, margin:"0 0 16px" }}>Last updated: February 2026</p>
-        <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, margin:0 }}>By using GroupGrid, you agree to these terms. Please read them carefully.</p>
+        <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, margin:"0 0 16px" }}>Last updated: February 2026</p>
+        <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, margin:0 }}>By using GroupGrid, you agree to these terms. Please read them carefully.</p>
       </div>
       <Section title="1. Acceptance of Terms">
         By accessing or using GroupGrid ("the Service"), you agree to be bound by these Terms of Service. If you do not agree to these terms, do not use the Service. We reserve the right to update these terms at any time with notice provided via the Service.
@@ -2903,7 +2249,7 @@ function TermsPage({ onBack, nav }) {
         These Terms shall be governed by the laws of the State of Delaware, United States, without regard to its conflict of law provisions. Any disputes arising under these Terms shall be resolved in the courts of Delaware.
       </Section>
       <Section title="11. Contact">
-        Questions about these Terms? Email us at <a href="mailto:groupgrid@outlook.com" style={{ color:P.periwinkleD, fontWeight:600 }}>groupgrid@outlook.com</a>.
+        Questions about these Terms, billing, or pricing? Email us at <a href="mailto:billing@groupgrid.io" style={{ color:P.periwinkleD, fontWeight:600 }}>billing@groupgrid.io</a>.
       </Section>
     </PageShell>
   );
@@ -2929,7 +2275,7 @@ function AboutPage({ onBack, nav }) {
     <div style={{ minHeight:"100vh", background:P.offWhite, fontFamily:font }}>
       {nav ? <MarketingNav nav={nav} /> : (
       <div style={{ background:P.navy, padding:"0 32px", height:"52px", display:"flex", alignItems:"center", gap:"16px", boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
-        <button onClick={onBack} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:"8px", padding:"5px 12px", color:"rgba(255,255,255,0.7)", fontSize:"13px", fontFamily:font, fontWeight:600, cursor:"pointer" }}>← Back</button>
+        <button onClick={onBack} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:"8px", padding:"5px 12px", color:"rgba(255,255,255,0.7)", fontSize:"15px", fontFamily:font, fontWeight:600, cursor:"pointer" }}>← Back</button>
         <span style={{ color:P.white, fontSize:"15px", fontWeight:700, fontFamily:font }}>About GroupGrid</span>
       </div>
       )}
@@ -2937,7 +2283,7 @@ function AboutPage({ onBack, nav }) {
       {/* Hero */}
       <div style={{ background:`linear-gradient(160deg, ${P.navy} 0%, ${P.navyLight} 100%)`, padding:"64px 28px 56px", textAlign:"center" }}>
         <div style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:"rgba(0,201,177,0.12)", border:"1px solid rgba(0,201,177,0.3)", borderRadius:"20px", padding:"5px 16px", marginBottom:"20px" }}>
-          <span style={{ fontSize:"13px", fontWeight:700, color:P.accent, fontFamily:font, letterSpacing:"0.05em" }}>BUILT BY A PLANNER, FOR PLANNERS</span>
+          <span style={{ fontSize:"15px", fontWeight:700, color:P.accent, fontFamily:font, letterSpacing:"0.05em" }}>BUILT BY A PLANNER, FOR PLANNERS</span>
         </div>
         <h1 style={{ fontSize:"42px", fontWeight:700, color:P.white, fontFamily:fontDisplay, margin:"0 0 16px", letterSpacing:"-0.04em", lineHeight:1.1, maxWidth:"680px", marginLeft:"auto", marginRight:"auto" }}>
           The tool I wish I had<br/><span style={{ color:P.accent }}>for every event I've ever run.</span>
@@ -2952,7 +2298,7 @@ function AboutPage({ onBack, nav }) {
         {/* Founder story */}
         <div style={{ background:P.white, borderRadius:"20px", border:`1.5px solid ${P.grey100}`, padding:"36px 40px", marginBottom:"32px", position:"relative", overflow:"hidden" }}>
           <div style={{ position:"absolute", top:0, left:0, width:"4px", height:"100%", background:`linear-gradient(180deg, ${P.accent}, ${P.navy})` }} />
-          <div style={{ fontSize:"13px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"16px" }}>Why GroupGrid Exists</div>
+          <div style={{ fontSize:"16px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"16px" }}>Why GroupGrid Exists</div>
           <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.85, margin:"0 0 20px" }}>
             GroupGrid was created to solve a challenge I lived with for more than 15 years as an event professional: <strong style={{ color:P.navy }}>reconciling who registered for an event against what was actually booked for their travel.</strong> Registration lists, flight manifests, and hotel rosters never quite agree, and finding the gaps before they become day-of problems is slow, manual, and error-prone.
           </p>
@@ -2966,7 +2312,7 @@ function AboutPage({ onBack, nav }) {
 
         {/* Value strip */}
         <div style={{ background:P.navy, borderRadius:"16px", padding:"28px 32px", marginBottom:"32px" }}>
-          <div style={{ fontSize:"13px", fontWeight:800, color:"rgba(255,255,255,0.5)", fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"22px" }}>What GroupGrid Does For You</div>
+          <div style={{ fontSize:"16px", fontWeight:800, color:"rgba(255,255,255,0.5)", fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"22px" }}>What GroupGrid Does For You</div>
           <div className="gg-landing-stats" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"22px 28px" }}>
             {[
               { Icon:CrossCheckIcon, title:"No manual cross-checking", body:"Check an entire event without comparing spreadsheets row by row." },
@@ -2983,7 +2329,7 @@ function AboutPage({ onBack, nav }) {
                 </div>
                 <div>
                   <div style={{ fontSize:"15px", fontWeight:700, color:P.white, fontFamily:font, marginBottom:"3px", letterSpacing:"-0.01em" }}>{title}</div>
-                  <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.55)", fontFamily:font, lineHeight:1.55 }}>{body}</div>
+                  <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.55)", fontFamily:font, lineHeight:1.55 }}>{body}</div>
                 </div>
               </div>
               );
@@ -2993,8 +2339,8 @@ function AboutPage({ onBack, nav }) {
 
         {/* Who it's for */}
         <div style={{ marginBottom:"32px" }}>
-          <div style={{ fontSize:"13px", fontWeight:800, color:P.navy, fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"8px" }}>Built for Event Planners Running Events of Any Size</div>
-          <p style={{ fontSize:"16px", color:P.grey600, fontFamily:font, lineHeight:1.7, margin:"0 0 20px" }}>
+          <div style={{ fontSize:"16px", fontWeight:800, color:P.navy, fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"8px" }}>Built for Event Planners Running Events of Any Size</div>
+          <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, margin:"0 0 20px" }}>
             Wherever you need to make sure attendees arrive on time, have a confirmed hotel room, and won't show up at the wrong airport — GroupGrid has you covered.
           </p>
           <div className="gg-landing-usecases" style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:"10px" }}>
@@ -3004,7 +2350,7 @@ function AboutPage({ onBack, nav }) {
               return (
               <div key={label} style={{ display:"flex", alignItems:"center", gap:"12px", background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"12px", padding:"12px 14px" }}>
                 <div style={{ width:36, height:36, borderRadius:"10px", background:box, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon size={19} line="rgba(255,255,255,0.95)" accent={iconAccent} /></div>
-                <span style={{ fontSize:"14px", fontWeight:600, color:P.navy, fontFamily:font }}>{label}</span>
+                <span style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font }}>{label}</span>
               </div>
               );
             })}
@@ -3013,7 +2359,7 @@ function AboutPage({ onBack, nav }) {
 
         {/* How it works */}
         <div style={{ background:P.white, borderRadius:"16px", border:`1.5px solid ${P.grey100}`, padding:"32px 36px", marginBottom:"32px" }}>
-          <div style={{ fontSize:"13px", fontWeight:800, color:P.navy, fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"20px" }}>How It Works</div>
+          <div style={{ fontSize:"16px", fontWeight:800, color:P.navy, fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"20px" }}>How It Works</div>
           <div style={{ display:"flex", flexDirection:"column", gap:"18px" }}>
             {[
               { n:"1", title:"Upload your spreadsheets", body:"Drag in your flight manifest, hotel roster, and car transfers — Excel or CSV (.xlsx, .xls, .csv), any column names. GroupGrid auto-detects them." },
@@ -3023,11 +2369,11 @@ function AboutPage({ onBack, nav }) {
             ].map(({ n, title, body }) => (
               <div key={n} style={{ display:"flex", gap:"16px", alignItems:"flex-start" }}>
                 <div style={{ width:32, height:32, borderRadius:"50%", background:P.navy, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:"1px" }}>
-                  <span style={{ fontSize:"14px", fontWeight:800, color:P.accent, fontFamily:font }}>{n}</span>
+                  <span style={{ fontSize:"15px", fontWeight:800, color:P.accent, fontFamily:font }}>{n}</span>
                 </div>
                 <div>
                   <div style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"4px" }}>{title}</div>
-                  <div style={{ fontSize:"14px", color:P.grey600, fontFamily:font, lineHeight:1.7 }}>{body}</div>
+                  <div style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7 }}>{body}</div>
                 </div>
               </div>
             ))}
@@ -3040,7 +2386,7 @@ function AboutPage({ onBack, nav }) {
             <ShieldCheck size={18} strokeWidth={1.8} color={P.teal}/>
             <div style={{ fontSize:"15px", fontWeight:800, color:P.teal, fontFamily:font }}>Your guest files never leave your browser</div>
           </div>
-          <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, lineHeight:1.7 }}>
+          <div style={{ fontSize:"16px", color:P.grey600, fontFamily:font, lineHeight:1.7 }}>
             Your guest files — names, emails, flight details, hotel records — are read and processed entirely in your browser and are never uploaded to our servers. Account sign-in is handled securely through Supabase, a trusted third-party provider, and your saved projects are stored locally in your browser. The sensitive guest spreadsheet data itself stays in your browser.
           </div>
         </div>
@@ -3048,10 +2394,10 @@ function AboutPage({ onBack, nav }) {
         {/* Community */}
         <div style={{ background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"14px", padding:"24px 28px", textAlign:"center" }}>
           <div style={{ fontSize:"15px", fontWeight:800, color:P.navy, fontFamily:font, marginBottom:"8px" }}>Part of the events community</div>
-          <div style={{ fontSize:"15px", color:P.grey400, fontFamily:font, lineHeight:1.7, marginBottom:"16px" }}>
+          <div style={{ fontSize:"16px", color:P.grey600, fontFamily:font, lineHeight:1.7, marginBottom:"16px" }}>
             GroupGrid is built by an active member of the event marketing community, including CEMA and PCMA. Have a question or want to connect? Reach out anytime.
           </div>
-          <a href="mailto:groupgrid@outlook.com" style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:P.navy, borderRadius:"10px", padding:"10px 22px", fontSize:"14px", fontWeight:700, color:P.white, fontFamily:font, textDecoration:"none" }}>
+          <a href="mailto:hello@groupgrid.io" style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:P.navy, borderRadius:"10px", padding:"10px 22px", fontSize:"15px", fontWeight:700, color:P.white, fontFamily:font, textDecoration:"none" }}>
             Get in touch →
           </a>
         </div>
@@ -3066,19 +2412,20 @@ function ContactPage({ onBack, nav }) {
     <PageShell title="Contact Us" onBack={onBack} nav={nav}>
       <div style={{ marginBottom:"40px" }}>
         <h1 style={{ fontSize:"32px", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 12px", letterSpacing:"-0.03em" }}>Get in touch.</h1>
-        <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, margin:0 }}>Have a question, found a bug, or want to share feedback? We'd love to hear from you.</p>
+        <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, margin:0 }}>Have a question, found a bug, or want to share feedback? We'd love to hear from you.</p>
       </div>
       <div className="gg-card-grid-3" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"16px", marginBottom:"36px" }}>
         {[
-          { icon:"✉", label:"General Inquiries", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.periwinkleD, bg:P.grey50 },
-          { icon:"🐛", label:"Bug Reports", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.red, bg:"#FFF5F5" },
-          { icon:"💡", label:"Feature Requests", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.teal, bg:P.accentLight },
-          { icon:"🤝", label:"Partnerships", value:"groupgrid@outlook.com", href:"mailto:groupgrid@outlook.com", color:P.amber, bg:P.amberLight },
-        ].map(({ icon, label, value, href, color, bg }) => (
+          { Icon:Mail, label:"General Inquiries", value:"hello@groupgrid.io", href:"mailto:hello@groupgrid.io", color:P.periwinkleD, bg:P.grey50 },
+          { Icon:CreditCard, label:"Billing & Pricing", value:"billing@groupgrid.io", href:"mailto:billing@groupgrid.io", color:P.teal, bg:P.tealLight },
+          { Icon:AlertTriangle, label:"Bug Reports", value:"support@groupgrid.io", href:"mailto:support@groupgrid.io", color:P.red, bg:P.redLight },
+          { Icon:Plus, label:"Feature Requests", value:"support@groupgrid.io", href:"mailto:support@groupgrid.io", color:P.accentD, bg:P.accentLight },
+          { Icon:Users, label:"Partnerships", value:"hello@groupgrid.io", href:"mailto:hello@groupgrid.io", color:P.amber, bg:P.amberLight },
+        ].map(({ Icon, label, value, href, color, bg }) => (
           <a key={label} href={href} style={{ display:"flex", alignItems:"center", gap:"14px", background:bg, border:`1.5px solid ${color}22`, borderRadius:"12px", padding:"18px 20px", textDecoration:"none" }}>
-            <span style={{ fontSize:"22px" }}>{icon}</span>
+            <span style={{ display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon size={22} strokeWidth={1.8} color={color} /></span>
             <div>
-              <div style={{ fontSize:"13px", fontWeight:700, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"3px" }}>{label}</div>
+              <div style={{ fontSize:"16px", fontWeight:700, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"3px" }}>{label}</div>
               <div style={{ fontSize:"15px", fontWeight:600, color, fontFamily:font }}>{value}</div>
             </div>
           </a>
@@ -3102,24 +2449,24 @@ function FAQPage({ onBack, nav }) {
     { q:"What if I don't have email addresses?", a:"GroupGrid matches people by email first for the most accurate results, then falls back to matching by name. Including an email column is best, but it's not required." },
     { q:"Is my data secure?", a:"Your guest files are read and processed entirely in your browser and are never uploaded to our servers. Account sign-in is handled securely through Supabase, a trusted third-party provider, and your saved projects are stored locally in your browser. The sensitive guest spreadsheet data itself stays in your browser." },
     { q:"Who is GroupGrid for?", a:"Any event or meeting planner who manages attendee travel, from a small board retreat to a large multi-day conference. If people are registering and you're booking their flights and hotels, GroupGrid makes sure the two lists match." },
-    { q:"How much does it cost?", a:"$249/month for full access — unlimited events, unlimited guests, every feature. Create an account to get started." },
+    { q:"How much does it cost?", a:"$250/month for full access — unlimited events, unlimited guests, every feature. Create an account to get started." },
     { q:"Do I need to install anything?", a:"No. GroupGrid runs in your web browser. There's nothing to download or install." },
   ];
   return (
     <PageShell title="FAQ" onBack={onBack} nav={nav}>
       <div style={{ marginBottom:"32px" }}>
         <h1 style={{ fontSize:"32px", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 8px", letterSpacing:"-0.03em" }}>Frequently asked questions</h1>
-        <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, margin:0 }}>Everything you need to know about how GroupGrid works.</p>
+        <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, margin:0 }}>Everything you need to know about how GroupGrid works.</p>
       </div>
       {faqs.map(({ q, a }) => (
         <div key={q} style={{ background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"14px", padding:"22px 26px", marginBottom:"14px" }}>
           <div style={{ fontSize:"17px", fontWeight:800, color:P.navy, fontFamily:font, marginBottom:"8px", letterSpacing:"-0.01em" }}>{q}</div>
-          <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, lineHeight:1.75 }}>{a}</div>
+          <div style={{ fontSize:"16px", color:P.grey600, fontFamily:font, lineHeight:1.75 }}>{a}</div>
         </div>
       ))}
       <div style={{ marginTop:"24px", background:P.accentLight, border:`1.5px solid ${P.accent}44`, borderRadius:"14px", padding:"22px 26px", textAlign:"center" }}>
         <div style={{ fontSize:"15px", fontWeight:800, color:P.teal, fontFamily:font, marginBottom:"6px" }}>Still have a question?</div>
-        <div style={{ fontSize:"14px", color:P.grey600, fontFamily:font }}>Email us at <a href="mailto:groupgrid@outlook.com" style={{ color:P.periwinkleD, fontWeight:700, textDecoration:"none" }}>groupgrid@outlook.com</a> and we'll get back to you within one business day.</div>
+        <div style={{ fontSize:"17px", color:P.grey600, fontFamily:font }}>Email us at <a href="mailto:support@groupgrid.io" style={{ color:P.periwinkleD, fontWeight:700, textDecoration:"none" }}>support@groupgrid.io</a> and we'll get back to you within one business day.</div>
       </div>
     </PageShell>
   );
@@ -3130,8 +2477,8 @@ function PrivacyPage({ onBack, nav }) {
     <PageShell title="Privacy Policy" onBack={onBack} nav={nav}>
       <div style={{ marginBottom:"40px" }}>
         <h1 style={{ fontSize:"32px", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 8px", letterSpacing:"-0.03em" }}>Privacy Policy</h1>
-        <p style={{ fontSize:"14px", color:P.grey400, fontFamily:font, margin:"0 0 16px" }}>Last updated: June 2026</p>
-        <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, margin:0 }}>GroupGrid is built with privacy as a core design principle — not an afterthought. Here's exactly what we do and don't do with your data.</p>
+        <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, margin:"0 0 16px" }}>Last updated: June 2026</p>
+        <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, margin:0 }}>GroupGrid is built with privacy as a core design principle — not an afterthought. Here's exactly what we do and don't do with your data.</p>
       </div>
       <Section title="Data we collect">
         <strong>We never collect your guest data.</strong> GroupGrid processes all spreadsheet data entirely within your browser. Your guest names, emails, flight details, hotel records, and any other information in your uploaded files are never transmitted to our servers — we have no access to this data, ever. The limited personal data we do handle is: your account email address, for sign-in (via Supabase); the projects you choose to save, which are stored locally on your own device and not on our servers; and, if you join our early-access list, the email address you submit (via HubSpot, our email and CRM provider).
@@ -3149,13 +2496,13 @@ function PrivacyPage({ onBack, nav }) {
         The personal data we hold is limited to your account email (via Supabase) and, if you have joined our early-access list, the email you submitted (via HubSpot). Your saved projects are stored locally on your own device, not on our servers. You have the right to access, export, and permanently delete your account-associated data upon request.
       </Section>
       <Section title="Third-party services">
-        GroupGrid uses Supabase, a trusted third-party provider, for account authentication. Your saved projects are stored locally in your browser, not on Supabase. If you join our early-access list, the email address you submit is sent to HubSpot, our email and CRM provider, so we can contact you about early access; our signup form posts directly to HubSpot's API and does not load HubSpot's tracking script, so no HubSpot tracking cookie is set. Your guest spreadsheet files are never sent to Supabase, HubSpot, or any other service — they are processed only in your browser. External fonts (Manrope and Poppins via Google Fonts) are loaded from Google's CDN, which is subject to Google's standard font API privacy policy. We use no advertising or analytics services.
+        GroupGrid uses Supabase, a trusted third-party provider, for account authentication. Your saved projects are stored locally in your browser, not on Supabase. If you join our early-access list, the email address you submit is sent to HubSpot, our email and CRM provider, so we can contact you about early access; our signup form posts directly to HubSpot's API and does not load HubSpot's tracking script, so no HubSpot tracking cookie is set. Your guest spreadsheet files are never sent to Supabase, HubSpot, or any other service — they are processed only in your browser. External fonts (IBM Plex Sans and Poppins via Google Fonts) are loaded from Google's CDN, which is subject to Google's standard font API privacy policy. We use no advertising or analytics services.
       </Section>
       <Section title="Changes to this policy">
         We will notify users of any material changes to this policy via in-app notification and email. Continued use after notification constitutes acceptance of the updated policy.
       </Section>
       <Section title="Contact">
-        Questions about privacy? Email us at <a href="mailto:groupgrid@outlook.com" style={{ color:P.periwinkleD, fontWeight:600 }}>groupgrid@outlook.com</a>.
+        Questions about privacy? Email us at <a href="mailto:privacy@groupgrid.io" style={{ color:P.periwinkleD, fontWeight:600 }}>privacy@groupgrid.io</a>.
       </Section>
     </PageShell>
   );
@@ -3254,7 +2601,7 @@ function EarlyAccessForm() {
         style={{ width:"100%", marginTop:18, padding:"13px 16px", fontSize:15, fontWeight:700, fontFamily:font, color:P.white, background:status==="submitting"?P.navyLight:hovered?P.accentD:P.accent, border:"none", borderRadius:11, cursor:status==="submitting"?"default":"pointer", transition:"background 0.15s" }}>
         {status === "submitting" ? "Joining…" : "Get early access"}
       </button>
-      <p style={{ margin:"14px 0 0", fontSize:12, lineHeight:1.5, color:P.grey600, textAlign:"center" }}>We respect your privacy. No spam, ever. <a href={HS_PRIVACY_URL} style={{ color:P.navyLight, textDecoration:"underline" }}>Privacy</a></p>
+      <p style={{ margin:"14px 0 0", fontSize:12, lineHeight:1.5, color:P.grey600, textAlign:"center" }}>We respect your privacy. <a href={HS_PRIVACY_URL} style={{ color:P.navyLight, textDecoration:"underline" }}>Privacy</a></p>
     </div>
   );
 }
@@ -3263,7 +2610,7 @@ function EarlyAccessForm() {
 function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerms, onFaq }) {
 
   const problems = [
-    { time:"Day 1", label:"You export your registration list", sub:"300 people signed up — names, dates, requests", color:P.navy, Icon:SpreadsheetIcon },
+    { time:"Day 1", label:"You export your registration list", sub:"Everyone who signed up, names, dates, requests", color:P.navy, Icon:SpreadsheetIcon },
     { time:"Day 3", label:"Flight manifest arrives", sub:"280 names — different format, different spelling", color:P.accentD, Icon:PlaneIcon },
     { time:"Day 7", label:"Hotel roster comes in separately", sub:"294 rooms — do they all match who registered?", color:P.navy, Icon:HotelIcon },
     { time:"Day 14", label:"You're still cross-checking", sub:"VLOOKUPs, filters, manual row-by-row scanning…", color:P.accentD, Icon:MagnifierIcon },
@@ -3286,7 +2633,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
 
   return (
     <div style={{ minHeight:"100vh", fontFamily:font, background:P.white, WebkitFontSmoothing:"antialiased" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet" />
 
       {/* ── Nav ── */}
       <nav className="gg-landing-nav" style={{ background:P.navy, height:"64px", padding:"0 40px", display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100, boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
@@ -3295,11 +2642,11 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:"28px" }}>
           <div className="gg-landing-navlinks" style={{ display:"flex", alignItems:"center", gap:"28px" }}>
-            <button onClick={onAbout} style={{ background:"none", border:"none", fontSize:"14px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>About</button>
-            <button onClick={onFaq} style={{ background:"none", border:"none", fontSize:"14px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>FAQ</button>
-            <button onClick={onPricing} style={{ background:"none", border:"none", fontSize:"14px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>Pricing</button>
+            <button onClick={onAbout} style={{ background:"none", border:"none", fontSize:"15px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>About</button>
+            <button onClick={onFaq} style={{ background:"none", border:"none", fontSize:"15px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>FAQ</button>
+            <button onClick={onPricing} style={{ background:"none", border:"none", fontSize:"15px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>Pricing</button>
           </div>
-          <button onClick={onEnter} style={{ background:P.accent, border:"none", borderRadius:"8px", padding:"8px 18px", fontSize:"14px", fontWeight:700, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 2px 12px rgba(0,201,177,0.35)", whiteSpace:"nowrap", flexShrink:0 }}>Open App →</button>
+          <button onClick={onEnter} style={{ background:P.accent, border:"none", borderRadius:"8px", padding:"8px 18px", fontSize:"15px", fontWeight:700, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 2px 12px rgba(0,201,177,0.35)", whiteSpace:"nowrap", flexShrink:0 }}>Open App →</button>
         </div>
       </nav>
 
@@ -3370,13 +2717,13 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               </div>
             </div>
             <h1 style={{ fontSize:"clamp(28px, 4.5vw, 44px)", fontWeight:700, color:P.white, fontFamily:fontDisplay, lineHeight:1.1, margin:"0 0 18px", maxWidth:"540px", letterSpacing:"-0.035em" }}>
-              300 people registered.<br/><span style={{ color:P.accent }}>Did all 300 actually get booked?</span>
+              Your attendees registered.<br/><span style={{ color:P.accent }}>But did they book their travel?</span>
             </h1>
             <p style={{ fontSize:"18px", color:"rgba(255,255,255,0.6)", fontFamily:font, lineHeight:1.75, margin:"0 0 12px", maxWidth:"520px" }}>
-              One missing flight. One hotel room booked for the wrong person. One attendee arriving with nowhere to stay.
+              When you're managing group travel for attendees who need flights, hotels, and car transfers, the mistakes are easy to miss.
             </p>
             <p style={{ fontSize:"18px", color:"rgba(255,255,255,0.85)", fontFamily:font, lineHeight:1.75, margin:"0 0 36px", maxWidth:"520px", fontWeight:600 }}>
-              GroupGrid checks your registration list against flights, hotels, and transfers to show you exactly what needs attention — <span style={{ color:P.accent }}>in minutes.</span>
+              GroupGrid catches them early, saving you thousands of dollars and hours, and saving you and your attendees from mismatched travel dates and <span style={{ color:P.red }}>red flags.</span>
             </p>
             <div style={{ display:"flex", gap:"12px", flexWrap:"wrap", alignItems:"center" }}>
               <button onClick={onEnter} style={{ background:`linear-gradient(135deg, ${P.accent}, ${P.accentD})`, border:"none", borderRadius:"12px", padding:"14px 32px", fontSize:"16px", fontWeight:800, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 4px 20px rgba(0,201,177,0.4)", letterSpacing:"-0.02em" }}>
@@ -3386,7 +2733,6 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                 See pricing
               </button>
             </div>
-            <p style={{ fontSize:"13px", color:"rgba(255,255,255,0.3)", fontFamily:font, marginTop:"14px" }}>No setup · Upload spreadsheets · Get answers</p>
           </div>
 
           {/* Right — live mismatch demo card */}
@@ -3395,10 +2741,10 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               <div style={{ display:"flex", gap:"5px" }}>
                 {["#FF5F57","#FFBD2E","#28C840"].map(c => <div key={c} style={{ width:10, height:10, borderRadius:"50%", background:c }} />)}
               </div>
-              <span style={{ fontSize:"12px", color:"rgba(255,255,255,0.35)", fontFamily:font, fontWeight:600 }}>GroupGrid — Annual Sales Summit 2025</span>
+              <span style={{ fontSize:"15px", color:"rgba(255,255,255,0.35)", fontFamily:font, fontWeight:600 }}>GroupGrid — Annual Sales Summit 2025</span>
             </div>
             <div style={{ padding:"16px" }}>
-              <div style={{ fontSize:"11px", fontWeight:700, color:"rgba(255,255,255,0.35)", fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"10px" }}>Cross-check complete · 300 reviewed · <span style={{ color:"#FF8A80" }}>4 need action</span></div>
+              <div style={{ fontSize:"15px", fontWeight:700, color:"rgba(255,255,255,0.35)", fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"10px" }}>Cross-check complete · 300 reviewed · <span style={{ color:"#FF8A80" }}>4 need action</span></div>
               {[
                 { name:"Sarah Solomon", issue:"Registered but no flight booked", type:"error", badge:"No Flight" },
                 { name:"Marcus Williams", issue:"Has a hotel room but never registered", type:"error", badge:"Not Registered" },
@@ -3407,15 +2753,15 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               ].map(({ name, issue, type, badge }) => (
                 <div key={name} style={{ background: type==="error" ? "rgba(192,57,43,0.15)" : "rgba(201,122,10,0.15)", border:`1px solid ${type==="error" ? "rgba(192,57,43,0.3)" : "rgba(201,122,10,0.3)"}`, borderRadius:"10px", padding:"12px 14px", marginBottom:"8px" }}>
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"4px" }}>
-                    <span style={{ fontSize:"13px", fontWeight:700, color:P.white, fontFamily:font }}>{name}</span>
-                    <span style={{ fontSize:"10px", fontWeight:800, color: type==="error" ? "#FF8A80" : "#FFD54F", background: type==="error" ? "rgba(192,57,43,0.3)" : "rgba(201,122,10,0.3)", padding:"2px 8px", borderRadius:"20px", fontFamily:font }}>{badge}</span>
+                    <span style={{ fontSize:"15px", fontWeight:700, color:P.white, fontFamily:font }}>{name}</span>
+                    <span style={{ fontSize:"15px", fontWeight:800, color: type==="error" ? "#FF8A80" : "#FFD54F", background: type==="error" ? "rgba(192,57,43,0.3)" : "rgba(201,122,10,0.3)", padding:"2px 8px", borderRadius:"20px", fontFamily:font }}>{badge}</span>
                   </div>
-                  <div style={{ fontSize:"12px", color:"rgba(255,255,255,0.5)", fontFamily:font, lineHeight:1.5 }}>{issue}</div>
+                  <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.5)", fontFamily:font, lineHeight:1.5 }}>{issue}</div>
                 </div>
               ))}
               <div style={{ marginTop:"12px", background:"rgba(0,201,177,0.1)", border:"1px solid rgba(0,201,177,0.2)", borderRadius:"8px", padding:"10px 12px", display:"flex", alignItems:"center", gap:"8px" }}>
                 <Check size={14} strokeWidth={2.5} color={P.accent} style={{flexShrink:0}}/>
-                <span style={{ fontSize:"12px", color:"rgba(255,255,255,0.6)", fontFamily:font }}>296 registered guests fully booked · <span style={{ color:P.accent, fontWeight:700 }}>✓ No action needed</span></span>
+                <span style={{ fontSize:"15px", color:"rgba(255,255,255,0.6)", fontFamily:font }}>296 registered guests fully booked · <span style={{ color:P.accent, fontWeight:700 }}>✓ No action needed</span></span>
               </div>
             </div>
           </div>
@@ -3423,14 +2769,14 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
       </div>
 
       {/* ── Problem section ── */}
-      <div style={{ background:"#FAFBFD", padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
+      <div style={{ background:"#F0F2F7", padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
         <div style={{ maxWidth:"1000px", margin:"0 auto" }}>
           <div style={{ textAlign:"center", marginBottom:"56px" }}>
-            <div style={{ fontSize:"12px", fontWeight:800, color:P.periwinkleD, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>SOUND FAMILIAR?</div>
+            <div style={{ fontSize:"15px", fontWeight:800, color:P.periwinkleD, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>SOUND FAMILIAR?</div>
             <h2 style={{ fontSize:"clamp(30px, 5vw, 44px)", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 16px", letterSpacing:"-0.035em", lineHeight:1.1 }}>
               Event Data Shouldn&rsquo;t<br/>Need a Detective.
             </h2>
-            <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, maxWidth:"560px", margin:"0 auto" }}>
+            <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, maxWidth:"560px", margin:"0 auto" }}>
               When attendee information lives in separate spreadsheets, mistakes are inevitable. Keep registrations, travel, and accommodations connected in one place.
             </p>
           </div>
@@ -3438,9 +2784,9 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
             {problems.map(({ time, label, sub, color, bg, Icon }, i) => (
               <div key={time} className="gg-timeline-card" style={{ background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"16px", padding:"24px", position:"relative", overflow:"visible", boxShadow:"0 1px 3px rgba(12,30,63,0.04)" }}>
                 <div style={{ width:"44px", height:"44px", borderRadius:"12px", background:color, display:"flex", alignItems:"center", justifyContent:"center", marginBottom:"16px" }}>{Icon && <Icon size={22} line="rgba(255,255,255,0.95)" accent={P.white} />}</div>
-                <div style={{ fontSize:"11px", fontWeight:800, color, fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"8px" }}>{time}</div>
+                <div style={{ fontSize:"15px", fontWeight:800, color, fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"8px" }}>{time}</div>
                 <div style={{ fontSize:"16px", fontWeight:700, color:P.navy, fontFamily:fontDisplay, marginBottom:"8px", lineHeight:1.3, letterSpacing:"-0.01em" }}>{label}</div>
-                <div style={{ fontSize:"13px", color:P.grey400, fontFamily:font, lineHeight:1.6 }}>{sub}</div>
+                <div style={{ fontSize:"16px", color:P.grey600, fontFamily:font, lineHeight:1.6 }}>{sub}</div>
                 {i < 3 && <div className="gg-timeline-arrow" style={{ position:"absolute", top:"50%", right:"-12px", transform:"translateY(-50%)", fontSize:"16px", color:P.grey200, zIndex:2 }}>→</div>}
               </div>
             ))}
@@ -3449,7 +2795,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
             <div style={{ width:46, height:46, borderRadius:"12px", background:P.navyLight, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><AlertIcon size={24} line="rgba(255,255,255,0.95)" accent={P.amber} /></div>
             <div>
               <div style={{ fontSize:"15px", fontWeight:700, color:P.white, fontFamily:fontDisplay, marginBottom:"5px", letterSpacing:"-0.01em" }}>Meanwhile, your event is in <span style={{ color:P.amber }}>3 days</span></div>
-              <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.62)", fontFamily:font, lineHeight:1.65 }}>You've checked the lists more than once, and they look right. But the person who registered late and never booked a flight, the hotel room held for someone who isn't on your list, the name spelled two different ways: those are the ones that surface at check-in.</div>
+              <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.62)", fontFamily:font, lineHeight:1.65 }}>You've checked the lists more than once, and they look right. But the person who registered late and never booked a flight, the hotel room held for someone who isn't on your list, the name spelled two different ways: those are the ones that surface at check-in.</div>
             </div>
           </div>
         </div>
@@ -3459,11 +2805,11 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
       <div style={{ background:P.white, padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
         <div style={{ maxWidth:"1000px", margin:"0 auto" }}>
           <div style={{ textAlign:"center", marginBottom:"56px" }}>
-            <div style={{ fontSize:"12px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>THE GROUPGRID WAY</div>
+            <div style={{ fontSize:"15px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>THE GROUPGRID WAY</div>
             <h2 style={{ fontSize:"clamp(30px, 5vw, 44px)", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 16px", letterSpacing:"-0.035em", lineHeight:1.1 }}>
               Days of work.<br/><span style={{ color:P.accent }}>Done in minutes.</span>
             </h2>
-            <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, maxWidth:"520px", margin:"0 auto" }}>
+            <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, maxWidth:"520px", margin:"0 auto" }}>
               Upload your registration list and your travel files, run the check, see every gap instantly — then communicate fixes directly to your hotel and travel agency without switching tabs.
             </p>
           </div>
@@ -3479,7 +2825,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                     <div style={{ fontSize:"16px", fontWeight:700, color:P.white, fontFamily:fontDisplay, letterSpacing:"-0.015em" }}>{title}</div>
                   </div>
                 </div>
-                <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.62)", fontFamily:font, lineHeight:1.75 }}>{body}</div>
+                <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.62)", fontFamily:font, lineHeight:1.75 }}>{body}</div>
               </div>
               );
             })}
@@ -3488,14 +2834,14 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
       </div>
 
       {/* ── What it catches ── */}
-      <div style={{ background:"#FAFBFD", padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
+      <div style={{ background:"#F0F2F7", padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
         <div style={{ maxWidth:"1000px", margin:"0 auto" }}>
           <div style={{ textAlign:"center", marginBottom:"48px" }}>
-            <div style={{ fontSize:"12px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>WHAT GROUPGRID CATCHES</div>
+            <div style={{ fontSize:"15px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>WHAT GROUPGRID CATCHES</div>
             <h2 style={{ fontSize:"clamp(28px, 4.5vw, 42px)", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 14px", letterSpacing:"-0.035em", lineHeight:1.1 }}>
               The gaps that cause<br/><span style={{ color:P.accent }}>day-of disasters.</span>
             </h2>
-            <p style={{ fontSize:"17px", color:P.grey400, fontFamily:font, lineHeight:1.7, maxWidth:"520px", margin:"0 auto" }}>
+            <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, maxWidth:"520px", margin:"0 auto" }}>
               Add your registration list and GroupGrid checks it against every travel file, person by person.
             </p>
           </div>
@@ -3513,7 +2859,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               <div key={title} style={{ background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"14px", padding:"24px 22px" }}>
                 <div style={{ width:46, height:46, borderRadius:"12px", background:box, display:"flex", alignItems:"center", justifyContent:"center", marginBottom:"14px" }}><Icon size={24} line="rgba(255,255,255,0.95)" accent={iconAccent} /></div>
                 <div style={{ fontSize:"16px", fontWeight:800, color:P.navy, fontFamily:font, marginBottom:"6px", letterSpacing:"-0.02em" }}>{title}</div>
-                <div style={{ fontSize:"14px", color:P.grey600, fontFamily:font, lineHeight:1.65 }}>{body}</div>
+                <div style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.65 }}>{body}</div>
               </div>
               );
             })}
@@ -3524,16 +2870,16 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
       {/* ── Use cases ── */}
       <div style={{ background:P.white, padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
         <div style={{ maxWidth:"1000px", margin:"0 auto", textAlign:"center" }}>
-          <div style={{ fontSize:"12px", fontWeight:800, color:P.navy, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>WHO IT'S FOR</div>
+          <div style={{ fontSize:"15px", fontWeight:800, color:P.navy, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>WHO IT'S FOR</div>
           <h2 style={{ fontSize:"clamp(28px, 4.5vw, 42px)", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 12px", letterSpacing:"-0.035em", lineHeight:1.1 }}>
             Built for event planners<br/><span style={{ color:P.accent }}>running events of any size</span>
           </h2>
-          <p style={{ fontSize:"16px", color:P.grey400, fontFamily:font, lineHeight:1.7, maxWidth:"520px", margin:"0 auto 40px" }}>
+          <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, maxWidth:"520px", margin:"0 auto 40px" }}>
             Anywhere you need to make sure attendees arrive on time, have a confirmed room, and won't be stranded at the wrong airport.
           </p>
           <div style={{ display:"flex", flexWrap:"wrap", gap:"10px", justifyContent:"center", marginBottom:"48px" }}>
             {eventTypes.map(tag => (
-              <span key={tag} style={{ background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"20px", padding:"8px 18px", fontSize:"14px", fontWeight:600, color:P.navy, fontFamily:font, boxShadow:"0 1px 4px rgba(15,29,53,0.06)" }}>{tag}</span>
+              <span key={tag} style={{ background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"20px", padding:"8px 18px", fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, boxShadow:"0 1px 4px rgba(15,29,53,0.06)" }}>{tag}</span>
             ))}
           </div>
         </div>
@@ -3542,7 +2888,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
       {/* ── Value band (testimonials to be added once real) ── */}
       <div style={{ background:`linear-gradient(160deg, ${P.navy} 0%, ${P.navyLight} 100%)`, padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
         <div style={{ maxWidth:"880px", margin:"0 auto", textAlign:"center" }}>
-          <div style={{ fontSize:"12px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"16px" }}>WHY PLANNERS USE IT</div>
+          <div style={{ fontSize:"15px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"16px" }}>WHY PLANNERS USE IT</div>
           <h2 style={{ fontSize:"clamp(26px, 4vw, 38px)", fontWeight:700, color:P.white, fontFamily:fontDisplay, margin:"0 0 20px", letterSpacing:"-0.035em", lineHeight:1.15 }}>
             The check that used to take days,<br/>done before your coffee gets cold.
           </h2>
@@ -3576,15 +2922,18 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
         ];
 
         const statusColor = s => s==="error" ? P.red : s==="warn" ? P.amber : P.green;
-        const statusBg    = s => s==="error" ? "#FDECEC" : s==="warn" ? "#FEF8EC" : "#F0FDF7";
-        const statusLabel = s => s==="error" ? "⚑ Flag" : s==="warn" ? "⚠ Review" : "✓ OK";
+        const statusBg    = s => s==="error" ? P.redLight : s==="warn" ? P.amberLight : P.greenLight;
+        const statusLabel = s => s==="error" ? "Flag" : s==="warn" ? "Review" : "OK";
+        // Shared column layout + per-column alignment so the header and every row line up cleanly.
+        const demoCols = "minmax(60px,0.8fr) minmax(74px,0.9fr) minmax(150px,1.7fr) 100px 78px 78px 66px";
+        const demoJustify = ["start","start","stretch","center","center","center","end"];
 
         const fileInfo = [
-          { label:"Registration List", color:"#00A896", icon:"📋", sub:"event_registration.xlsx" },
-          { label:"Flight Manifest", color:"#4DA3FF", icon:"✈️", sub:"flight_manifest_dec.xlsx" },
-          { label:"Hotel Roster",    color:"#F5A623", icon:"🏨", sub:"hotel_roster_marriott.xlsx" },
-          { label:"Car Transfers",   color:"#9B59B6", icon:"🚗", sub:"car_transfers_sfo.xlsx" },
-          ...(SHOW_DIETARY?[{ label:"Dietary & Access",color:"#27AE60", icon:"🥗", sub:"dietary_requirements.xlsx" }]:[]),
+          { label:"Registration List", color:"#00A896", Icon:PeopleIcon, sub:"event_registration.xlsx" },
+          { label:"Flight Manifest", color:"#4F8EF7", Icon:PlaneIcon, sub:"flight_manifest_dec.xlsx" },
+          { label:"Hotel Roster",    color:"#C97A0A", Icon:HotelIcon, sub:"hotel_roster_marriott.xlsx" },
+          { label:"Car Transfers",   color:"#6B3FA0", Icon:CarIcon, sub:"car_transfers_sfo.xlsx" },
+          ...(SHOW_DIETARY?[{ label:"Dietary & Access",color:P.teal, Icon:Salad, sub:"dietary_requirements.xlsx" }]:[]),
         ];
 
         const runDemo = () => {
@@ -3605,7 +2954,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
         };
 
         return (
-          <div style={{ background:"#F4F7FA", padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
+          <div style={{ background:"#F0F2F7", padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
             <style>{`
               @keyframes ggIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
               @keyframes ggPulse { 0%,100%{opacity:.45} 50%{opacity:1} }
@@ -3614,12 +2963,12 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
             <div style={{ maxWidth:"1000px", margin:"0 auto" }}>
               {/* Header */}
               <div style={{ textAlign:"center", marginBottom:"48px" }}>
-                <div style={{ fontSize:"12px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>SEE IT IN ACTION</div>
+                <div style={{ fontSize:"15px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>SEE IT IN ACTION</div>
                 <h2 style={{ fontSize:"clamp(28px, 4.5vw, 42px)", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 14px", letterSpacing:"-0.035em", lineHeight:1.1 }}>
                   From files to flags<br/><span style={{ color:P.accent }}>in minutes, not days.</span>
                 </h2>
-                <p style={{ fontSize:"16px", color:P.grey400, fontFamily:font, lineHeight:1.7, maxWidth:"460px", margin:"0 auto" }}>
-                  Watch GroupGrid check a 300-person registration list against the travel files and surface every gap instantly.
+                <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, maxWidth:"460px", margin:"0 auto" }}>
+                  Watch GroupGrid check your full registration list against the travel files and surface every gap instantly.
                 </p>
               </div>
 
@@ -3632,7 +2981,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                     {["#FF5F57","#FFBD2E","#28C840"].map(c => <div key={c} style={{ width:11, height:11, borderRadius:"50%", background:c }}/>)}
                   </div>
                   <div style={{ flex:1, display:"flex", justifyContent:"center" }}>
-                    <div style={{ background:"rgba(255,255,255,0.08)", borderRadius:"6px", padding:"4px 20px", fontSize:"12px", color:"rgba(255,255,255,0.45)", fontFamily:font }}>groupgrid.io — Annual Sales Summit · Dec 2026</div>
+                    <div style={{ background:"rgba(255,255,255,0.08)", borderRadius:"6px", padding:"4px 20px", fontSize:"15px", color:"rgba(255,255,255,0.45)", fontFamily:font }}>groupgrid.io — Annual Sales Summit · Dec 2026</div>
                   </div>
                 </div>
 
@@ -3641,23 +2990,23 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                   {/* Mini sidebar */}
                   <div className="gg-demo-sidebar" style={{ width:"160px", flexShrink:0, background:P.navy, padding:"16px 12px", display:"flex", flexDirection:"column", gap:"4px" }}>
                     {[
-                      { icon:"◉", label:"Registered",    count:demoPhase==="results"||demoPhase==="checking"?"300":"—",   active:true },
-                      { icon:"⚑", label:"Action Needed", count:demoPhase==="results"?"4":"—",   color:P.red },
-                      { icon:"✓", label:"Fully Booked",  count:demoPhase==="results"?"296":"—", color:P.accent },
-                      { icon:"○", label:"Not Registered",count:demoPhase==="results"?"1":"—",   color:P.purple },
-                    ].map(({ icon, label, count, active, color }) => (
+                      { Icon:PeopleIcon, label:"Registered",    count:demoPhase==="results"||demoPhase==="checking"?"300":"—",   active:true },
+                      { Icon:FlagIcon, label:"Action Needed", count:demoPhase==="results"?"4":"—",   color:P.red },
+                      { Icon:ClearedIcon, label:"Fully Booked",  count:demoPhase==="results"?"296":"—", color:P.accent },
+                      { Icon:AlertIcon, label:"Not Registered",count:demoPhase==="results"?"1":"—",   color:P.purple },
+                    ].map(({ Icon, label, count, active, color }) => (
                       <div key={label} style={{ display:"flex", alignItems:"center", gap:"6px", padding:"5px 8px", borderRadius:"6px", background:active?"rgba(0,201,177,0.15)":"transparent" }}>
-                        <span style={{ fontSize:"11px", color:color||"rgba(255,255,255,0.4)", width:12 }}>{icon}</span>
-                        <span style={{ flex:1, fontSize:"11px", color:active?P.accent:"rgba(255,255,255,0.55)", fontFamily:font, fontWeight:active?700:400 }}>{label}</span>
-                        <span style={{ fontSize:"11px", fontWeight:700, color:color||"rgba(255,255,255,0.4)", fontFamily:font }}>{count}</span>
+                        <span style={{ width:12, display:"inline-flex", alignItems:"center", justifyContent:"center" }}><Icon size={12} line={active?P.accent:(color||"rgba(255,255,255,0.4)")} accent={active?P.accent:(color||"rgba(255,255,255,0.4)")} /></span>
+                        <span style={{ flex:1, fontSize:"15px", color:active?P.accent:"rgba(255,255,255,0.55)", fontFamily:font, fontWeight:active?700:400 }}>{label}</span>
+                        <span style={{ fontSize:"15px", fontWeight:700, color:color||"rgba(255,255,255,0.4)", fontFamily:font }}>{count}</span>
                       </div>
                     ))}
                     <div style={{ height:1, background:"rgba(255,255,255,0.08)", margin:"8px 0" }}/>
-                    <div style={{ fontSize:"10px", fontWeight:800, color:"rgba(255,255,255,0.3)", fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"4px" }}>Files</div>
-                    {fileInfo.map(({ label, color, icon }, i) => (
+                    <div style={{ fontSize:"15px", fontWeight:800, color:"rgba(255,255,255,0.3)", fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"4px" }}>Files</div>
+                    {fileInfo.map(({ label, color, Icon }, i) => (
                       <div key={label} style={{ display:"flex", alignItems:"center", gap:"6px", padding:"4px 8px" }}>
-                        <span style={{ fontSize:"11px" }}>{filesLoaded[i] ? "✅" : "○"}</span>
-                        <span style={{ fontSize:"10px", color:filesLoaded[i]?color:"rgba(255,255,255,0.25)", fontFamily:font, fontWeight:filesLoaded[i]?600:400, lineHeight:1.3 }}>{label}</span>
+                        <span style={{ width:12, display:"inline-flex", alignItems:"center", justifyContent:"center" }}>{filesLoaded[i] ? <ClearedIcon size={12} line={P.accent} accent={P.accent}/> : <Icon size={12} line="rgba(255,255,255,0.35)" accent="rgba(255,255,255,0.35)"/>}</span>
+                        <span style={{ fontSize:"15px", color:filesLoaded[i]?color:"rgba(255,255,255,0.25)", fontFamily:font, fontWeight:filesLoaded[i]?600:400, lineHeight:1.3 }}>{label}</span>
                       </div>
                     ))}
                   </div>
@@ -3668,13 +3017,12 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                     {/* Idle state */}
                     {demoPhase === "idle" && (
                       <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100%", flexDirection:"column", gap:"20px" }}>
-                        <button onClick={runDemo} style={{ display:"flex", alignItems:"center", gap:"14px", background:`linear-gradient(135deg, ${P.navy}, #0D1E40)`, border:"none", borderRadius:"16px", padding:"18px 32px", cursor:"pointer", boxShadow:"0 4px 24px rgba(15,29,53,0.2)" }}>
+                        <button onClick={runDemo} style={{ display:"flex", alignItems:"center", gap:"14px", background:`linear-gradient(135deg, ${P.navy}, ${P.navyLight})`, border:"none", borderRadius:"16px", padding:"18px 32px", cursor:"pointer", boxShadow:"0 4px 24px rgba(15,29,53,0.2)" }}>
                           <div style={{ width:44, height:44, borderRadius:"50%", background:P.accent, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                            <span style={{ fontSize:"18px", marginLeft:"3px" }}>▶</span>
+                            <span style={{ marginLeft:"3px", display:"inline-flex" }}><svg width="16" height="16" viewBox="0 0 16 16"><path d="M4 3l9 5-9 5z" fill={P.navy}/></svg></span>
                           </div>
                           <div style={{ textAlign:"left" }}>
                             <div style={{ fontSize:"16px", fontWeight:800, color:P.white, fontFamily:font }}>Watch the demo</div>
-                            <div style={{ fontSize:"12px", color:"rgba(255,255,255,0.45)", fontFamily:font }}>See a cross-check run in ~45 seconds</div>
                           </div>
                         </button>
                       </div>
@@ -3685,38 +3033,38 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                       <>
                         {/* File upload strip */}
                         <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:"8px", marginBottom:"16px" }}>
-                          {fileInfo.map(({ label, color, icon }, i) => (
+                          {fileInfo.map(({ label, color, Icon }, i) => (
                             <div key={label} style={{ border:`1.5px ${filesLoaded[i]?"solid":"dashed"} ${filesLoaded[i]?color:P.grey200}`, borderRadius:"10px", padding:"10px 8px", textAlign:"center", background:filesLoaded[i]?color+"0D":P.offWhite, transition:"all 0.3s" }}>
-                              <div style={{ fontSize:"18px", marginBottom:"4px" }}>{filesLoaded[i] ? "✅" : icon}</div>
-                              <div style={{ fontSize:"10px", fontWeight:700, color:filesLoaded[i]?color:P.grey400, fontFamily:font, lineHeight:1.3 }}>{label}</div>
+                              <div style={{ marginBottom:"4px", display:"flex", justifyContent:"center" }}>{filesLoaded[i] ? <ClearedIcon size={20} line={color} accent={color}/> : <Icon size={20} line={P.navy} accent={color}/>}</div>
+                              <div style={{ fontSize:"15px", fontWeight:700, color:filesLoaded[i]?color:P.grey600, fontFamily:font, lineHeight:1.3 }}>{label}</div>
                             </div>
                           ))}
                         </div>
 
                         {/* Progress bar */}
                         {(demoPhase === "checking" || demoPhase === "results") && (
-                          <div style={{ marginBottom:"16px", animation:"ggIn 0.3s ease" }}>
+                          <div style={{ marginBottom:"16px", animation:"ggIn 0.5s cubic-bezier(.2,.8,.2,1)" }}>
                             <div style={{ display:"flex", justifyContent:"space-between", marginBottom:"5px" }}>
-                              <span style={{ fontSize:"12px", fontWeight:700, color:P.navy, fontFamily:font }}>
-                                {checkPct < 100 ? "Checking 300 registrations against travel…" : "✓ Check complete — 4 issues found"}
+                              <span style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font }}>
+                                {checkPct < 100 ? "Checking your registrations against travel…" : "Check complete, 4 issues found"}
                               </span>
-                              <span style={{ fontSize:"12px", fontWeight:800, color:P.accent, fontFamily:font }}>{checkPct}%</span>
+                              <span style={{ fontSize:"15px", fontWeight:800, color:P.accent, fontFamily:font }}>{checkPct}%</span>
                             </div>
                             <div style={{ height:"6px", background:P.grey100, borderRadius:"20px", overflow:"hidden" }}>
                               <div style={{ height:"100%", width:`${checkPct}%`, background:`linear-gradient(90deg,${P.periwinkleD},${P.accent})`, borderRadius:"20px", transition:"width 0.2s ease" }}/>
                             </div>
-                            {checkPct < 100 && <div style={{ fontSize:"11px", color:P.grey400, fontFamily:font, marginTop:"4px", animation:"ggPulse 1s infinite" }}>Matching names · comparing dates · scanning gaps…</div>}
+                            {checkPct < 100 && <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginTop:"4px", animation:"ggPulse 1s infinite" }}>Matching names · comparing dates · scanning gaps…</div>}
                           </div>
                         )}
 
                         {/* Results table */}
                         {rowsVisible > 0 && (
                           <div className="gg-demo-table-scroll" style={{ overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
-                          <div style={{ border:`1px solid ${P.grey100}`, borderRadius:"12px", overflow:"hidden", animation:"ggIn 0.3s ease", minWidth:"560px" }}>
+                          <div style={{ border:`1px solid ${P.grey100}`, borderRadius:"12px", overflow:"hidden", animation:"ggIn 0.5s cubic-bezier(.2,.8,.2,1)", minWidth:"620px" }}>
                             {/* Table header */}
-                            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 120px 70px 70px 70px 70px", background:"#ECEEF6", padding:"8px 14px", gap:"8px" }}>
-                              {["First","Last","Email","Status","Arr.","Dep.","Δ Arr"].map(h => (
-                                <div key={h} style={{ fontSize:"10px", fontWeight:700, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em" }}>{h}</div>
+                            <div style={{ display:"grid", gridTemplateColumns:demoCols, background:P.grey50, padding:"10px 16px", gap:"12px" }}>
+                              {["First","Last","Email","Status","Arr.","Dep.","Δ Arr"].map((h,ci) => (
+                                <div key={h} style={{ fontSize:"13px", fontWeight:700, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", justifySelf:demoJustify[ci], whiteSpace:"nowrap" }}>{h}</div>
                               ))}
                             </div>
                             {/* Rows */}
@@ -3725,63 +3073,63 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
                               return (
                                 <React.Fragment key={g.key}>
                                   <div onClick={() => setExpandedRow(isExp ? null : g.key)}
-                                    style={{ display:"grid", gridTemplateColumns:"1fr 1fr 120px 70px 70px 70px 70px", padding:"9px 14px", gap:"8px", alignItems:"center", background:isExp?"#F4F6FB":i%2===0?P.white:"#FAFBFD", borderTop:`1px solid ${P.grey100}`, cursor:"pointer", animation:"ggIn 0.3s ease", transition:"background 0.15s" }}>
-                                    <span style={{ fontSize:"13px", fontWeight:600, color:P.navy, fontFamily:font }}>{g.first}</span>
-                                    <span style={{ fontSize:"13px", fontWeight:700, color:P.navy, fontFamily:font }}>{g.last}</span>
-                                    <span style={{ fontSize:"11px", color:P.grey400, fontFamily:font, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{g.email}</span>
-                                    <span style={{ fontSize:"10px", fontWeight:800, color:statusColor(g.status), background:statusBg(g.status), padding:"2px 7px", borderRadius:"20px", fontFamily:font, whiteSpace:"nowrap" }}>{statusLabel(g.status)}</span>
-                                    <span style={{ fontSize:"12px", color:P.grey600, fontFamily:font }}>{g.flight?.arr||"⚠"}</span>
-                                    <span style={{ fontSize:"12px", color:P.grey600, fontFamily:font }}>{g.flight?.dep||"⚠"}</span>
-                                    <span style={{ fontSize:"12px", fontWeight:700, fontFamily:font, color:g.arrDiff==="0"?P.green:P.red }}>{g.arrDiff}</span>
+                                    style={{ display:"grid", gridTemplateColumns:demoCols, padding:"11px 16px", gap:"12px", alignItems:"center", background:isExp?P.grey50:i%2===0?P.white:P.offWhite, borderTop:`1px solid ${P.grey100}`, cursor:"pointer", animation:"ggIn 0.5s cubic-bezier(.2,.8,.2,1)", transition:"background 0.15s" }}>
+                                    <span style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, justifySelf:"start" }}>{g.first}</span>
+                                    <span style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font, justifySelf:"start" }}>{g.last}</span>
+                                    <span style={{ fontSize:"15px", color:P.grey600, fontFamily:font, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", minWidth:0, maxWidth:"100%", justifySelf:"stretch" }}>{g.email}</span>
+                                    <span style={{ fontSize:"14px", fontWeight:800, color:statusColor(g.status), background:statusBg(g.status), padding:"2px 10px 2px 8px", borderRadius:"20px", fontFamily:font, whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:"4px", justifySelf:"center" }}>{g.status==="error" ? <FlagIcon size={11} line={statusColor(g.status)} accent={statusColor(g.status)}/> : g.status==="warn" ? <AlertIcon size={11} line={statusColor(g.status)} accent={statusColor(g.status)}/> : <ClearedIcon size={11} line={statusColor(g.status)} accent={statusColor(g.status)}/>}{statusLabel(g.status)}</span>
+                                    <span style={{ fontSize:"15px", color:P.grey600, fontFamily:font, display:"inline-flex", alignItems:"center", justifySelf:"center" }}>{g.flight?.arr || <AlertIcon size={12} line={P.amber} accent={P.amber}/>}</span>
+                                    <span style={{ fontSize:"15px", color:P.grey600, fontFamily:font, display:"inline-flex", alignItems:"center", justifySelf:"center" }}>{g.flight?.dep || <AlertIcon size={12} line={P.amber} accent={P.amber}/>}</span>
+                                    <span style={{ fontSize:"15px", fontWeight:700, fontFamily:font, color:g.arrDiff==="0"?P.green:g.arrDiff==="—"?P.grey400:P.red, justifySelf:"end" }}>{g.arrDiff}</span>
                                   </div>
                                   {/* Expanded detail */}
                                   {isExp && (
-                                    <div style={{ background:"#F4F6FB", borderTop:`1px solid ${P.grey100}`, padding:"14px 16px", animation:"ggIn 0.2s ease" }}>
+                                    <div style={{ background:P.grey50, borderTop:`1px solid ${P.grey100}`, padding:"16px 18px", animation:"ggIn 0.45s cubic-bezier(.2,.8,.2,1)" }}>
                                       {g.issues.length > 0 && (
-                                        <div style={{ display:"flex", gap:"8px", marginBottom:"12px", flexWrap:"wrap" }}>
+                                        <div style={{ display:"flex", gap:"8px", marginBottom:"14px", flexWrap:"wrap" }}>
                                           {g.issues.map(iss => (
-                                            <div key={iss} style={{ display:"flex", alignItems:"center", gap:"6px", background:"#FDECEC", border:"1px solid #F5C6C6", borderRadius:"8px", padding:"5px 10px" }}>
-                                              <span style={{ fontSize:"12px" }}>⚑</span>
-                                              <span style={{ fontSize:"12px", fontWeight:700, color:P.red, fontFamily:font }}>{iss}</span>
+                                            <div key={iss} style={{ display:"flex", alignItems:"center", gap:"6px", background:P.redLight, border:`1px solid ${P.red}33`, borderRadius:"8px", padding:"5px 10px" }}>
+                                              <FlagIcon size={12} line={P.red} accent={P.red}/>
+                                              <span style={{ fontSize:"15px", fontWeight:700, color:P.red, fontFamily:font }}>{iss}</span>
                                             </div>
                                           ))}
                                         </div>
                                       )}
-                                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1fr", gap:"10px" }}>
+                                      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(158px, 1fr))", gap:"10px" }}>
                                         {/* Registration card — the source of truth */}
                                         <div style={{ background:P.white, border:`1.5px solid ${g.reg?"#00A89633":"#FDECEC"}`, borderRadius:"10px", padding:"12px 14px" }}>
-                                          <div style={{ fontSize:"11px", fontWeight:800, color:"#00A896", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em" }}>📋 Registration</div>
+                                          <div style={{ fontSize:"15px", fontWeight:800, color:"#00A896", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em", display:"inline-flex", alignItems:"center", gap:"5px" }}><PeopleIcon size={12} line="#00A896" accent="#00A896"/>Registration</div>
                                           {g.reg ? <>
-                                            <div style={{ fontSize:"12px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Requested in: <strong style={{ color:P.navy }}>{g.reg.checkIn}</strong></div>
-                                            <div style={{ fontSize:"12px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Requested out: <strong style={{ color:P.navy }}>{g.reg.checkOut}</strong></div>
-                                            <div style={{ fontSize:"12px", color:P.accentD, fontFamily:font, fontWeight:700 }}>✓ Registered</div>
-                                          </> : <div style={{ fontSize:"12px", fontWeight:700, color:P.red, fontFamily:font }}>⚑ Not on registration list</div>}
+                                            <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Requested in: <strong style={{ color:P.navy }}>{g.reg.checkIn}</strong></div>
+                                            <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Requested out: <strong style={{ color:P.navy }}>{g.reg.checkOut}</strong></div>
+                                            <div style={{ fontSize:"15px", color:P.accentD, fontFamily:font, fontWeight:700, display:"inline-flex", alignItems:"center", gap:"4px" }}><ClearedIcon size={12} line={P.accentD} accent={P.accentD}/>Registered</div>
+                                          </> : <div style={{ fontSize:"15px", fontWeight:700, color:P.red, fontFamily:font, display:"inline-flex", alignItems:"center", gap:"4px" }}><FlagIcon size={12} line={P.red} accent={P.red}/>Not on registration list</div>}
                                         </div>
                                         {/* Flight card */}
-                                        <div style={{ background:P.white, border:`1.5px solid #4DA3FF22`, borderRadius:"10px", padding:"12px 14px" }}>
-                                          <div style={{ fontSize:"11px", fontWeight:800, color:"#4DA3FF", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em" }}>✈ Flight</div>
+                                        <div style={{ background:P.white, border:`1.5px solid #4F8EF722`, borderRadius:"10px", padding:"12px 14px" }}>
+                                          <div style={{ fontSize:"15px", fontWeight:800, color:"#4F8EF7", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em", display:"inline-flex", alignItems:"center", gap:"5px" }}><PlaneIcon size={12} line="#4F8EF7" accent="#4F8EF7"/>Flight</div>
                                           {g.flight ? <>
-                                            <div style={{ fontSize:"12px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Arrival: <strong style={{ color:P.navy }}>{g.flight.arr}</strong></div>
-                                            <div style={{ fontSize:"12px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Departure: <strong style={{ color:P.navy }}>{g.flight.dep}</strong></div>
-                                            <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font }}>Flight: {g.flight.num}</div>
-                                          </> : <div style={{ fontSize:"12px", fontWeight:700, color:P.red, fontFamily:font }}>⚑ No flight booked</div>}
+                                            <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Arrival: <strong style={{ color:P.navy }}>{g.flight.arr}</strong></div>
+                                            <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Departure: <strong style={{ color:P.navy }}>{g.flight.dep}</strong></div>
+                                            <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font }}>Flight: {g.flight.num}</div>
+                                          </> : <div style={{ fontSize:"15px", fontWeight:700, color:P.red, fontFamily:font, display:"inline-flex", alignItems:"center", gap:"4px" }}><FlagIcon size={12} line={P.red} accent={P.red}/>No flight booked</div>}
                                         </div>
                                         {/* Hotel card */}
-                                        <div style={{ background:P.white, border:`1.5px solid ${g.hotel?"#F5A62322":"#FDECEC"}`, borderRadius:"10px", padding:"12px 14px" }}>
-                                          <div style={{ fontSize:"11px", fontWeight:800, color:"#F5A623", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em" }}>🏨 Hotel</div>
+                                        <div style={{ background:P.white, border:`1.5px solid ${g.hotel?"#C97A0A22":"#FDECEC"}`, borderRadius:"10px", padding:"12px 14px" }}>
+                                          <div style={{ fontSize:"15px", fontWeight:800, color:"#C97A0A", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em", display:"inline-flex", alignItems:"center", gap:"5px" }}><HotelIcon size={12} line="#C97A0A" accent="#C97A0A"/>Hotel</div>
                                           {g.hotel ? <>
-                                            <div style={{ fontSize:"12px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Check-in: <strong style={{ color: g.status!=="ok"&&g.issues[0]?.includes("check-in")?P.red:P.navy }}>{g.hotel.in}</strong></div>
-                                            <div style={{ fontSize:"12px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Check-out: <strong style={{ color:P.navy }}>{g.hotel.out}</strong></div>
-                                            <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font }}>{g.hotel.name}</div>
-                                          </> : <div style={{ fontSize:"12px", fontWeight:700, color:P.red, fontFamily:font }}>⚑ No hotel booked</div>}
+                                            <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Check-in: <strong style={{ color: g.status!=="ok"&&g.issues[0]?.includes("check-in")?P.red:P.navy }}>{g.hotel.in}</strong></div>
+                                            <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Check-out: <strong style={{ color:P.navy }}>{g.hotel.out}</strong></div>
+                                            <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font }}>{g.hotel.name}</div>
+                                          </> : <div style={{ fontSize:"15px", fontWeight:700, color:P.red, fontFamily:font, display:"inline-flex", alignItems:"center", gap:"4px" }}><FlagIcon size={12} line={P.red} accent={P.red}/>No hotel booked</div>}
                                         </div>
                                         {/* Car card */}
-                                        <div style={{ background:P.white, border:`1.5px solid #9B59B622`, borderRadius:"10px", padding:"12px 14px" }}>
-                                          <div style={{ fontSize:"11px", fontWeight:800, color:"#9B59B6", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em" }}>🚗 Car Transfer</div>
+                                        <div style={{ background:P.white, border:`1.5px solid #6B3FA022`, borderRadius:"10px", padding:"12px 14px" }}>
+                                          <div style={{ fontSize:"15px", fontWeight:800, color:"#6B3FA0", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em", display:"inline-flex", alignItems:"center", gap:"5px" }}><CarIcon size={12} line="#6B3FA0" accent="#6B3FA0"/>Car Transfer</div>
                                           {g.car ? <>
-                                            <div style={{ fontSize:"12px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Pickup: <strong style={{ color:P.navy }}>{g.car.pickup}</strong></div>
-                                            <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font }}>Location: {g.car.loc}</div>
-                                          </> : <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font }}>— No transfer</div>}
+                                            <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Pickup: <strong style={{ color:P.navy }}>{g.car.pickup}</strong></div>
+                                            <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font }}>Location: {g.car.loc}</div>
+                                          </> : <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font }}>No transfer booked</div>}
                                         </div>
                                       </div>
                                     </div>
@@ -3795,9 +3143,9 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
 
                         {/* Replay */}
                         {demoPhase === "results" && (
-                          <div style={{ display:"flex", justifyContent:"center", gap:"12px", marginTop:"20px", animation:"ggIn 0.4s ease" }}>
-                            <button onClick={runDemo} style={{ background:"none", border:`1.5px solid ${P.grey100}`, borderRadius:"10px", padding:"8px 18px", fontSize:"13px", fontWeight:700, color:P.grey400, fontFamily:font, cursor:"pointer" }}>↺ Replay</button>
-                            <button onClick={onEnter} style={{ background:P.accent, border:"none", borderRadius:"10px", padding:"8px 20px", fontSize:"13px", fontWeight:700, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 2px 10px rgba(0,201,177,0.3)" }}>Try with your files →</button>
+                          <div style={{ display:"flex", justifyContent:"center", gap:"12px", marginTop:"20px", animation:"ggIn 0.55s cubic-bezier(.2,.8,.2,1)" }}>
+                            <button onClick={runDemo} style={{ background:"none", border:`1.5px solid ${P.grey100}`, borderRadius:"10px", padding:"8px 18px", fontSize:"16px", fontWeight:700, color:P.grey600, fontFamily:font, cursor:"pointer" }}>↺ Replay</button>
+                            <button onClick={onEnter} style={{ background:P.accent, border:"none", borderRadius:"10px", padding:"8px 20px", fontSize:"15px", fontWeight:700, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 2px 10px rgba(0,201,177,0.3)" }}>Try with your files →</button>
                           </div>
                         )}
                       </>
@@ -3813,7 +3161,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
       <div style={{ background:P.offWhite, padding:"72px 40px", display:"flex", justifyContent:"center" }}>
         <div style={{ width:"100%", maxWidth:"960px", display:"flex", gap:"48px", alignItems:"center", flexWrap:"wrap", justifyContent:"center" }}>
           <div style={{ flex:"1 1 320px", minWidth:"280px" }}>
-            <div style={{ fontSize:"13px", fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:P.accentD, fontFamily:font, marginBottom:"12px" }}>Early access</div>
+            <div style={{ fontSize:"16px", fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:P.accentD, fontFamily:font, marginBottom:"12px" }}>Early access</div>
             <h2 style={{ fontSize:"clamp(28px,4vw,40px)", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 14px", letterSpacing:"-0.03em", lineHeight:1.15 }}>Be first to run a cleaner event</h2>
             <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.6, margin:0, maxWidth:"420px" }}>Not ready to upload your files yet? Join the early access list and we'll reach out when your spot opens, with a quick guide to load your first event.</p>
           </div>
@@ -3834,7 +3182,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
           </p>
           <div style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:"rgba(0,201,177,0.1)", border:"1px solid rgba(0,201,177,0.25)", borderRadius:"20px", padding:"6px 16px", marginBottom:"32px" }}>
             <ShieldCheck size={14} strokeWidth={1.8} color={P.accent}/>
-            <span style={{ fontSize:"13px", fontWeight:600, color:"rgba(255,255,255,0.7)", fontFamily:font }}>Built by an event planner who spent 15+ years reconciling attendee lists by hand</span>
+            <span style={{ fontSize:"15px", fontWeight:600, color:"rgba(255,255,255,0.7)", fontFamily:font }}>Built by an event planner who spent 15+ years reconciling attendee lists by hand</span>
           </div>
           <div className="gg-cta-btns" style={{ display:"flex", gap:"12px", justifyContent:"center", flexWrap:"wrap" }}>
             <button onClick={onEnter} style={{ background:`linear-gradient(135deg, ${P.accent}, ${P.accentD})`, border:"none", borderRadius:"12px", padding:"16px 40px", fontSize:"17px", fontWeight:800, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 4px 24px rgba(0,201,177,0.4)", letterSpacing:"-0.02em" }}>
@@ -3844,14 +3192,14 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
               View pricing
             </button>
           </div>
-          <p style={{ fontSize:"13px", color:"rgba(255,255,255,0.25)", fontFamily:font, marginTop:"20px" }}>Full access · 10,000+ records · $249/mo · Cancel any time</p>
+          <p style={{ fontSize:"15px", color:"rgba(255,255,255,0.25)", fontFamily:font, marginTop:"20px" }}>Full access · $250/mo · Cancel any time</p>
         </div>
       </div>
 
       {/* ── Footer ── */}
       <div style={{ background:P.navy, padding:"28px 40px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:"16px" }}>
         <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
-          <span style={{ fontSize:"13px", color:"rgba(255,255,255,0.3)", fontFamily:font }}>Built for event professionals · © 2026 · <span style={{ color:"rgba(255,255,255,0.5)" }}>{APP_VERSION}</span></span>
+          <span style={{ fontSize:"15px", color:"rgba(255,255,255,0.3)", fontFamily:font }}>Built for event professionals · © 2026 · <span style={{ color:"rgba(255,255,255,0.5)" }}>{APP_VERSION}</span></span>
         </div>
         <div style={{ display:"flex", gap:"20px" }}>
           {[
@@ -3863,7 +3211,7 @@ function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerm
             ["Privacy Policy", onPrivacy],
             ["Terms of Service", onTerms],
           ].map(([label, fn]) => (
-            <button key={label} onClick={fn} style={{ background:"none", border:"none", fontSize:"13px", color:"rgba(255,255,255,0.35)", fontFamily:font, cursor:"pointer", textDecoration:"underline", textDecorationColor:"rgba(255,255,255,0.15)" }}>{label}</button>
+            <button key={label} onClick={fn} style={{ background:"none", border:"none", fontSize:"15px", color:"rgba(255,255,255,0.35)", fontFamily:font, cursor:"pointer", textDecoration:"underline", textDecorationColor:"rgba(255,255,255,0.15)" }}>{label}</button>
           ))}
         </div>
       </div>
@@ -3884,8 +3232,8 @@ function PricingPage({ onBack, nav }) {
     <div style={{ minHeight:"100vh", background:P.offWhite, fontFamily:font }}>
       {nav ? <MarketingNav nav={nav} /> : (
       <div style={{ background:P.navy, padding:"0 32px", height:"52px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
-        <button onClick={onBack} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:"8px", padding:"5px 14px", color:"rgba(255,255,255,0.75)", fontSize:"13px", fontFamily:font, fontWeight:600, cursor:"pointer" }}>← Back to app</button>
-        <span style={{ color:P.accent, fontSize:"13px", fontWeight:700, fontFamily:font, letterSpacing:"0.05em" }}>PRICING</span>
+        <button onClick={onBack} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:"8px", padding:"5px 14px", color:"rgba(255,255,255,0.75)", fontSize:"15px", fontFamily:font, fontWeight:600, cursor:"pointer" }}>← Back to app</button>
+        <span style={{ color:P.accent, fontSize:"15px", fontWeight:700, fontFamily:font, letterSpacing:"0.05em" }}>PRICING</span>
       </div>
       )}
 
@@ -3900,7 +3248,7 @@ function PricingPage({ onBack, nav }) {
         {/* Billing toggle */}
         <div style={{ display:"inline-flex", background:"rgba(255,255,255,0.08)", borderRadius:"12px", padding:"4px", gap:"4px" }}>
           {[["monthly","Monthly"],["annual","Annual · Save 17%"]].map(([k,l]) => (
-            <button key={k} onClick={() => setBilling(k)} style={{ padding:"8px 22px", borderRadius:"9px", border:"none", cursor:"pointer", fontFamily:font, fontSize:"14px", fontWeight:700, transition:"all 0.18s", background:billing===k?P.white:"transparent", color:billing===k?P.navy:"rgba(255,255,255,0.55)", boxShadow:billing===k?"0 1px 4px rgba(0,0,0,0.15)":"none" }}>{l}</button>
+            <button key={k} onClick={() => setBilling(k)} style={{ padding:"8px 22px", borderRadius:"9px", border:"none", cursor:"pointer", fontFamily:font, fontSize:"15px", fontWeight:700, transition:"all 0.18s", background:billing===k?P.white:"transparent", color:billing===k?P.navy:"rgba(255,255,255,0.55)", boxShadow:billing===k?"0 1px 4px rgba(0,0,0,0.15)":"none" }}>{l}</button>
           ))}
         </div>
       </div>
@@ -3911,36 +3259,36 @@ function PricingPage({ onBack, nav }) {
 
           {/* Best Value badge for annual */}
           {annual && (
-            <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", background:P.accent, color:P.white, fontSize:"11px", fontWeight:800, fontFamily:font, letterSpacing:"0.07em", padding:"4px 18px", borderRadius:"0 0 10px 10px", textTransform:"uppercase", whiteSpace:"nowrap" }}>
+            <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", background:P.accent, color:P.white, fontSize:"15px", fontWeight:800, fontFamily:font, letterSpacing:"0.07em", padding:"4px 18px", borderRadius:"0 0 10px 10px", textTransform:"uppercase", whiteSpace:"nowrap" }}>
               Best Value — Save $988/yr
             </div>
           )}
 
           <div style={{ padding: annual ? "40px 32px 28px" : "32px 32px 28px" }}>
-            <div style={{ fontSize:"12px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"10px" }}>GroupGrid</div>
+            <div style={{ fontSize:"15px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"10px" }}>GroupGrid</div>
 
             {/* Price */}
             <div style={{ display:"flex", alignItems:"flex-end", gap:"6px", marginBottom:"6px" }}>
               <span style={{ fontSize:"52px", fontWeight:700, color:P.navy, fontFamily:fontDisplay, letterSpacing:"-0.04em", lineHeight:1 }}>
-                {annual ? "$2,000" : "$249"}
+                {annual ? "$2,000" : "$250"}
               </span>
-              <span style={{ fontSize:"16px", color:P.grey400, fontFamily:font, marginBottom:"8px" }}>
+              <span style={{ fontSize:"17px", color:P.grey600, fontFamily:font, marginBottom:"8px" }}>
                 {annual ? "/year" : "/month"}
               </span>
             </div>
             {annual && (
-              <div style={{ fontSize:"14px", color:P.green, fontWeight:700, fontFamily:font, marginBottom:"4px" }}>
+              <div style={{ fontSize:"15px", color:P.green, fontWeight:700, fontFamily:font, marginBottom:"4px" }}>
                 Equivalent to $167/mo · billed annually
               </div>
             )}
-            <div style={{ fontSize:"14px", color:P.grey400, fontFamily:font, marginBottom:"16px" }}>1 user · unlimited events · all features</div>
+            <div style={{ fontSize:"17px", color:P.grey600, fontFamily:font, marginBottom:"16px" }}>1 user · unlimited events · all features</div>
 
             {/* Access callout */}
             <div style={{ background:P.accentLight, border:`1.5px solid ${P.accent}44`, borderRadius:"10px", padding:"12px 16px", marginBottom:"16px", display:"flex", alignItems:"center", gap:"10px" }}>
               <span style={{ fontSize:"18px", flexShrink:0 }}>🎯</span>
               <div>
-                <div style={{ fontSize:"13px", fontWeight:800, color:P.teal, fontFamily:font }}>One plan, everything included</div>
-                <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font, lineHeight:1.5 }}>Create an account to get started. Unlimited events, unlimited guests, and every feature — one simple monthly price.</div>
+                <div style={{ fontSize:"15px", fontWeight:800, color:P.teal, fontFamily:font }}>One plan, everything included</div>
+                <div style={{ fontSize:"16px", color:P.grey600, fontFamily:font, lineHeight:1.5 }}>Create an account to get started. Unlimited events, unlimited guests, and every feature — one simple monthly price.</div>
               </div>
             </div>
 
@@ -3952,7 +3300,7 @@ function PricingPage({ onBack, nav }) {
 
           {/* Feature list */}
           <div style={{ borderTop:`1px solid ${P.grey100}`, padding:"24px 32px 32px" }}>
-            <div style={{ fontSize:"12px", fontWeight:700, color:P.grey400, fontFamily:font, letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:"16px" }}>Everything included</div>
+            <div style={{ fontSize:"15px", fontWeight:700, color:P.grey600, fontFamily:font, letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:"16px" }}>Everything included</div>
             {[
               "Flight, hotel, car & dietary cross-referencing",
               "Unlimited guests per event",
@@ -3967,7 +3315,7 @@ function PricingPage({ onBack, nav }) {
                 <div style={{ width:18, height:18, borderRadius:"50%", background:P.accentLight, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:"1px" }}>
                   <Check size={11} strokeWidth={3} color={P.accentD} />
                 </div>
-                <span style={{ fontSize:"14px", color:P.grey600, fontFamily:font, lineHeight:1.5 }}>{f}</span>
+                <span style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.5 }}>{f}</span>
               </div>
             ))}
           </div>
@@ -3982,8 +3330,8 @@ function PricingPage({ onBack, nav }) {
             { icon:<ShieldCheck size={13} strokeWidth={1.8}/>, text:"Your guest files never leave your browser" },
           ].map(({ icon, text }) => (
             <div key={text} style={{ display:"flex", alignItems:"center", gap:"10px" }}>
-              <span style={{ color:P.grey400, display:"flex" }}>{icon}</span>
-              <span style={{ fontSize:"13px", color:P.grey400, fontFamily:font }}>{text}</span>
+              <span style={{ color:P.grey600, display:"flex" }}>{icon}</span>
+              <span style={{ fontSize:"16px", color:P.grey600, fontFamily:font }}>{text}</span>
             </div>
           ))}
         </div>
@@ -3991,7 +3339,7 @@ function PricingPage({ onBack, nav }) {
         {/* Questions */}
         <div style={{ marginTop:"36px", background:P.white, borderRadius:"14px", border:`1px solid ${P.grey100}`, padding:"20px 24px", textAlign:"center" }}>
           <div style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"6px" }}>Questions?</div>
-          <div style={{ fontSize:"14px", color:P.grey400, fontFamily:font }}>Email us at <a href="mailto:groupgrid@outlook.com" style={{ color:P.periwinkleD, fontWeight:600, textDecoration:"none" }}>groupgrid@outlook.com</a> and we'll get back to you within one business day.</div>
+          <div style={{ fontSize:"17px", color:P.grey600, fontFamily:font }}>Email us at <a href="mailto:billing@groupgrid.io" style={{ color:P.periwinkleD, fontWeight:600, textDecoration:"none" }}>billing@groupgrid.io</a> and we'll get back to you within one business day.</div>
         </div>
       </div>
     </div>
@@ -4058,7 +3406,7 @@ export default function GroupGridApp() {
         <div style={{ textAlign:"center" }}>
           <div style={{ width:40, height:40, border:`3px solid rgba(255,255,255,0.1)`, borderTop:`3px solid ${P.accent}`, borderRadius:"50%", animation:"spin 0.8s linear infinite", margin:"0 auto 16px" }} />
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-          <div style={{ color:"rgba(255,255,255,0.4)", fontSize:"14px" }}>Loading GroupGrid…</div>
+          <div style={{ color:"rgba(255,255,255,0.4)", fontSize:"15px" }}>Loading GroupGrid…</div>
         </div>
       </div>
     );
@@ -4086,16 +3434,16 @@ function UploadSquare({ label, icon, accent, file, setter, required, sub, compac
           {file ? (
             <>
               <div style={{ fontSize:"15px", fontWeight:800, color:accent, fontFamily:font, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:"110px" }}>{file.name}</div>
-              <div style={{ fontSize:"14px", color:P.green, fontWeight:700, fontFamily:font }}><Check size={10} strokeWidth={2.5} style={{display:"inline",marginRight:3}}/>Ready</div>
+              <div style={{ fontSize:"15px", color:P.green, fontWeight:700, fontFamily:font }}><Check size={10} strokeWidth={2.5} style={{display:"inline",marginRight:3}}/>Ready</div>
             </>
           ) : (
             <>
               <div style={{ fontSize:"15px", fontWeight:800, color:P.navy, fontFamily:font, whiteSpace:"nowrap" }}>{label}</div>
-              <div style={{ fontSize:"14px", color:P.navyLight, fontFamily:font }}>{sub}{!required ? " · Optional" : ""}</div>
+              <div style={{ fontSize:"15px", color:P.navyLight, fontFamily:font }}>{sub}{!required ? " · Optional" : ""}</div>
             </>
           )}
         </div>
-        {file && <button onClick={e => { e.preventDefault(); setter(null); }} style={{ marginLeft:"auto", background:"transparent", border:"none", color:P.navyLight, fontSize:"14px", cursor:"pointer", lineHeight:1, flexShrink:0 }} title="Remove">✕</button>}
+        {file && <button onClick={e => { e.preventDefault(); setter(null); }} style={{ marginLeft:"auto", background:"transparent", border:"none", color:P.navyLight, fontSize:"15px", cursor:"pointer", lineHeight:1, flexShrink:0 }} title="Remove">✕</button>}
       </label>
     );
   }
@@ -4109,7 +3457,7 @@ function UploadSquare({ label, icon, accent, file, setter, required, sub, compac
       style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"120px", border:`1.5px dashed ${drag ? accent : file ? accent : P.grey200}`, borderRadius:"12px", padding:"20px 12px 16px", cursor:"pointer", background:file ? accent+"08" : drag ? accent+"05" : P.white, transition:"all 0.18s", position:"relative", textAlign:"center" }}>
       <input type="file" accept=".xlsx,.xls,.csv" style={{ display:"none" }} onChange={e => e.target.files[0] && setter(e.target.files[0])} />
       {!required && !file && (
-        <span style={{ position:"absolute", top:7, right:10, fontSize:"10px", color:P.grey400, fontFamily:font, fontWeight:500, textTransform:"uppercase", letterSpacing:"0.06em" }}>Optional</span>
+        <span style={{ position:"absolute", top:7, right:10, fontSize:"15px", color:P.grey600, fontFamily:font, fontWeight:500, textTransform:"uppercase", letterSpacing:"0.06em" }}>Optional</span>
       )}
       <div style={{ width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", marginBottom:"8px", color:file?P.accent:accent, flexShrink:0 }}>{file ? <Check size={24} strokeWidth={1.8} color={P.green}/> : icon}</div>
       {file ? (
@@ -4120,7 +3468,7 @@ function UploadSquare({ label, icon, accent, file, setter, required, sub, compac
         </>
       ) : (
         <>
-          <div style={{ color:P.navy, fontWeight:600, fontSize:"14px", marginBottom:"3px", fontFamily:font, textAlign:"center", lineHeight:1.3 }}>{label}</div>
+          <div style={{ color:P.navy, fontWeight:600, fontSize:"15px", marginBottom:"3px", fontFamily:font, textAlign:"center", lineHeight:1.3 }}>{label}</div>
           <div style={{ color:P.navyLight, fontSize:"15px", fontFamily:font, textAlign:"center" }}>{sub}</div>
         </>
       )}
@@ -4133,8 +3481,8 @@ function UploadSquare({ label, icon, accent, file, setter, required, sub, compac
 // browser, using the exact column names the parsers recognize.
 const TEMPLATE_DEFS = {
   registration: { file:"GroupGrid_Registration_Template.xlsx", sheet:"Registration", rows:[
-    ["First Name","Last Name","Email"],
-    ["Jane","Doe","jane.doe@example.com"],
+    ["First Name","Last Name","Email","Notes"],
+    ["Jane","Doe","jane.doe@example.com","VIP, seat near front. Approved to book own hotel."],
   ]},
   flight: { file:"GroupGrid_Flight_Template.xlsx", sheet:"Flights", rows:[
     ["Name","Email","Arrival Date","Arrival Time","Arrival Airport","Inbound Flight","Departure Date","Departure Time","Departure Airport","Outbound Flight"],
@@ -4241,40 +3589,62 @@ async function extractPdfToWorkbook(file) {
 
 // ── Two-step Setup screen (Option 1). Step 1 = project details (event name required),
 // Step 2 = file uploads (required on top, optional below). Accepts .xlsx/.xls/.csv/.pdf.
+function tagSrc(arr, src){ return (arr||[]).map(r => ({ ...r, source: (src||"").toString().trim() })); }
+
+function ExtraUploads({ show, items, setItems, Icon, color }) {
+  if (!show) return null;
+  return (
+    <div style={{ marginBottom:"14px" }}>
+      {items.map((it) => (
+        <div key={it.id} style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"8px", background:P.grey50, border:`1px solid ${P.grey100}`, borderRadius:"9px", padding:"8px 12px" }}>
+          <Icon size={16} strokeWidth={1.8} color={color} style={{ flexShrink:0 }}/>
+          <label style={{ flex:"0 0 130px", overflow:"hidden" }}>
+            <input type="file" accept=".xlsx,.xls,.csv,.pdf" style={{ display:"none" }} onChange={e => { const fl = e.target.files[0]; if (fl) setItems(prev => prev.map(x => x.id===it.id ? { ...x, file:fl } : x)); }} />
+            <span style={{ display:"inline-block", fontSize:"15px", color:it.file?P.navy:P.periwinkleD, fontFamily:font, cursor:"pointer", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"130px", fontWeight:500 }}>{it.file ? it.file.name : "+ choose file"}</span>
+          </label>
+          <input value={it.source} onChange={e => setItems(prev => prev.map(x => x.id===it.id ? { ...x, source:e.target.value } : x))} placeholder="Source (e.g. Concur)"
+            style={{ flex:1, background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"8px", padding:"7px 11px", fontSize:"15px", color:P.navy, fontFamily:font, outline:"none", minWidth:0 }} />
+          <button onClick={() => setItems(prev => prev.filter(x => x.id !== it.id))} style={{ background:"transparent", border:"none", color:P.grey600, cursor:"pointer", flexShrink:0 }} title="Remove"><X size={15} strokeWidth={1.8}/></button>
+        </div>
+      ))}
+      <button onClick={() => setItems(prev => [...prev, { id:Date.now(), file:null, source:"" }])}
+        style={{ background:"transparent", border:"none", color:P.accentD, fontSize:"15px", fontWeight:500, fontFamily:font, cursor:"pointer", padding:"2px 0" }}>+ Add another file</button>
+    </div>
+  );
+}
+
 function SetupTile({ label, sub, icon, accent, file, setter, required, recommended, columns, templateType }) {
   const [drag, setDrag] = useState(false);
   const [hover, setHover] = useState(false);
   const onDrop = e => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) setter(f); };
-  const tint = accent + "16";      // soft colored fill so the tile pops
-  const tintHover = accent + "26";
   return (
     <label
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
       onDragOver={e => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)} onDrop={onDrop}
-      style={{ position:"relative", display:"flex", flexDirection:"column", alignItems:"flex-start", textAlign:"left", minHeight:"162px", border:`2px solid ${file?P.green:accent}`, borderRadius:"13px", padding:"12px 13px 13px", cursor:"pointer", background:file?P.white:drag?tintHover:tint, transition:"all 0.15s", boxSizing:"border-box" }}>
+      style={{ position:"relative", display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", justifyContent:"center", minHeight:"108px", border:`1.5px ${file?"solid":"dashed"} ${file?accent:drag?accent:P.grey200}`, borderRadius:"11px", padding:"12px 10px", cursor:"pointer", background:file?accent+"0D":drag?accent+"08":P.grey50, transition:"all 0.15s" }}>
       <input type="file" accept=".xlsx,.xls,.csv,.pdf" style={{ display:"none" }} onChange={e => e.target.files[0] && setter(e.target.files[0])} />
-      {recommended
-        ? <span style={{ fontSize:"10px", fontWeight:700, padding:"2px 9px", borderRadius:"20px", background:accent, color:P.white, fontFamily:font, letterSpacing:"0.02em" }}>Source of truth</span>
-        : required
-          ? <span style={{ fontSize:"10px", fontWeight:700, padding:"2px 9px", borderRadius:"20px", background:P.redLight, color:P.red, fontFamily:font }}>Required</span>
-          : <span style={{ fontSize:"10px", fontWeight:700, padding:"2px 9px", borderRadius:"20px", border:`1.5px solid ${accent}`, color:accent, fontFamily:font, letterSpacing:"0.02em" }}>Optional</span>}
-      <span style={{ marginTop:"11px", display:"inline-flex", alignItems:"center", justifyContent:"center", width:"38px", height:"38px", borderRadius:"10px", background:file?P.greenLight:accent+"26", color:file?P.green:accent }}>
-        {file ? <Check size={20} strokeWidth={2} color={P.green}/> : icon}
+      <span style={{ position:"absolute", top:7, left:0, right:0, display:"flex", justifyContent:"center" }}>
+        {recommended
+          ? <span style={{ fontSize:"15px", fontWeight:600, padding:"1px 7px", borderRadius:"20px", background:"#DCF2F2", color:"#0A7B7A", fontFamily:font }}>Source of truth</span>
+          : required
+            ? <span style={{ fontSize:"15px", fontWeight:600, padding:"1px 7px", borderRadius:"20px", background:P.redLight, color:P.red, fontFamily:font }}>Required</span>
+            : <span style={{ fontSize:"15px", fontWeight:500, padding:"1px 7px", borderRadius:"20px", background:P.grey100, color:P.grey600, fontFamily:font }}>Optional</span>}
       </span>
-      <div style={{ marginTop:"9px", fontSize:"13.5px", fontWeight:600, color:P.navy, fontFamily:font, lineHeight:1.25, wordBreak:"break-word" }}>{file ? file.name : label}</div>
-      <div style={{ marginTop:"2px", fontSize:"11.5px", color:file?P.green:P.grey600, fontFamily:font, fontWeight:file?600:500 }}>{file ? "Ready" : sub}</div>
+      <div style={{ marginTop:"12px", marginBottom:"5px", color:file?P.green:accent }}>{file ? <Check size={20} strokeWidth={1.8} color={P.green}/> : icon}</div>
+      <div style={{ fontSize:"15px", fontWeight:500, color:P.navy, fontFamily:font, marginBottom:"2px", wordBreak:"break-word", maxWidth:"130px", lineHeight:1.25 }}>{file ? file.name : label}</div>
+      <div style={{ fontSize:"15px", color:file?P.green:P.grey600, fontFamily:font, fontWeight:file?500:400 }}>{file ? "Ready" : sub}</div>
       {!file && templateType && (
         <button onClick={e => { e.preventDefault(); e.stopPropagation(); downloadTemplate(templateType); }}
           title="Download a correctly formatted Excel template"
-          style={{ marginTop:"auto", paddingTop:"10px", background:"transparent", border:"none", color:accent, fontSize:"11.5px", fontWeight:700, fontFamily:font, cursor:"pointer", textDecoration:"underline", textUnderlineOffset:"2px" }}>
+          style={{ position:"absolute", bottom:7, left:0, right:0, margin:"0 auto", width:"fit-content", background:"transparent", border:"none", color:P.periwinkleD, fontSize:"15px", fontWeight:600, fontFamily:font, cursor:"pointer", textDecoration:"underline" }}>
           Download template
         </button>
       )}
-      {file && <button onClick={e => { e.preventDefault(); setter(null); }} style={{ position:"absolute", top:9, right:10, background:"transparent", border:"none", color:P.grey400, cursor:"pointer", lineHeight:1 }} title="Remove"><X size={14} strokeWidth={2}/></button>}
+      {file && <button onClick={e => { e.preventDefault(); setter(null); }} style={{ position:"absolute", top:8, right:10, background:"transparent", border:"none", color:P.grey600, cursor:"pointer", lineHeight:1 }} title="Remove"><X size={13} strokeWidth={1.8}/></button>}
       {hover && !file && columns && (
         <div style={{ position:"absolute", bottom:"calc(100% + 8px)", left:"50%", transform:"translateX(-50%)", width:"210px", background:P.navy, borderRadius:"10px", padding:"12px 14px", boxShadow:"0 8px 24px rgba(0,0,0,0.3)", zIndex:30, textAlign:"left", pointerEvents:"none" }}>
-          <div style={{ fontSize:"11px", fontWeight:600, color:P.accent, fontFamily:font, marginBottom:"7px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Expected columns</div>
-          {columns.map(c => <div key={c} style={{ fontSize:"12px", color:"rgba(255,255,255,0.75)", fontFamily:font, lineHeight:1.7 }}>{c}</div>)}
+          <div style={{ fontSize:"15px", fontWeight:600, color:P.accent, fontFamily:font, marginBottom:"7px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Expected columns</div>
+          {columns.map(c => <div key={c} style={{ fontSize:"15px", color:"rgba(255,255,255,0.75)", fontFamily:font, lineHeight:1.7 }}>{c}</div>)}
         </div>
       )}
     </label>
@@ -4288,64 +3658,84 @@ function SetupScreen({
   departureAirports, setDepartureAirports,
   arrivalCutoff, setArrivalCutoff,
   departureCutoff, setDepartureCutoff,
+  lateArrivalCutoff, setLateArrivalCutoff,
   contacts, setContacts, setContactsOpen,
   registrationFile, setRegistrationFile, flightFile, setFlightFile, hotelFile, setHotelFile,
   hotelProperty, setHotelProperty, extraHotels, setExtraHotels,
+  extraFlights, setExtraFlights, extraCars, setExtraCars, extraReg, setExtraReg, extraDietary, setExtraDietary,
   carFile, setCarFile, dietaryFile, setDietaryFile,
   ready, loading, error, runCheck, isMobile, isReRun
 }) {
   const hasName = !!(projectName && projectName.trim());
   const canRun = hasName && ready && !loading;
   const hasContacts = contacts && (contacts.hotel?.email || contacts.travel?.email || contacts.car?.email);
-  const anyTravel = !!(arrivalStart || arrivalEnd || departureStart || departureEnd || arrivalCutoff || departureCutoff || preferredAirports || departureAirports);
+  const anyTravel = !!(arrivalStart || arrivalEnd || departureStart || departureEnd || arrivalCutoff || departureCutoff || lateArrivalCutoff || preferredAirports || departureAirports);
   const updateContact = (group, field, val) => setContacts(prev => ({ ...prev, [group]: { ...prev[group], [field]: val } }));
+  const [optionalOpen, setOptionalOpen] = useState(false);
+  const optionalCount = (anyTravel ? 1 : 0) + (hasContacts ? 1 : 0);
   return (
     <div style={{ maxWidth:"760px", margin:"0 auto", width:"100%" }}>
       <h1 style={{ fontSize:"clamp(20px,3vw,24px)", fontWeight:600, color:P.navy, fontFamily:font, letterSpacing:"-0.02em", margin:"0 0 4px" }}>New project</h1>
-      <p style={{ fontSize:"13.5px", color:P.grey600, fontFamily:font, margin:"0 0 18px", lineHeight:1.55 }}>Work through the four steps below, then run the cross-check. Steps 2 and 3 are optional.</p>
+      <p style={{ fontSize:"13.5px", color:P.grey600, fontFamily:font, margin:"0 0 18px", lineHeight:1.55 }}>Name your project, upload your files, then run the cross-check. Travel parameters and contacts are optional.</p>
 
       <div style={{ display:"flex", alignItems:"center", marginBottom:"18px", flexWrap:"wrap", gap:"8px" }}>
         {[
           { n:"1", label:"Project", state: hasName ? "done" : "active" },
-          { n:"2", label:"Travel", state: anyTravel ? "done" : "todo" },
-          { n:"3", label:"Contacts", state: hasContacts ? "done" : "todo" },
-          { n:"4", label:"Upload", state: hasName ? (ready ? "done" : "active") : "todo" },
-          { n:"5", label:"Review", state:"todo" },
+          { n:"2", label:"Upload", state: hasName ? (ready ? "done" : "active") : "todo" },
+          { n:"3", label:"Details", state: optionalCount ? "done" : "todo" },
+          { n:"4", label:"Review", state:"todo" },
         ].map(({ n, label, state }, i) => (
           <React.Fragment key={label}>
             {i > 0 && <div className="gg-step-line" style={{ flex:1, height:"1.5px", background:P.grey100, margin:"0 12px", minWidth:"20px" }} />}
             <div style={{ display:"flex", alignItems:"center", gap:"9px" }}>
-              <span style={{ width:26, height:26, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"13px", fontWeight:600, flexShrink:0, fontFamily:font, background: state==="done"?P.accent:state==="active"?P.navy:P.grey100, color: state==="todo"?P.grey400:P.white }}>{state==="done"?<Check size={14} strokeWidth={2.5}/>:n}</span>
-              <span style={{ fontSize:"14px", fontWeight: state==="todo"?400:500, color: state==="todo"?P.grey400:P.navy, fontFamily:font }}>{label}</span>
+              <span style={{ width:26, height:26, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"17px", fontWeight:600, flexShrink:0, fontFamily:font, background: state==="done"?P.accent:state==="active"?P.navy:P.grey100, color: state==="todo"?P.grey600:P.white }}>{state==="done"?<Check size={14} strokeWidth={2.5}/>:n}</span>
+              <span style={{ fontSize:"18px", fontWeight: state==="todo"?400:500, color: state==="todo"?P.grey600:P.navy, fontFamily:font }}>{label}</span>
             </div>
           </React.Fragment>
         ))}
       </div>
 
-      <div className="gg-setup-cols" style={{ display:"grid", gridTemplateColumns:"1fr", gap:"14px", alignItems:"start" }}>
-      <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)" }}>
-        <div style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"14px" }}>Step 1 · Name your project</div>
-        <div style={{ marginBottom:"16px" }}>
-          <label style={{ display:"block", fontSize:"13px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"6px" }}>Project name <span style={{ color:P.red, fontWeight:700 }}>required</span></label>
-          <input value={projectName} onChange={e => setProjectName(e.target.value)} placeholder="Type a name only you'll see — e.g. Sales Summit working file"
-            style={{ width:"100%", background:P.white, border:`1.5px solid ${hasName?P.accent:P.grey200}`, borderRadius:"10px", padding:"12px 14px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+      <div className="gg-setup-cols" style={{ display:"flex", flexDirection:"column", gap:"0px", alignItems:"stretch" }}>
+      <div style={{ order:1, background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)" }}>
+        <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 1 · Project info</div>
+        <div style={{ fontSize:"12.5px", color:P.grey600, fontFamily:font, marginBottom:"14px", lineHeight:1.5 }}>Name your project and set the event name guests see in their emails.</div>
+        <div style={{ marginBottom:"14px" }}>
+          <label style={{ display:"block", fontSize:"16px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Project name <span style={{ color:P.red }}>required</span></label>
+          <input value={projectName} onChange={e => setProjectName(e.target.value)} placeholder="e.g. Sales Summit - working file"
+            style={{ width:"100%", background:P.grey50, border:`1.5px solid ${hasName?P.accent+"88":P.grey100}`, borderRadius:"10px", padding:"11px 13px", fontSize:"15px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+          <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font, marginTop:"5px" }}>What this saved project is called in your list. Only you see it.</div>
         </div>
-        <div style={{ marginBottom:"6px" }}>
-          <label style={{ display:"block", fontSize:"13px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"6px" }}>Event name <span style={{ color:P.grey600, fontWeight:500 }}>optional</span></label>
-          <input value={eventName} onChange={e => setEventName(e.target.value)} placeholder="Name guests see in their emails — e.g. Sales Summit 2026"
-            style={{ width:"100%", background:P.white, border:`1.5px solid ${eventName&&eventName.trim()?P.accent:P.grey200}`, borderRadius:"10px", padding:"12px 14px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+        <div style={{ marginBottom:"14px" }}>
+          <label style={{ display:"block", fontSize:"16px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Event name <span style={{ color:P.grey600, fontWeight:400 }}>· used in attendee emails</span></label>
+          <input value={eventName} onChange={e => setEventName(e.target.value)} placeholder="e.g. Sales Summit 2026"
+            style={{ width:"100%", background:P.grey50, border:`1.5px solid ${eventName&&eventName.trim()?P.accent+"88":P.grey100}`, borderRadius:"10px", padding:"11px 13px", fontSize:"15px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+          <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font, marginTop:"5px" }}>The name guests see in emails and on the report. Left blank, emails fall back to a generic phrase.</div>
         </div>
       </div>
 
+      {/* ── Optional details drawer: collapses Travel + Contacts (Option F) ── */}
+      <button onClick={() => setOptionalOpen(o => !o)} type="button"
+        style={{ order:3, display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"15px 20px", marginBottom:"14px", cursor:"pointer", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)", boxSizing:"border-box" }}>
+        <span style={{ display:"flex", alignItems:"center", gap:"10px" }}>
+          <span style={{ display:"inline-flex", transform: optionalOpen ? "rotate(90deg)" : "none", transition:"transform 0.18s", color:P.grey600 }}><ChevronRight size={18} strokeWidth={2} /></span>
+          <span style={{ fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font }}>Step 3 · Optional details</span>
+          <span style={{ fontSize:"13px", fontWeight:400, color:P.grey600, fontFamily:font }}>· travel parameters and contacts</span>
+        </span>
+        <span style={{ fontSize:"13px", fontWeight:500, color: optionalCount ? P.accentD : P.grey600, fontFamily:font }}>{optionalCount ? `${optionalCount} added · ${optionalOpen ? "hide" : "edit"}` : (optionalOpen ? "hide" : "add — optional")}</span>
+      </button>
+
+      {/* Collapse wrapper holds Box 2 (Travel) + Box 3 (Contacts) */}
+      <div style={{ order:3, display: optionalOpen ? "block" : "none" }}>
+
       {/* ── Box 2 · Travel parameters ── */}
       <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)" }}>
-        <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 2 · Travel parameters <span style={{ fontSize:"12px", fontWeight:400, color:P.grey400 }}>· optional</span></div>
+        <div style={{ fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Travel parameters <span style={{ fontSize:"13px", fontWeight:400, color:P.grey600 }}>· optional</span></div>
         <div style={{ fontSize:"12.5px", color:P.grey600, fontFamily:font, marginBottom:"16px", lineHeight:1.5 }}>Set your approved travel window, cutoffs, and airports. GroupGrid flags anyone who falls outside them. Skip this to run without travel flags.</div>
 
         {/* Arrival */}
         <div style={{ display:"flex", alignItems:"center", gap:"9px", marginBottom:"12px" }}>
           <PlaneIcon size={18} line={P.periwinkleD} accent={P.accent} />
-          <span style={{ fontSize:"14px", fontWeight:600, color:P.navy, fontFamily:font }}>Arrival</span>
+          <span style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font }}>Arrival</span>
         </div>
         <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px", marginBottom:"12px" }}>
           {[
@@ -4355,7 +3745,7 @@ function SetupScreen({
             <div key={label}>
               <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>{label}</label>
               <input type="date" value={val} onChange={e => set(e.target.value)}
-                style={{ width:"100%", background:P.grey50, border:`1.5px solid ${val?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:val?P.navy:P.grey400, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+                style={{ width:"100%", background:P.grey50, border:`1.5px solid ${val?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"18px", color:val?P.navy:P.grey600, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
             </div>
           ))}
         </div>
@@ -4363,25 +3753,37 @@ function SetupScreen({
           <div>
             <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Early-arrival cutoff</label>
             <input type="time" value={arrivalCutoff} onChange={e => setArrivalCutoff(e.target.value)}
-              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${arrivalCutoff?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:arrivalCutoff?P.navy:P.grey400, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
+              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${arrivalCutoff?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"18px", color:arrivalCutoff?P.navy:P.grey600, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
             <div style={{ fontSize:"11.5px", color:P.grey600, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Lands before this, needs the night before.</div>
           </div>
           <div>
             <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Arrival airport(s)</label>
             <input type="text" value={preferredAirports} onChange={e => setPreferredAirports(e.target.value)} placeholder="e.g. JFK, LGA"
-              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${preferredAirports?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:preferredAirports?P.navy:P.grey400, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
+              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${preferredAirports?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"18px", color:preferredAirports?P.navy:P.grey600, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
             <div style={{ fontSize:"11.5px", color:P.grey600, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Codes for your arrival city.</div>
           </div>
         </div>
-        <div style={{ display:"flex", gap:"8px", alignItems:"flex-start", fontSize:"12px", color:P.grey600, fontFamily:font, lineHeight:1.5, background:P.amber+"12", borderRadius:"9px", padding:"9px 12px", marginBottom:"16px" }}>
+        <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px", marginBottom:"10px" }}>
+          <div>
+            <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Late-arrival cutoff</label>
+            <input type="time" value={lateArrivalCutoff} onChange={e => setLateArrivalCutoff(e.target.value)}
+              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${lateArrivalCutoff?P.amber+"88":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"18px", color:lateArrivalCutoff?P.navy:P.grey600, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
+            <div style={{ fontSize:"11.5px", color:P.grey600, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Lands after this with a room booked, flags a possible late arrival so you can tell the hotel to hold it. Default 10:30 PM. Clear to turn off.</div>
+          </div>
+          <div style={{ display:"flex", alignItems:"flex-end" }}>
+            <button type="button" onClick={() => setLateArrivalCutoff(lateArrivalCutoff ? "" : "22:30")}
+              style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"12.5px", fontWeight:600, fontFamily:font, cursor:"pointer", padding:"0 0 8px" }}>{lateArrivalCutoff ? "Turn off late-arrival flag" : "Turn on (10:30 PM)"}</button>
+          </div>
+        </div>
+        <div style={{ display:"flex", gap:"8px", alignItems:"flex-start", fontSize:"13px", color:P.grey600, fontFamily:font, lineHeight:1.5, background:P.amber+"12", borderRadius:"9px", padding:"9px 12px", marginBottom:"16px" }}>
           <span style={{ flexShrink:0, marginTop:"1px" }}><FlagIcon size={14} line={P.amber} accent={P.amber} /></span>
-          <span><strong style={{ color:P.navyLight, fontWeight:600 }}>Flags</strong> arrivals outside the window, early landings with no prior-night room, or landings at other airports.</span>
+          <span><strong style={{ color:P.navyLight, fontWeight:600 }}>Flags</strong> arrivals outside the window, early landings with no prior-night room, late arrivals after your cutoff, or landings at other airports.</span>
         </div>
 
         {/* Departure */}
         <div style={{ display:"flex", alignItems:"center", gap:"9px", marginBottom:"12px" }}>
           <span style={{ display:"inline-flex", transform:"scaleX(-1)" }}><PlaneIcon size={18} line={P.periwinkleD} accent={P.accent} /></span>
-          <span style={{ fontSize:"14px", fontWeight:600, color:P.navy, fontFamily:font }}>Departure</span>
+          <span style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font }}>Departure</span>
         </div>
         <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px", marginBottom:"12px" }}>
           {[
@@ -4391,7 +3793,7 @@ function SetupScreen({
             <div key={label}>
               <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>{label}</label>
               <input type="date" value={val} onChange={e => set(e.target.value)}
-                style={{ width:"100%", background:P.grey50, border:`1.5px solid ${val?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:val?P.navy:P.grey400, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+                style={{ width:"100%", background:P.grey50, border:`1.5px solid ${val?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"18px", color:val?P.navy:P.grey600, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
             </div>
           ))}
         </div>
@@ -4399,17 +3801,17 @@ function SetupScreen({
           <div>
             <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Earliest departure time</label>
             <input type="time" value={departureCutoff} onChange={e => setDepartureCutoff(e.target.value)}
-              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${departureCutoff?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:departureCutoff?P.navy:P.grey400, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
+              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${departureCutoff?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"18px", color:departureCutoff?P.navy:P.grey600, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
             <div style={{ fontSize:"11.5px", color:P.grey600, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Earliest a flight may leave that day.</div>
           </div>
           <div>
             <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Departure airport(s)</label>
             <input type="text" value={departureAirports} onChange={e => setDepartureAirports(e.target.value)} placeholder="e.g. JFK, LGA"
-              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${departureAirports?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:departureAirports?P.navy:P.grey400, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
+              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${departureAirports?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"18px", color:departureAirports?P.navy:P.grey600, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
             <div style={{ fontSize:"11.5px", color:P.grey600, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Codes for your departure city.</div>
           </div>
         </div>
-        <div style={{ display:"flex", gap:"8px", alignItems:"flex-start", fontSize:"12px", color:P.grey600, fontFamily:font, lineHeight:1.5, background:P.amber+"12", borderRadius:"9px", padding:"9px 12px", marginBottom:"4px" }}>
+        <div style={{ display:"flex", gap:"8px", alignItems:"flex-start", fontSize:"13px", color:P.grey600, fontFamily:font, lineHeight:1.5, background:P.amber+"12", borderRadius:"9px", padding:"9px 12px", marginBottom:"4px" }}>
           <span style={{ flexShrink:0, marginTop:"1px" }}><FlagIcon size={14} line={P.amber} accent={P.amber} /></span>
           <span><strong style={{ color:P.navyLight, fontWeight:600 }}>Flags</strong> departures outside the window, before your earliest time, or from other airports.</span>
         </div>
@@ -4417,7 +3819,7 @@ function SetupScreen({
 
       {/* ── Box 3 · Contact details (expanded inline) ── */}
       <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)" }}>
-        <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 3 · Contact details <span style={{ fontSize:"12px", fontWeight:400, color:P.grey400 }}>· optional</span></div>
+        <div style={{ fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Contacts <span style={{ fontSize:"13px", fontWeight:400, color:P.grey600 }}>· optional</span></div>
         <div style={{ fontSize:"12.5px", color:P.grey600, fontFamily:font, marginBottom:"16px", lineHeight:1.5 }}>Add your hotel, travel agency, and transfer contacts so you can email them directly from your results.</div>
         {[
           { key:"hotel", label:"Hotel", color:P.navy },
@@ -4427,84 +3829,91 @@ function SetupScreen({
           <div key={key} style={{ marginBottom:"14px" }}>
             <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"8px" }}>
               <span style={{ width:3, height:14, background:color, borderRadius:"2px" }} />
-              <span style={{ fontSize:"13px", fontWeight:600, color:P.navy, fontFamily:font }}>{label}</span>
+              <span style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font }}>{label}</span>
             </div>
             <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px" }}>
               <input value={contacts[key]?.name || ""} onChange={e => updateContact(key, "name", e.target.value)} placeholder="Contact name"
-                style={{ width:"100%", background:P.grey50, border:`1.5px solid ${contacts[key]?.name?color+"55":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+                style={{ width:"100%", background:P.grey50, border:`1.5px solid ${contacts[key]?.name?color+"55":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"15px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
               <input type="email" value={contacts[key]?.email || ""} onChange={e => updateContact(key, "email", e.target.value)} placeholder="email@company.com"
-                style={{ width:"100%", background:P.grey50, border:`1.5px solid ${contacts[key]?.email?color+"55":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+                style={{ width:"100%", background:P.grey50, border:`1.5px solid ${contacts[key]?.email?color+"55":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"15px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
             </div>
           </div>
         ))}
         <button onClick={() => setContactsOpen(true)}
-          style={{ display:"inline-flex", alignItems:"center", gap:"7px", background:"transparent", border:"none", color:P.periwinkleD, fontSize:"13px", fontWeight:600, fontFamily:font, cursor:"pointer", padding:"4px 0", marginTop:"2px" }}>
+          style={{ display:"inline-flex", alignItems:"center", gap:"7px", background:"transparent", border:"none", color:P.periwinkleD, fontSize:"15px", fontWeight:600, fontFamily:font, cursor:"pointer", padding:"4px 0", marginTop:"2px" }}>
           <PeopleIcon size={15} line={P.periwinkleD} accent={P.accent}/>
           More contact options (multiple hotels, phone, email signature)
         </button>
       </div>
 
-      <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)", opacity: hasName ? 1 : 0.55, pointerEvents: hasName ? "auto" : "none", transition:"opacity 0.2s" }}>
-        <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 4 · Upload files {!hasName && <span style={{ fontSize:"12px", fontWeight:400, color:P.grey400 }}>· name your project first</span>}</div>
-        <div style={{ fontSize:"12.5px", color:P.grey600, fontFamily:font, marginBottom:"14px" }}>Upload any 2 or more. Excel, CSV, or PDF.</div>
-        <div style={{ fontSize:"13px", color:P.navy, fontFamily:font, marginBottom:"16px", padding:"11px 14px", background:P.accent+"14", borderRadius:"10px", border:`1.5px solid ${P.accent}`, lineHeight:1.5 }}>
-          <span style={{ background:P.accentD, color:P.white, borderRadius:"5px", padding:"2px 8px", fontSize:"11px", fontWeight:700, marginRight:"8px" }}>TIP</span>
-          Add an <strong style={{ fontWeight:700 }}>Email Address</strong> column for the most accurate matching. GroupGrid matches by email first, then name.
-        </div>
-        <div style={{ fontSize:"12px", fontWeight:600, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>Upload any 2 or more</div>
+      </div>
+      {/* end optional details drawer */}
+
+      <div style={{ order:2, background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)", opacity: hasName ? 1 : 0.55, pointerEvents: hasName ? "auto" : "none", transition:"opacity 0.2s" }}>
+        <div style={{ fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 2 · Upload files {!hasName && <span style={{ fontSize:"13px", fontWeight:400, color:P.grey600 }}>· name your project first</span>}</div>
+        <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font, marginBottom:"14px" }}>Upload whatever you have — registration, flights, hotels, cars. GroupGrid cross-checks any 2 or more. Excel or CSV. Hover a tile for expected columns.</div>
+        <div style={{ fontSize:"13px", fontWeight:500, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>Upload any 2 or more</div>
         <div className="gg-setup-tiles3" style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"10px", marginBottom:"14px" }}>
           <SetupTile label="Registration List" sub="Best anchor" icon={<PeopleIcon size={20} />} accent={P.accentD} file={registrationFile} setter={setRegistrationFile} templateType="registration" recommended columns={["First/Last Name (or Name)","Email","Company / Job Title (opt)","Requested Check-In / Out (opt)","Flight / Hotel Request (opt)"]} />
           <SetupTile label="Flight Manifest" sub=".xlsx, .csv, .pdf" icon={<PlaneIcon size={20} />} accent={P.periwinkleD} file={flightFile} setter={setFlightFile} templateType="flight" columns={["First/Last Name (or Name)","Email (opt)","Arrival Date","Departure Date","Flight # (opt)"]} />
-          <SetupTile label="Hotel Roster" sub=".xlsx, .csv, .pdf" icon={<HotelIcon size={20} />} accent={P.amber} file={hotelFile} setter={setHotelFile} templateType="hotel" columns={["First/Last Name (or Name)","Email (opt)","Check-In Date","Check-Out Date","Hotel / Room (opt)"]} />
+          <SetupTile label="Hotel Roster" sub=".xlsx, .csv, .pdf" icon={<HotelIcon size={20} />} accent={P.navy} file={hotelFile} setter={setHotelFile} templateType="hotel" columns={["First/Last Name (or Name)","Email (opt)","Check-In Date","Check-Out Date","Hotel / Room (opt)"]} />
         </div>
 
+        <ExtraUploads show={!!registrationFile} items={extraReg} setItems={setExtraReg} Icon={Users} color={P.accentD} />
+        <ExtraUploads show={!!flightFile} items={extraFlights} setItems={setExtraFlights} Icon={Plane} color={P.periwinkleD} />
         {/* Multi-hotel: name the property and add more rooming lists */}
         {hotelFile && (
           <div style={{ background:P.grey50, border:`1px solid ${P.grey100}`, borderRadius:"12px", padding:"14px 16px", marginBottom:"14px" }}>
-            <div style={{ fontSize:"13px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Hotel properties</div>
-            <div style={{ fontSize:"12px", color:P.grey600, fontFamily:font, marginBottom:"12px", lineHeight:1.5 }}>Running more than one hotel? Name each property and add its rooming list. If a file already has a "Hotel" column, GroupGrid uses that automatically.</div>
+            <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Hotel properties</div>
+            <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font, marginBottom:"12px", lineHeight:1.5 }}>Running more than one hotel? Name each property and add its rooming list. If a file already has a "Hotel" column, GroupGrid uses that automatically.</div>
 
             <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"8px" }}>
-              <Hotel size={16} strokeWidth={1.8} color="#F5A623" style={{ flexShrink:0 }}/>
-              <span style={{ fontSize:"13px", color:P.grey600, fontFamily:font, flex:"0 0 130px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{hotelFile.name}</span>
+              <Hotel size={16} strokeWidth={1.8} color="#C97A0A" style={{ flexShrink:0 }}/>
+              <span style={{ fontSize:"16px", color:P.grey600, fontFamily:font, flex:"0 0 130px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{hotelFile.name}</span>
               <input value={hotelProperty} onChange={e => setHotelProperty(e.target.value)} placeholder="Property name (optional)"
-                style={{ flex:1, background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"8px", padding:"7px 11px", fontSize:"13px", color:P.navy, fontFamily:font, outline:"none", minWidth:0 }} />
+                style={{ flex:1, background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"8px", padding:"7px 11px", fontSize:"15px", color:P.navy, fontFamily:font, outline:"none", minWidth:0 }} />
             </div>
 
             {extraHotels.map((eh, idx) => (
               <div key={eh.id} style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"8px" }}>
-                <Hotel size={16} strokeWidth={1.8} color="#F5A623" style={{ flexShrink:0 }}/>
+                <Hotel size={16} strokeWidth={1.8} color="#C97A0A" style={{ flexShrink:0 }}/>
                 <label style={{ flex:"0 0 130px", overflow:"hidden" }}>
                   <input type="file" accept=".xlsx,.xls,.csv" style={{ display:"none" }} onChange={e => { const f = e.target.files[0]; if (f) setExtraHotels(prev => prev.map(x => x.id===eh.id ? { ...x, file:f } : x)); }} />
-                  <span style={{ display:"inline-block", fontSize:"13px", color:eh.file?P.navy:P.periwinkleD, fontFamily:font, cursor:"pointer", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"130px", fontWeight:500 }}>{eh.file ? eh.file.name : "+ choose file"}</span>
+                  <span style={{ display:"inline-block", fontSize:"15px", color:eh.file?P.navy:P.periwinkleD, fontFamily:font, cursor:"pointer", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"130px", fontWeight:500 }}>{eh.file ? eh.file.name : "+ choose file"}</span>
                 </label>
                 <input value={eh.property} onChange={e => setExtraHotels(prev => prev.map(x => x.id===eh.id ? { ...x, property:e.target.value } : x))} placeholder="Property name (optional)"
-                  style={{ flex:1, background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"8px", padding:"7px 11px", fontSize:"13px", color:P.navy, fontFamily:font, outline:"none", minWidth:0 }} />
-                <button onClick={() => setExtraHotels(prev => prev.filter(x => x.id !== eh.id))} style={{ background:"transparent", border:"none", color:P.grey400, cursor:"pointer", flexShrink:0 }} title="Remove"><X size={15} strokeWidth={1.8}/></button>
+                  style={{ flex:1, background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"8px", padding:"7px 11px", fontSize:"15px", color:P.navy, fontFamily:font, outline:"none", minWidth:0 }} />
+                <button onClick={() => setExtraHotels(prev => prev.filter(x => x.id !== eh.id))} style={{ background:"transparent", border:"none", color:P.grey600, cursor:"pointer", flexShrink:0 }} title="Remove"><X size={15} strokeWidth={1.8}/></button>
               </div>
             ))}
 
             <button onClick={() => setExtraHotels(prev => [...prev, { id:Date.now(), file:null, property:"" }])}
-              style={{ background:"transparent", border:"none", color:P.accentD, fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer", marginTop:"4px", padding:"4px 0" }}>+ Add another hotel property</button>
+              style={{ background:"transparent", border:"none", color:P.accentD, fontSize:"15px", fontWeight:500, fontFamily:font, cursor:"pointer", marginTop:"4px", padding:"4px 0" }}>+ Add another hotel property</button>
           </div>
         )}
 
-        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>More files</div>
+        <div style={{ fontSize:"13px", fontWeight:500, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>More files</div>
         <div className="gg-setup-tiles2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px" }}>
-          <SetupTile label="Car Transfers" sub=".xlsx, .csv, .pdf" icon={<CarIcon size={20} />} accent={P.purple} file={carFile} setter={setCarFile} templateType="car" columns={["First/Last Name (or Name)","Email (opt)","Pickup Date","Dropoff Date","Pickup Location (opt)"]} />
-          {SHOW_DIETARY && <SetupTile label="Dietary & Access" sub=".xlsx, .csv, .pdf" icon={<Salad size={20} strokeWidth={1.8} color="#27AE60"/>} accent={P.teal} file={dietaryFile} setter={setDietaryFile} templateType="dietary" columns={["First/Last Name (or Name)","Email (opt)","Dietary Restrictions","Accessibility Needs","Special Notes (opt)"]} />}
+          <SetupTile label="Car Transfers" sub=".xlsx, .csv, .pdf" icon={<CarIcon size={20} />} accent={P.grey600} file={carFile} setter={setCarFile} templateType="car" columns={["First/Last Name (or Name)","Email (opt)","Pickup Date","Dropoff Date","Pickup Location (opt)"]} />
+          {SHOW_DIETARY && <SetupTile label="Dietary & Access" sub=".xlsx, .csv, .pdf" icon={<Salad size={20} strokeWidth={1.8} color="#0D9E6E"/>} accent={P.teal} file={dietaryFile} setter={setDietaryFile} templateType="dietary" columns={["First/Last Name (or Name)","Email (opt)","Dietary Restrictions","Accessibility Needs","Special Notes (opt)"]} />}
+        </div>
+        <ExtraUploads show={!!carFile} items={extraCars} setItems={setExtraCars} Icon={Car} color={P.grey600} />
+        {SHOW_DIETARY && <ExtraUploads show={!!dietaryFile} items={extraDietary} setItems={setExtraDietary} Icon={Salad} color="#0D9E6E" />}
+        <div style={{ fontSize:"15px", color:P.navyLight, fontFamily:font, marginTop:"16px", padding:"10px 13px", background:P.periwinkle+"0D", borderRadius:"9px", border:`1px solid ${P.periwinkle}22`, lineHeight:1.5 }}>
+          <span style={{ background:P.periwinkle+"22", color:P.periwinkleD, borderRadius:"5px", padding:"1px 7px", fontSize:"15px", fontWeight:600, marginRight:"7px" }}>TIP</span>
+          Include an <strong style={{ fontWeight:600 }}>Email Address</strong> column for the most accurate matching. GroupGrid matches by email first, then name.
         </div>
       </div>
       </div>
 
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:"14px", background:P.navy, borderRadius:"12px", padding:"13px 18px", flexWrap:"wrap" }}>
-        <div style={{ fontSize:"13px", color:"rgba(255,255,255,0.6)", fontFamily:font }}>
+        <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.6)", fontFamily:font }}>
           {!hasName ? "Name your event to begin." : !ready ? "Upload at least 2 files to cross-check." : "Ready to run."}
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
-          {error && <span style={{ fontSize:"13px", color:"#FFB3AB", fontFamily:font }}>{error}</span>}
+          {error && <span style={{ fontSize:"15px", color:"#FFB3AB", fontFamily:font }}>{error}</span>}
           <button onClick={runCheck} disabled={!canRun}
-            style={{ background:canRun?P.accent:"rgba(255,255,255,0.15)", color:canRun?P.white:"rgba(255,255,255,0.4)", border:"none", borderRadius:"10px", padding:"11px 24px", fontSize:"14px", fontWeight:600, fontFamily:font, cursor:canRun?"pointer":"not-allowed", transition:"all 0.18s", whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:"8px" }}>
+            style={{ background:canRun?P.accent:"rgba(255,255,255,0.15)", color:canRun?P.white:"rgba(255,255,255,0.4)", border:"none", borderRadius:"10px", padding:"11px 24px", fontSize:"15px", fontWeight:600, fontFamily:font, cursor:canRun?"pointer":"not-allowed", transition:"all 0.18s", whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:"8px" }}>
             <span>{loading ? "Checking…" : isReRun ? "Re-run Cross-Check" : "Run Cross-Check"}</span>
             {!loading && <CrossCheckIcon size={17} line={canRun?"rgba(255,255,255,0.92)":"rgba(255,255,255,0.4)"} accent={canRun?P.white:"rgba(255,255,255,0.4)"} />}
           </button>
@@ -4514,6 +3923,58 @@ function SetupScreen({
   );
 }
 
+// Multi-select dropdown for a group of report columns. Checkmarks + live count.
+function ReportFieldDropdown({ group, fields, selected, onToggle, onSetGroup }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+  const count = fields.filter(f => selected.has(f.key)).length;
+  const allOn = count === fields.length && count > 0;
+  return (
+    <div ref={ref} style={{ position:"relative" }}>
+      <button type="button" onClick={() => setOpen(o => !o)}
+        style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:P.white, border:`1.5px solid ${count?P.accent+"66":P.grey200}`, borderRadius:"9px", padding:"8px 13px", fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font, cursor:"pointer" }}>
+        {group}
+        <span style={{ background:count?P.accent+"1F":P.grey100, color:count?P.accentD:P.grey600, borderRadius:"20px", fontSize:"13px", fontWeight:700, padding:"1px 8px", minWidth:"20px", textAlign:"center" }}>{count}</span>
+        <ChevronDown size={15} strokeWidth={2} style={{ color:P.grey400, transform: open?"rotate(180deg)":"none", transition:"transform 0.15s" }} />
+      </button>
+      {open && (
+        <div style={{ position:"absolute", zIndex:40, top:"calc(100% + 6px)", left:0, minWidth:"216px", background:P.white, border:`1px solid ${P.grey200}`, borderRadius:"11px", boxShadow:"0 10px 30px rgba(12,30,63,0.18)", padding:"6px" }}>
+          <div onClick={() => onSetGroup(fields.map(f => f.key), !allOn)}
+            style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"6px 9px 8px", margin:"0 0 4px", borderBottom:`1px solid ${P.grey100}`, cursor:"pointer", fontSize:"14px", fontWeight:600, color:P.periwinkleD, fontFamily:font }}>
+            <span>{allOn ? "Clear all" : "Select all"}</span>
+            <span style={{ fontSize:"13px", color:P.grey600, fontWeight:500 }}>{count}/{fields.length}</span>
+          </div>
+          {fields.map(fl => {
+            const on = selected.has(fl.key);
+            return (
+              <div key={fl.key} onClick={() => onToggle(fl.key)}
+                style={{ display:"flex", alignItems:"center", gap:"9px", padding:"8px 9px", borderRadius:"7px", fontSize:"16px", color:P.navy, fontFamily:font, cursor:"pointer" }}
+                onMouseEnter={e => e.currentTarget.style.background = P.grey50}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                <span style={{ width:16, height:16, borderRadius:"5px", background:on?P.accent:P.white, border:`1.5px solid ${on?P.accent:P.grey200}`, display:"inline-flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{on && <Check size={11} strokeWidth={3} color={P.white} />}</span>
+                {fl.label}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const REPORT_PRESETS = {
+  general: ["lastName","firstName","email","company","note","status","issues","flightArrival","arrivalTime","arrivalAirport","flightIn","flightDeparture","departureTime","departureAirport","flightOut","hotel","checkIn","checkOut","room","carPickup","carPickupTime","carDropoff"],
+  hotel: ["lastName","firstName","email","note","hotel","checkIn","checkOut","room","status","issues"],
+  car: ["lastName","firstName","email","note","carPickup","carPickupTime","carDropoff","status","issues"],
+  travel: ["lastName","firstName","email","note","flightArrival","arrivalTime","arrivalAirport","flightIn","flightDeparture","departureTime","departureAirport","flightOut","status","issues"],
+};
+
 function GroupGrid({ user, onLogin, onLogout }) {
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -4521,6 +3982,10 @@ function GroupGrid({ user, onLogin, onLogout }) {
   const [hotelFile, setHotelFile] = useState(null);
   const [hotelProperty, setHotelProperty] = useState(""); // optional property name for the primary hotel file
   const [extraHotels, setExtraHotels] = useState([]); // [{ id, file, property }] additional hotel properties
+  const [extraFlights, setExtraFlights] = useState([]); // [{ id, file, source }]
+  const [extraCars, setExtraCars] = useState([]);
+  const [extraReg, setExtraReg] = useState([]);
+  const [extraDietary, setExtraDietary] = useState([]);
   const [carFile, setCarFile] = useState(null);
   const [dietaryFile, setDietaryFile] = useState(null);
   const [registrationFile, setRegistrationFile] = useState(null);
@@ -4540,12 +4005,15 @@ function GroupGrid({ user, onLogin, onLogout }) {
   const [departureAirports, setDepartureAirports] = useState(""); // departure-side airports; empty = falls back to arrival list
   const [arrivalCutoff, setArrivalCutoff] = useState(""); // "HH:MM" — early-arrival cutoff; empty = off
   const [departureCutoff, setDepartureCutoff] = useState(""); // "HH:MM" — earliest allowed departure time; empty = off
+  const [lateArrivalCutoff, setLateArrivalCutoff] = useState("22:30"); // "HH:MM" — flag arrivals after this as possible late arrivals; empty = off
   const [lastRunSig, setLastRunSig] = useState(""); // snapshot of params at last run, to detect post-run edits
   const [eventName, setEventName] = useState("");
   const [projectName, setProjectName] = useState(""); // internal save label, distinct from eventName (used in comms)
   const [emailModal, setEmailModal] = useState(null);
   const [meta, setMeta] = useState({});
   const [activeTab, setActiveTab] = useState("grid");
+  const [reportTarget, setReportTarget] = useState("general");
+  const [reportFields, setReportFields] = useState(() => new Set(REPORT_PRESETS.general));
   const [showSetup, setShowSetup] = useState(false); // edit setup while keeping results
   const [page, setPage] = useState(() => (typeof window !== "undefined" ? pathToPage(window.location.pathname) : "landing")); // "landing" | "app" | "pricing" | "contact" | "about" | "privacy" | "terms"
   const [compareSession, setCompareSession] = useState(null); // session to diff against
@@ -4648,7 +4116,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
   // (the old bug: every note/date change reset the 60s countdown, so it rarely fired).
   const autosaveData = useRef({});
   useEffect(() => {
-    autosaveData.current = { results, meta, projectName, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, storageKey };
+    autosaveData.current = { results, meta, projectName, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, lateArrivalCutoff, storageKey };
   }, [results, meta, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, storageKey]);
 
   useEffect(() => {
@@ -4663,7 +4131,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
           name: d.projectName || d.eventName || `Session ${new Date().toLocaleDateString()}`,
           date: new Date().toISOString(),
           meta: d.meta, projectName: d.projectName, eventName: d.eventName, arrivalStart: d.arrivalStart, arrivalEnd: d.arrivalEnd, departureStart: d.departureStart, departureEnd: d.departureEnd,
-          preferredAirports: d.preferredAirports, departureAirports: d.departureAirports, arrivalCutoff: d.arrivalCutoff, departureCutoff: d.departureCutoff,
+          preferredAirports: d.preferredAirports, departureAirports: d.departureAirports, arrivalCutoff: d.arrivalCutoff, departureCutoff: d.departureCutoff, lateArrivalCutoff: d.lateArrivalCutoff,
           guestCount: d.results.length,
           issueCount: d.results.filter(r => r.status !== "ok").length,
           autoSaved: true,
@@ -4705,19 +4173,20 @@ function GroupGrid({ user, onLogin, onLogout }) {
     setLoading(true); setError(null); setExpanded(null);
     try {
       let flights = [], hotels = [], cars = [], dietary = [], registration = [];
-      if (flightFile)       { const w = await readXlsx(flightFile);       flights = parseFlightSheet(w); }
-      if (hotelFile)        { const w = await readXlsx(hotelFile);        hotels = parseHotelSheetTagged(w, hotelProperty); }
-      // Additional hotel properties (multi-hotel): parse each and merge into one hotels array
-      for (const eh of extraHotels) {
-        if (eh.file) { const w = await readXlsx(eh.file); hotels = hotels.concat(parseHotelSheetTagged(w, eh.property)); }
-      }
-      if (carFile)          { const w = await readXlsx(carFile);          cars = parseCarSheet(w); }
-      if (dietaryFile)      { const w = await readXlsx(dietaryFile);      dietary = parseDietarySheet(w); }
-      if (registrationFile) { const w = await readXlsx(registrationFile); registration = parseRegistrationSheet(w); }
-      const aw = { arrivalStart:parseDate(arrivalStart), arrivalEnd:parseDate(arrivalEnd), departureStart:parseDate(departureStart), departureEnd:parseDate(departureEnd), preferredAirports: preferredAirports.split(",").map(s=>s.trim()).filter(Boolean), departureAirports: departureAirports.split(",").map(s=>s.trim()).filter(Boolean), arrivalCutoff, departureCutoff };
+      if (flightFile)       { const w = await readXlsx(flightFile);       flights = tagSrc(parseFlightSheet(w), flightFile.name); }
+      for (const ex of extraFlights) { if (ex.file) { const w = await readXlsx(ex.file); flights = flights.concat(tagSrc(parseFlightSheet(w), ex.source || ex.file.name)); } }
+      if (hotelFile)        { const w = await readXlsx(hotelFile);        hotels = tagSrc(parseHotelSheetTagged(w, hotelProperty), hotelProperty || hotelFile.name); }
+      for (const eh of extraHotels) { if (eh.file) { const w = await readXlsx(eh.file); hotels = hotels.concat(tagSrc(parseHotelSheetTagged(w, eh.property), eh.property || eh.file.name)); } }
+      if (carFile)          { const w = await readXlsx(carFile);          cars = tagSrc(parseCarSheet(w), carFile.name); }
+      for (const ex of extraCars) { if (ex.file) { const w = await readXlsx(ex.file); cars = cars.concat(tagSrc(parseCarSheet(w), ex.source || ex.file.name)); } }
+      if (dietaryFile)      { const w = await readXlsx(dietaryFile);      dietary = tagSrc(parseDietarySheet(w), dietaryFile.name); }
+      for (const ex of extraDietary) { if (ex.file) { const w = await readXlsx(ex.file); dietary = dietary.concat(tagSrc(parseDietarySheet(w), ex.source || ex.file.name)); } }
+      if (registrationFile) { const w = await readXlsx(registrationFile); registration = tagSrc(parseRegistrationSheet(w), registrationFile.name); }
+      for (const ex of extraReg) { if (ex.file) { const w = await readXlsx(ex.file); registration = registration.concat(tagSrc(parseRegistrationSheet(w), ex.source || ex.file.name)); } }
+      const aw = { arrivalStart:parseDate(arrivalStart), arrivalEnd:parseDate(arrivalEnd), departureStart:parseDate(departureStart), departureEnd:parseDate(departureEnd), preferredAirports: preferredAirports.split(",").map(s=>s.trim()).filter(Boolean), departureAirports: departureAirports.split(",").map(s=>s.trim()).filter(Boolean), arrivalCutoff, departureCutoff, lateArrivalCutoff };
       const allResults = crossMatch(flights, hotels, cars, dietary, aw, meta, registration);
       setResults(allResults); setShowSetup(false);
-      setLastRunSig(JSON.stringify({ arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, eventName }));
+      setLastRunSig(JSON.stringify({ arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, lateArrivalCutoff, eventName }));
     } catch (err) { setError("Could not read files: " + err.message); }
     setLoading(false);
   }
@@ -4742,7 +4211,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
   function saveSession() {
     if (!results) return;
-    const session = { id:Date.now(), name:(projectName||eventName)||`Session ${new Date().toLocaleDateString()}`, date:new Date().toISOString(), meta, projectName, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, guestCount:results.length, issueCount:results.filter(r=>r.status!=="ok").length, results };
+    const session = { id:Date.now(), name:(projectName||eventName)||`Session ${new Date().toLocaleDateString()}`, date:new Date().toISOString(), meta, projectName, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, lateArrivalCutoff, guestCount:results.length, issueCount:results.filter(r=>r.status!=="ok").length, results };
     const next = [session, ...savedSessions.filter(s => s.name !== session.name)].slice(0, 50);
     setSavedSessions(next);
     try {
@@ -4821,7 +4290,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
   }
 
   function exportReport() {
-    const rows = filtered.map(r => ({ "First Name":r.firstName||r.displayName.split(" ")[0]||"—", "Last Name":r.lastName||r.displayName.split(" ").slice(1).join(" ")||"—", "Full Name":r.displayName, "Email":r.email||"—", "Registered":r.reg?"Yes":(r.registered?"Yes":"No"), "Status":{ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status], "Active Issues":r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None", "Resolved":r.resolved?.join("; ")||"—", "Note":r.note||"—", "Company":r.reg?.company||"—", "Job Title":r.reg?.jobTitle||"—", "Requested Check-In":fmt(r.reg?.regCheckIn), "Requested Check-Out":fmt(r.reg?.regCheckOut), "Dietary":r.diet?.dietary||r.reg?.dietaryRequest||"—", "Accessibility":r.diet?.accessibility||"—", "Flight Arrival":fmt(r.flight?.flightArrival), "Arrival Time":fmtTime(r.flight?.arrivalTime, timeFormat)||"—", "Hotel Check-In":fmt(r.hotel?.checkIn), "Arrival Δ":r.details?.arrDiff??"N/A", "Flight Departure":fmt(r.flight?.flightDeparture), "Departure Time":fmtTime(r.flight?.departureTime, timeFormat)||"—", "Hotel Check-Out":fmt(r.hotel?.checkOut), "Departure Δ":r.details?.depDiff??"N/A", "Car Pickup":fmt(r.car?.pickupDate), "Car Pickup Time":fmtTime(r.car?.pickupTime, timeFormat)||"—", "Car Dropoff":fmt(r.car?.dropoffDate), "Car Dropoff Time":fmtTime(r.car?.dropoffTime, timeFormat)||"—", "Hotel":r.hotel?.hotel||"—", "Room":r.hotel?.room||"—", "Arrival Airport":(r.flight?.arrivalAirport||r.flight?.airport||"").toUpperCase()||"—", "Departure Airport":(r.flight?.departureAirport||r.flight?.airport||"").toUpperCase()||"—", "Matched By":r.matchedBy }));
+    const rows = filtered.map(r => ({ "First Name":r.firstName||r.displayName.split(" ")[0]||"—", "Last Name":r.lastName||r.displayName.split(" ").slice(1).join(" ")||"—", "Full Name":r.displayName, "Email":r.email||"—", "Registered":r.reg?"Yes":(r.registered?"Yes":"No"), "Status":{ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status], "Active Issues":r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None", "Resolved":r.resolved?.join("; ")||"—", "Note":r.note||"—", "Note By":r.noteBy||"—", "Note Added":r.noteAt ? new Date(r.noteAt).toLocaleString() : "—", "Company":r.reg?.company||"—", "Job Title":r.reg?.jobTitle||"—", "Requested Check-In":fmt(r.reg?.regCheckIn), "Requested Check-Out":fmt(r.reg?.regCheckOut), "Dietary":r.diet?.dietary||r.reg?.dietaryRequest||"—", "Accessibility":r.diet?.accessibility||"—", "Flight Arrival":fmt(r.flight?.flightArrival), "Arrival Time":fmtTime(r.flight?.arrivalTime, timeFormat)||"—", "Hotel Check-In":fmt(r.hotel?.checkIn), "Arrival Δ":r.details?.arrDiff??"N/A", "Flight Departure":fmt(r.flight?.flightDeparture), "Departure Time":fmtTime(r.flight?.departureTime, timeFormat)||"—", "Hotel Check-Out":fmt(r.hotel?.checkOut), "Departure Δ":r.details?.depDiff??"N/A", "Car Pickup":fmt(r.car?.pickupDate), "Car Pickup Time":fmtTime(r.car?.pickupTime, timeFormat)||"—", "Car Dropoff":fmt(r.car?.dropoffDate), "Car Dropoff Time":fmtTime(r.car?.dropoffTime, timeFormat)||"—", "Hotel":r.hotel?.hotel||"—", "Room":r.hotel?.room||"—", "Arrival Airport":(r.flight?.arrivalAirport||r.flight?.airport||"").toUpperCase()||"—", "Departure Airport":(r.flight?.departureAirport||r.flight?.airport||"").toUpperCase()||"—", "Matched By":r.matchedBy, "Sources":[r.reg?.source, r.flight?.source, r.hotel?.source, r.car?.source, r.diet?.source].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(", ")||"—" }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "GroupGrid");
     XLSX.writeFile(wb, `groupgrid-${(eventName||"report").replace(/\s+/g,"-")}-${new Date().toISOString().slice(0,10)}.xlsx`);
@@ -4894,9 +4363,112 @@ function GroupGrid({ user, onLogin, onLogout }) {
     });
   }
 
+  const REPORT_FIELDS = [
+    { key:"lastName", label:"Last Name", group:"Attendee", get:r => r.lastName||r.displayName.split(" ").slice(1).join(" ")||"—" },
+    { key:"firstName", label:"First Name", group:"Attendee", get:r => r.firstName||r.displayName.split(" ")[0]||"—" },
+    { key:"email", label:"Email", group:"Attendee", get:r => r.email||"—" },
+    { key:"company", label:"Company", group:"Attendee", get:r => r.reg?.company||"—" },
+    { key:"note", label:"Note", group:"Attendee", get:r => r.note||"—" },
+    { key:"noteBy", label:"Note By", group:"Attendee", get:r => r.noteBy||"—" },
+    { key:"noteAt", label:"Note Added", group:"Attendee", get:r => r.noteAt ? new Date(r.noteAt).toLocaleString() : "—" },
+    { key:"status", label:"Status", group:"Status", get:r => ({ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status]) },
+    { key:"issues", label:"Flagged Issues", group:"Status", get:r => r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None" },
+    { key:"flightArrival", label:"Flight Arrival", group:"Flight", get:r => fmt(r.flight?.flightArrival) },
+    { key:"arrivalTime", label:"Arrival Time", group:"Flight", get:r => fmtTime(r.flight?.arrivalTime, timeFormat)||"—" },
+    { key:"arrivalAirport", label:"Arrival Airport", group:"Flight", get:r => (r.flight?.arrivalAirport||r.flight?.airport||"").toUpperCase()||"—" },
+    { key:"flightIn", label:"Flight In #", group:"Flight", get:r => r.flight?.flightIn||"—" },
+    { key:"flightDeparture", label:"Flight Departure", group:"Flight", get:r => fmt(r.flight?.flightDeparture) },
+    { key:"departureTime", label:"Departure Time", group:"Flight", get:r => fmtTime(r.flight?.departureTime, timeFormat)||"—" },
+    { key:"departureAirport", label:"Departure Airport", group:"Flight", get:r => (r.flight?.departureAirport||r.flight?.airport||"").toUpperCase()||"—" },
+    { key:"flightOut", label:"Flight Out #", group:"Flight", get:r => r.flight?.flightOut||"—" },
+    { key:"hotel", label:"Hotel", group:"Hotel", get:r => r.hotel?.hotel||"—" },
+    { key:"checkIn", label:"Hotel Check-In", group:"Hotel", get:r => fmt(r.hotel?.checkIn) },
+    { key:"checkOut", label:"Hotel Check-Out", group:"Hotel", get:r => fmt(r.hotel?.checkOut) },
+    { key:"room", label:"Room / Conf.", group:"Hotel", get:r => r.hotel?.room||"—" },
+    { key:"carPickup", label:"Car Pickup", group:"Car", get:r => fmt(r.car?.pickupDate) },
+    { key:"carPickupTime", label:"Car Pickup Time", group:"Car", get:r => fmtTime(r.car?.pickupTime, timeFormat)||"—" },
+    { key:"carDropoff", label:"Car Dropoff", group:"Car", get:r => fmt(r.car?.dropoffDate) },
+  ];
+  const applyReportTarget = (t) => { setReportTarget(t); setReportFields(new Set(REPORT_PRESETS[t])); };
+  const toggleReportField = (k) => setReportFields(prev => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n; });
+  const setReportFieldGroup = (keys, on) => setReportFields(prev => { const n = new Set(prev); keys.forEach(k => on ? n.add(k) : n.delete(k)); return n; });
+  const byLastName = (a,b) => (a.lastName||a.displayName||"").localeCompare(b.lastName||b.displayName||"", undefined, { sensitivity:"base" });
+  function exportCustomReport() {
+    const cols = REPORT_FIELDS.filter(f => reportFields.has(f.key));
+    if (!cols.length) return;
+    const rows = [...results].sort(byLastName).map(r => Object.fromEntries(cols.map(f => [f.label, f.get(r)])));
+    const sheet = { general:"Report", hotel:"Hotel", car:"Car Transfers", travel:"Travel" }[reportTarget] || "Report";
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), sheet);
+    XLSX.writeFile(wb, `groupgrid-${(eventName||"report").replace(/\s+/g,"-")}-${reportTarget}-${new Date().toISOString().slice(0,10)}.xlsx`);
+  }
+  function exportOnsiteList() {
+    const rows = [...results].sort(byLastName).map(r => ({
+      "Last Name": r.lastName||r.displayName.split(" ").slice(1).join(" ")||"—",
+      "First Name": r.firstName||r.displayName.split(" ")[0]||"—",
+      "Email": r.email||"—",
+      "Note": r.note||"—",
+      "Flight Arrival": fmt(r.flight?.flightArrival),
+      "Arrival Time": fmtTime(r.flight?.arrivalTime, timeFormat)||"—",
+      "Arrival Airport": (r.flight?.arrivalAirport||r.flight?.airport||"").toUpperCase()||"—",
+      "Flight In #": r.flight?.flightIn||"—",
+      "Flight Departure": fmt(r.flight?.flightDeparture),
+      "Departure Time": fmtTime(r.flight?.departureTime, timeFormat)||"—",
+      "Departure Airport": (r.flight?.departureAirport||r.flight?.airport||"").toUpperCase()||"—",
+      "Flight Out #": r.flight?.flightOut||"—",
+      "Hotel": r.hotel?.hotel||"—",
+      "Check-In": fmt(r.hotel?.checkIn),
+      "Check-Out": fmt(r.hotel?.checkOut),
+      "Room": r.hotel?.room||"—",
+      "Car Pickup": fmt(r.car?.pickupDate),
+      "Car Pickup Time": fmtTime(r.car?.pickupTime, timeFormat)||"—",
+      "Car Dropoff": fmt(r.car?.dropoffDate),
+      "Status": ({ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status]),
+      "Flags": r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None",
+    }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "Onsite Itinerary");
+    XLSX.writeFile(wb, `groupgrid-${(eventName||"event").replace(/\s+/g,"-")}-onsite-itinerary-${new Date().toISOString().slice(0,10)}.xlsx`);
+  }
+
   function exportSelected() {
     const toExport = selectedRows.size > 0 ? filtered.filter(r => selectedRows.has(r.key)) : filtered;
-    const rows = toExport.map(r => ({ "First Name":r.firstName||r.displayName.split(" ")[0]||"—", "Last Name":r.lastName||r.displayName.split(" ").slice(1).join(" ")||"—", "Full Name":r.displayName, "Email":r.email||"—", "Registered":r.reg?"Yes":(r.registered?"Yes":"No"), "Status":{ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status], "Active Issues":r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None", "Note":r.note||"—", "Company":r.reg?.company||"—", "Job Title":r.reg?.jobTitle||"—", "Requested Check-In":fmt(r.reg?.regCheckIn), "Requested Check-Out":fmt(r.reg?.regCheckOut), "Flight Arrival":fmt(r.flight?.flightArrival), "Arrival Time":fmtTime(r.flight?.arrivalTime, timeFormat)||"—", "Flight In":r.flight?.flightIn||"—", "Hotel Check-In":fmt(r.hotel?.checkIn), "Arrival Δ":r.details?.arrDiff??"N/A", "Flight Departure":fmt(r.flight?.flightDeparture), "Departure Time":fmtTime(r.flight?.departureTime, timeFormat)||"—", "Flight Out":r.flight?.flightOut||"—", "Hotel Check-Out":fmt(r.hotel?.checkOut), "Departure Δ":r.details?.depDiff??"N/A", "Arrival Airport":(r.flight?.arrivalAirport||r.flight?.airport||"").toUpperCase()||"—", "Departure Airport":(r.flight?.departureAirport||r.flight?.airport||"").toUpperCase()||"—", "Hotel":r.hotel?.hotel||"—", "Room":r.hotel?.room||"—", "Car Pickup":fmt(r.car?.pickupDate), "Car Pickup Time":fmtTime(r.car?.pickupTime, timeFormat)||"—", "Car Dropoff":fmt(r.car?.dropoffDate), "Car Dropoff Time":fmtTime(r.car?.dropoffTime, timeFormat)||"—", "Dietary":r.diet?.dietary||r.reg?.dietaryRequest||"—", "Accessibility":r.diet?.accessibility||"—" }));
+    const rows = toExport.map(r => ({
+      "First Name":r.firstName||r.displayName.split(" ")[0]||"—",
+      "Last Name":r.lastName||r.displayName.split(" ").slice(1).join(" ")||"—",
+      "Full Name":r.displayName,
+      "Email":r.email||"—",
+      "Registered":r.reg?"Yes":(r.registered?"Yes":"No"),
+      "Status":{ok:"Aligned",warn:"1 Issue",error:"Action Needed"}[r.status],
+      "Active Issues":r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join("; ")||"None",
+      "Note":r.note||"—",
+      "Note By":r.noteBy||"—",
+      "Note Added":r.noteAt ? new Date(r.noteAt).toLocaleString() : "—",
+      "Requested Check-In":fmt(r.reg?.regCheckIn),
+      "Requested Check-Out":fmt(r.reg?.regCheckOut),
+      "Car Pickup":fmt(r.car?.pickupDate),
+      "Car Pickup Time":fmtTime(r.car?.pickupTime, timeFormat)||"—",
+      "Flight Arrival":fmt(r.flight?.flightArrival),
+      "Arrival Time":fmtTime(r.flight?.arrivalTime, timeFormat)||"—",
+      "Arrival Airport":(r.flight?.arrivalAirport||r.flight?.airport||"").toUpperCase()||"—",
+      "Flight In":r.flight?.flightIn||"—",
+      "Hotel":r.hotel?.hotel||"—",
+      "Hotel Check-In":fmt(r.hotel?.checkIn),
+      "Arrival Δ":r.details?.arrDiff??"N/A",
+      "Hotel Check-Out":fmt(r.hotel?.checkOut),
+      "Departure Δ":r.details?.depDiff??"N/A",
+      "Room":r.hotel?.room||"—",
+      "Flight Departure":fmt(r.flight?.flightDeparture),
+      "Departure Time":fmtTime(r.flight?.departureTime, timeFormat)||"—",
+      "Departure Airport":(r.flight?.departureAirport||r.flight?.airport||"").toUpperCase()||"—",
+      "Flight Out":r.flight?.flightOut||"—",
+      "Car Dropoff":fmt(r.car?.dropoffDate),
+      "Car Dropoff Time":fmtTime(r.car?.dropoffTime, timeFormat)||"—",
+      "Company":r.reg?.company||"—",
+      "Job Title":r.reg?.jobTitle||"—",
+      "Dietary":r.diet?.dietary||r.reg?.dietaryRequest||"—",
+      "Accessibility":r.diet?.accessibility||"—"
+    }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "GroupGrid");
     const label = selectedRows.size > 0 ? `${selectedRows.size}-selected` : "all";
@@ -4921,18 +4493,18 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
     // ── helpers ──
     function sBadge(status) {
-      if (status === "ok")   return '<span style="background:#E3F7F0;color:#2FBF8B;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;">Aligned</span>';
-      if (status === "warn") return '<span style="background:#FEF2DC;color:#E3B04B;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;">1 Issue</span>';
-      return '<span style="background:#FDECEC;color:#F2685A;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;">Action Needed</span>';
+      if (status === "ok")   return '<span style="background:#E3F7F0;color:#0D9E6E;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;">Aligned</span>';
+      if (status === "warn") return '<span style="background:#FEF2DC;color:#C97A0A;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;">1 Issue</span>';
+      return '<span style="background:#FDECEC;color:#C0392B;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;">Action Needed</span>';
     }
     function sDelta(val) {
       if (val === null || val === undefined) return "\u2014";
-      if (val === 0) return '<span style="color:#2FBF8B;font-weight:600;">On time</span>';
+      if (val === 0) return '<span style="color:#0D9E6E;font-weight:600;">On time</span>';
       const days = Math.abs(val), word = days === 1 ? "day" : "days", dir = val > 0 ? "late" : "early";
-      return '<span style="color:' + (days <= 1 ? "#E3B04B" : "#F2685A") + ';font-weight:600;">' + days + " " + word + " " + dir + "</span>";
+      return '<span style="color:' + (days <= 1 ? "#C97A0A" : "#C0392B") + ';font-weight:600;">' + days + " " + word + " " + dir + "</span>";
     }
     function sCell(val) { return val || "\u2014"; }
-    function missingCell() { return '<span style="color:#F2685A;font-weight:600;">Missing</span>'; }
+    function missingCell() { return '<span style="color:#C0392B;font-weight:600;">Missing</span>'; }
 
     // ── guest rows ──
     var guestRows = "";
@@ -4941,26 +4513,26 @@ function GroupGrid({ user, onLogin, onLogout }) {
       var activeIssues = r.issues.filter(function(x) { return !(r.resolved || []).includes(x.text); });
       var issueHtml = "";
       if (activeIssues.length === 0) {
-        issueHtml = '<span style="color:#2FBF8B;">&#10003; Clear</span>';
+        issueHtml = '<span style="color:#0D9E6E;">&#10003; Clear</span>';
       } else {
         for (var ii = 0; ii < activeIssues.length; ii++) {
-          var ic = activeIssues[ii].type === "missing" ? "#E3B04B" : activeIssues[ii].type === "window" ? "#6B3FA0" : "#F2685A";
+          var ic = activeIssues[ii].type === "missing" ? "#C97A0A" : activeIssues[ii].type === "window" ? "#6B3FA0" : "#C0392B";
           issueHtml += '<div style="color:' + ic + ';font-size:12px;margin:1px 0;">&bull; ' + activeIssues[ii].text + "</div>";
         }
       }
       var noteCell = r.note
-        ? '<td style="padding:10px 12px;font-size:12px;color:#4A5166;font-style:italic;">' + r.note + "</td>"
-        : '<td style="padding:10px 12px;color:#B4BBCF;">\u2014</td>';
-      guestRows += '<tr style="border-bottom:1px solid #DDE1EE;' + (r.status === "error" ? "background:#fffafa;" : "") + '">'
+        ? '<td style="padding:10px 12px;font-size:12px;color:#4A5568;font-style:italic;">' + r.note + "</td>"
+        : '<td style="padding:10px 12px;color:#B8C0D8;">\u2014</td>';
+      guestRows += '<tr style="border-bottom:1px solid #DDE2EF;' + (r.status === "error" ? "background:#FDECEC;" : "") + '">'
         + '<td style="padding:10px 12px;font-weight:600;white-space:nowrap;">' + r.displayName + "</td>"
-        + '<td style="padding:10px 12px;font-size:13px;color:#4A5166;">' + sCell(r.email) + "</td>"
+        + '<td style="padding:10px 12px;font-size:13px;color:#4A5568;">' + sCell(r.email) + "</td>"
         + '<td style="padding:10px 12px;">' + sBadge(r.status) + "</td>"
-        + '<td style="padding:10px 12px;font-size:13px;">' + (r.flight ? fmt(r.flight.flightArrival) + (r.flight.arrivalTime ? '<div style="font-size:11px;color:#8a92a6;">' + fmtTime(r.flight.arrivalTime, timeFormat) + '</div>' : "") : missingCell()) + "</td>"
-        + '<td style="padding:10px 12px;font-size:13px;color:#4A5166;font-weight:600;">' + ((r.flight && (r.flight.arrivalAirport||r.flight.airport)) ? (r.flight.arrivalAirport||r.flight.airport).toUpperCase() : "\u2014") + "</td>"
+        + '<td style="padding:10px 12px;font-size:13px;">' + (r.flight ? fmt(r.flight.flightArrival) + (r.flight.arrivalTime ? '<div style="font-size:11px;color:#7E8BA8;">' + fmtTime(r.flight.arrivalTime, timeFormat) + '</div>' : "") : missingCell()) + "</td>"
+        + '<td style="padding:10px 12px;font-size:13px;color:#4A5568;font-weight:600;">' + ((r.flight && (r.flight.arrivalAirport||r.flight.airport)) ? (r.flight.arrivalAirport||r.flight.airport).toUpperCase() : "\u2014") + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;">' + (r.hotel ? fmt(r.hotel.checkIn) : missingCell()) + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;">' + sDelta(r.details && r.details.arrDiff) + "</td>"
-        + '<td style="padding:10px 12px;font-size:13px;">' + (r.flight ? fmt(r.flight.flightDeparture) + (r.flight.departureTime ? '<div style="font-size:11px;color:#8a92a6;">' + fmtTime(r.flight.departureTime, timeFormat) + '</div>' : "") : missingCell()) + "</td>"
-        + '<td style="padding:10px 12px;font-size:13px;color:#4A5166;font-weight:600;">' + ((r.flight && (r.flight.departureAirport||r.flight.airport)) ? (r.flight.departureAirport||r.flight.airport).toUpperCase() : "\u2014") + "</td>"
+        + '<td style="padding:10px 12px;font-size:13px;">' + (r.flight ? fmt(r.flight.flightDeparture) + (r.flight.departureTime ? '<div style="font-size:11px;color:#7E8BA8;">' + fmtTime(r.flight.departureTime, timeFormat) + '</div>' : "") : missingCell()) + "</td>"
+        + '<td style="padding:10px 12px;font-size:13px;color:#4A5568;font-weight:600;">' + ((r.flight && (r.flight.departureAirport||r.flight.airport)) ? (r.flight.departureAirport||r.flight.airport).toUpperCase() : "\u2014") + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;">' + (r.hotel ? fmt(r.hotel.checkOut) : missingCell()) + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;">' + sDelta(r.details && r.details.depDiff) + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;">' + issueHtml + "</td>"
@@ -4973,26 +4545,26 @@ function GroupGrid({ user, onLogin, onLogout }) {
     var dietGuests = SHOW_DIETARY ? results.filter(function(r) { return r.diet && (r.diet.dietary || r.diet.accessibility || r.diet.specialNotes); }) : [];
     for (var di = 0; di < dietGuests.length; di++) {
       var dr = dietGuests[di];
-      dietRows += '<tr style="border-bottom:1px solid #DDE1EE;">'
+      dietRows += '<tr style="border-bottom:1px solid #DDE2EF;">'
         + '<td style="padding:10px 12px;font-weight:600;">' + dr.displayName + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;">' + sCell(dr.diet.dietary) + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;">' + sCell(dr.diet.accessibility) + "</td>"
-        + '<td style="padding:10px 12px;font-size:13px;color:#4A5166;font-style:italic;">' + sCell(dr.diet.specialNotes) + "</td>"
+        + '<td style="padding:10px 12px;font-size:13px;color:#4A5568;font-style:italic;">' + sCell(dr.diet.specialNotes) + "</td>"
         + "</tr>";
     }
 
     // ── summary cards ──
     var summaryCards = [
-      { label:"Total Guests",   val:results.length,                                    color:"#0F1D35", bg:"white" },
-      { label:"Fully Aligned",  val:aligned.length,                                    color:"#2FBF8B", bg:"#E3F7F0" },
-      { label:"Action Needed",  val:flagged.length, color:"#F2685A", bg:"#FDECEC" },
+      { label:"Total Guests",   val:results.length,                                    color:"#0C1E3F", bg:"white" },
+      { label:"Fully Aligned",  val:aligned.length,                                    color:"#0D9E6E", bg:"#E3F7F0" },
+      { label:"Action Needed",  val:flagged.length, color:"#C0392B", bg:"#FDECEC" },
       { label:"Alignment Rate", val:Math.round(aligned.length / results.length * 100) + "%", color:"#00A896", bg:"#E0FAF7" },
     ];
     var cardsHtml = "";
     for (var ci = 0; ci < summaryCards.length; ci++) {
       var sc = summaryCards[ci];
-      cardsHtml += '<div style="background:' + sc.bg + ';border:1px solid #DDE1EE;border-radius:10px;padding:18px 20px;">'
-        + '<div style="font-size:13px;color:#7A84A0;margin-bottom:6px;">' + sc.label + "</div>"
+      cardsHtml += '<div style="background:' + sc.bg + ';border:1px solid #DDE2EF;border-radius:10px;padding:18px 20px;">'
+        + '<div style="font-size:13px;color:#7E8BA8;margin-bottom:6px;">' + sc.label + "</div>"
         + '<div style="font-size:28px;font-weight:700;color:' + sc.color + ';">' + sc.val + "</div>"
         + "</div>";
     }
@@ -5001,42 +4573,42 @@ function GroupGrid({ user, onLogin, onLogout }) {
     var issueBreakdown = "";
     if (flagged.length > 0) {
       var chips = "";
-      if (localCounts.missing > 0) chips += '<div style="background:#FEF2DC;border-radius:8px;padding:10px 16px;"><div style="font-size:12px;color:#E3B04B;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Missing Record</div><div style="font-size:22px;font-weight:700;color:#E3B04B;">' + localCounts.missing + "</div></div>";
-      if (localCounts.mismatch > 0) chips += '<div style="background:#FDECEC;border-radius:8px;padding:10px 16px;"><div style="font-size:12px;color:#F2685A;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Date Mismatch</div><div style="font-size:22px;font-weight:700;color:#F2685A;">' + localCounts.mismatch + "</div></div>";
+      if (localCounts.missing > 0) chips += '<div style="background:#FEF2DC;border-radius:8px;padding:10px 16px;"><div style="font-size:12px;color:#C97A0A;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Missing Record</div><div style="font-size:22px;font-weight:700;color:#C97A0A;">' + localCounts.missing + "</div></div>";
+      if (localCounts.mismatch > 0) chips += '<div style="background:#FDECEC;border-radius:8px;padding:10px 16px;"><div style="font-size:12px;color:#C0392B;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Date Mismatch</div><div style="font-size:22px;font-weight:700;color:#C0392B;">' + localCounts.mismatch + "</div></div>";
       if (localCounts.window > 0)  chips += '<div style="background:#EEE5F9;border-radius:8px;padding:10px 16px;"><div style="font-size:12px;color:#6B3FA0;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Outside Window</div><div style="font-size:22px;font-weight:700;color:#6B3FA0;">' + localCounts.window + "</div></div>";
-      if (localCounts.duplicate > 0) chips += '<div style="background:#FFF3E0;border-radius:8px;padding:10px 16px;"><div style="font-size:12px;color:#E65100;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Duplicates</div><div style="font-size:22px;font-weight:700;color:#E65100;">' + localCounts.duplicate + "</div></div>";
-      issueBreakdown = '<div style="background:white;border:1px solid #DDE1EE;border-radius:10px;padding:20px 24px;margin-bottom:24px;"><div style="font-size:15px;font-weight:700;margin-bottom:14px;color:#0F1D35;">Issue Breakdown</div><div style="display:flex;gap:12px;flex-wrap:wrap;">' + chips + "</div></div>";
+      if (localCounts.duplicate > 0) chips += '<div style="background:#FEF2DC;border-radius:8px;padding:10px 16px;"><div style="font-size:12px;color:#C97A0A;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Duplicates</div><div style="font-size:22px;font-weight:700;color:#C97A0A;">' + localCounts.duplicate + "</div></div>";
+      issueBreakdown = '<div style="background:white;border:1px solid #DDE2EF;border-radius:10px;padding:20px 24px;margin-bottom:24px;"><div style="font-size:15px;font-weight:700;margin-bottom:14px;color:#0C1E3F;">Issue Breakdown</div><div style="display:flex;gap:12px;flex-wrap:wrap;">' + chips + "</div></div>";
     }
 
     // ── contacts block ──
     var contactsBlock = "";
     if (contacts.hotel.email || contacts.travel.email) {
       var hotelDiv = contacts.hotel.email
-        ? '<div style="background:#F4F6FA;border-radius:8px;padding:14px 16px;">'
-          + '<div style="font-size:11px;font-weight:600;color:#7A84A0;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Hotel Contact</div>'
+        ? '<div style="background:#F0F2F7;border-radius:8px;padding:14px 16px;">'
+          + '<div style="font-size:11px;font-weight:600;color:#7E8BA8;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Hotel Contact</div>'
           + (contacts.hotel.name ? '<div style="font-weight:600;margin-bottom:2px;">' + contacts.hotel.name + "</div>" : "")
-          + (contacts.hotel.property ? '<div style="font-size:13px;color:#4A5166;">' + contacts.hotel.property + "</div>" : "")
+          + (contacts.hotel.property ? '<div style="font-size:13px;color:#4A5568;">' + contacts.hotel.property + "</div>" : "")
           + (contacts.hotel.email ? '<div style="font-size:13px;color:#4C62C4;margin-top:4px;">' + contacts.hotel.email + "</div>" : "")
-          + (contacts.hotel.phone ? '<div style="font-size:13px;color:#4A5166;">' + contacts.hotel.phone + "</div>" : "")
+          + (contacts.hotel.phone ? '<div style="font-size:13px;color:#4A5568;">' + contacts.hotel.phone + "</div>" : "")
           + "</div>" : "";
       var travelDiv = contacts.travel.email
-        ? '<div style="background:#F4F6FA;border-radius:8px;padding:14px 16px;">'
-          + '<div style="font-size:11px;font-weight:600;color:#7A84A0;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Travel Agency</div>'
+        ? '<div style="background:#F0F2F7;border-radius:8px;padding:14px 16px;">'
+          + '<div style="font-size:11px;font-weight:600;color:#7E8BA8;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Travel Agency</div>'
           + (contacts.travel.name ? '<div style="font-weight:600;margin-bottom:2px;">' + contacts.travel.name + "</div>" : "")
-          + (contacts.travel.agency ? '<div style="font-size:13px;color:#4A5166;">' + contacts.travel.agency + "</div>" : "")
+          + (contacts.travel.agency ? '<div style="font-size:13px;color:#4A5568;">' + contacts.travel.agency + "</div>" : "")
           + (contacts.travel.email ? '<div style="font-size:13px;color:#4C62C4;margin-top:4px;">' + contacts.travel.email + "</div>" : "")
-          + (contacts.travel.phone ? '<div style="font-size:13px;color:#4A5166;">' + contacts.travel.phone + "</div>" : "")
+          + (contacts.travel.phone ? '<div style="font-size:13px;color:#4A5568;">' + contacts.travel.phone + "</div>" : "")
           + "</div>" : "";
-      contactsBlock = '<div style="background:white;border:1px solid #DDE1EE;border-radius:10px;padding:20px 24px;margin-bottom:24px;"><div style="font-size:15px;font-weight:700;margin-bottom:14px;color:#0F1D35;">Event Contacts</div><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">' + hotelDiv + travelDiv + "</div></div>";
+      contactsBlock = '<div style="background:white;border:1px solid #DDE2EF;border-radius:10px;padding:20px 24px;margin-bottom:24px;"><div style="font-size:15px;font-weight:700;margin-bottom:14px;color:#0C1E3F;">Event Contacts</div><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">' + hotelDiv + travelDiv + "</div></div>";
     }
 
     // ── diet table ──
     var dietSection = "";
     if (dietRows) {
-      dietSection = '<div style="background:white;border:1px solid #DDE1EE;border-radius:10px;overflow:hidden;margin-bottom:24px;">'
+      dietSection = '<div style="background:white;border:1px solid #DDE2EF;border-radius:10px;overflow:hidden;margin-bottom:24px;">'
         + '<div style="background:#0A7B7A;padding:14px 20px;"><span style="font-size:14px;font-weight:600;color:white;">Dietary &amp; Accessibility Requirements</span></div>'
         + '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead>'
-        + '<tr style="background:#DCF2F2;border-bottom:1px solid #DDE1EE;">'
+        + '<tr style="background:#DCF2F2;border-bottom:1px solid #DDE2EF;">'
         + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#0A7B7A;text-transform:uppercase;letter-spacing:0.04em;">Guest</th>'
         + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#0A7B7A;text-transform:uppercase;letter-spacing:0.04em;">Dietary</th>'
         + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#0A7B7A;text-transform:uppercase;letter-spacing:0.04em;">Accessibility</th>'
@@ -5058,13 +4630,13 @@ function GroupGrid({ user, onLogin, onLogout }) {
       + '<meta charset="UTF-8"/>'
       + '<meta name="viewport" content="width=device-width,initial-scale=1"/>'
       + "<title>GroupGrid Report \u2014 " + evName + "</title>"
-      + '<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet"/>'
-      + "<style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'Manrope',sans-serif;background:#F4F7FA;color:#0F1D35;font-size:14px;-webkit-font-smoothing:antialiased;}a{color:inherit;text-decoration:none;}@media print{body{background:white;}.no-print{display:none!important;}table{page-break-inside:auto;}tr{page-break-inside:avoid;}}</style>"
+      + '<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet"/>'
+      + "<style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'IBM Plex Sans',sans-serif;background:#F0F2F7;color:#0C1E3F;font-size:14px;-webkit-font-smoothing:antialiased;}a{color:inherit;text-decoration:none;}@media print{body{background:white;}.no-print{display:none!important;}table{page-break-inside:auto;}tr{page-break-inside:avoid;}}</style>"
       + "</head><body>"
       + '<div style="max-width:1100px;margin:0 auto;padding:32px 24px;">'
 
       // header
-      + '<div style="background:#0F1D35;border-radius:12px;padding:28px 32px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">'
+      + '<div style="background:#0C1E3F;border-radius:12px;padding:28px 32px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">'
       + "<div>"
       + '<div style="font-size:22px;font-weight:700;color:white;margin-bottom:4px;">Group<span style="color:#00C9B1;font-weight:400;">Grid</span><span style="font-size:13px;font-weight:400;color:rgba(255,255,255,0.45);margin-left:12px;">Cross-Check Report</span></div>'
       + '<div style="font-size:18px;font-weight:600;color:rgba(255,255,255,0.9);">' + evName + "</div>"
@@ -5083,26 +4655,26 @@ function GroupGrid({ user, onLogin, onLogout }) {
       + issueBreakdown
 
       // guest table
-      + '<div style="background:white;border:1px solid #DDE1EE;border-radius:10px;overflow:hidden;margin-bottom:24px;">'
-      + '<div style="background:#0F1D35;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;">'
+      + '<div style="background:white;border:1px solid #DDE2EF;border-radius:10px;overflow:hidden;margin-bottom:24px;">'
+      + '<div style="background:#0C1E3F;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;">'
       + '<span style="font-size:14px;font-weight:600;color:white;">All Guests</span>'
       + '<span style="font-size:13px;color:rgba(255,255,255,0.5);">' + results.length + " total \u00b7 " + flagged.length + " flagged</span>"
       + "</div>"
       + '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead>'
-      + '<tr style="background:#ECEEF6;border-bottom:1px solid #DDE1EE;">'
-      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5166;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;">Guest</th>'
-      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5166;text-transform:uppercase;letter-spacing:0.04em;">Email</th>'
-      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5166;text-transform:uppercase;letter-spacing:0.04em;">Status</th>'
-      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5166;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;">Flight In</th>'
-      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5166;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;">Arr Apt</th>'
-      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5166;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;">Check-In</th>'
-      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5166;text-transform:uppercase;letter-spacing:0.04em;">\u0394 Arr</th>'
-      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5166;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;">Flight Out</th>'
-      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5166;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;">Dep Apt</th>'
-      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5166;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;">Check-Out</th>'
-      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5166;text-transform:uppercase;letter-spacing:0.04em;">\u0394 Dep</th>'
-      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5166;text-transform:uppercase;letter-spacing:0.04em;">Flags</th>'
-      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5166;text-transform:uppercase;letter-spacing:0.04em;">Note</th>'
+      + '<tr style="background:#EEF1F8;border-bottom:1px solid #DDE2EF;">'
+      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5568;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;">Guest</th>'
+      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5568;text-transform:uppercase;letter-spacing:0.04em;">Email</th>'
+      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5568;text-transform:uppercase;letter-spacing:0.04em;">Status</th>'
+      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5568;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;">Flight In</th>'
+      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5568;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;">Arr Apt</th>'
+      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5568;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;">Check-In</th>'
+      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5568;text-transform:uppercase;letter-spacing:0.04em;">\u0394 Arr</th>'
+      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5568;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;">Flight Out</th>'
+      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5568;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;">Dep Apt</th>'
+      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5568;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;">Check-Out</th>'
+      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5568;text-transform:uppercase;letter-spacing:0.04em;">\u0394 Dep</th>'
+      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5568;text-transform:uppercase;letter-spacing:0.04em;">Flags</th>'
+      + '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#4A5568;text-transform:uppercase;letter-spacing:0.04em;">Note</th>'
       + "</tr></thead><tbody>" + guestRows + "</tbody></table></div></div>"
 
       // diet section
@@ -5112,7 +4684,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
       + contactsBlock
 
       // footer
-      + '<div style="text-align:center;padding:20px;font-size:12px;color:#B4BBCF;">Generated by Group<span style="color:#00C9B1;">Grid</span> \u00b7 ' + dateStr + " \u00b7 Data processed locally \u2014 not stored on any server</div>"
+      + '<div style="text-align:center;padding:20px;font-size:12px;color:#B8C0D8;">Generated by Group<span style="color:#00C9B1;">Grid</span> \u00b7 ' + dateStr + " \u00b7 Data processed locally \u2014 not stored on any server</div>"
       + "</div></body></html>";
 
     var filename = "GroupGrid-Report-" + (eventName || "Event").replace(/\s+/g, "-") + "-" + new Date().toISOString().slice(0, 10) + ".html";
@@ -5137,17 +4709,17 @@ function GroupGrid({ user, onLogin, onLogout }) {
   const counts = results ? { total:results.length, ok:results.filter(r=>r.status==="ok").length, flagged:results.filter(r=>r.status!=="ok").length, warn:results.filter(r=>r.status==="warn").length, error:results.filter(r=>r.status==="error").length, missing:results.filter(r=>r.issues.some(x=>x.type==="missing")).length, window:results.filter(r=>r.issues.some(x=>x.type==="window")).length, mismatch:results.filter(r=>r.issues.some(x=>x.type==="mismatch")).length, duplicate:results.filter(r=>r.issues.some(x=>x.type==="duplicate")).length, unregistered:results.filter(r=>r.issues.some(x=>x.type==="unregistered")).length, airport:results.filter(r=>r.issues.some(x=>x.type==="airport")).length, earlyarrival:results.filter(r=>r.issues.some(x=>x.type==="earlyarrival")).length, earlydeparture:results.filter(r=>r.issues.some(x=>x.type==="earlydeparture")).length, dietary:results.filter(r=>r.diet?.dietary||r.diet?.accessibility).length } : null;
 
   const hasCars = results?.some(r => r.car);
-  const paramsDirty = !!results && !!lastRunSig && lastRunSig !== JSON.stringify({ arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, eventName });
+  const paramsDirty = !!results && !!lastRunSig && lastRunSig !== JSON.stringify({ arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, lateArrivalCutoff, eventName });
   const hasDiet = SHOW_DIETARY && results?.some(r => r.diet);
   const hasHotelNames = results?.some(r => r.hotel?.hotel && r.hotel.hotel.trim());
-  const uploadedCount = [registrationFile, flightFile, hotelFile, carFile, dietaryFile].filter(Boolean).length + extraHotels.filter(h=>h.file).length;
+  const uploadedCount = [registrationFile, flightFile, hotelFile, carFile, dietaryFile].filter(Boolean).length + [...extraHotels, ...extraFlights, ...extraCars, ...extraReg, ...extraDietary].filter(h=>h.file).length;
   const ready = uploadedCount >= 2;
 
 
   return (
-    <div style={{ minHeight:"100vh", width:"100%", maxWidth:"100vw", overflowX:"clip", background:"#F4F7FA", fontFamily:font, fontSize:"15px", WebkitFontSmoothing:"antialiased", boxSizing:"border-box" }}>
+    <div style={{ minHeight:"100vh", width:"100%", maxWidth:"100vw", overflowX:"clip", background:"#F0F2F7", fontFamily:font, fontSize:"15px", WebkitFontSmoothing:"antialiased", boxSizing:"border-box" }}>
       <GlobalStyles />
-      <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet" />
 
       {/* ── Mobile sidebar overlay ── */}
       {isMobile && sidebarOpen && (
@@ -5215,7 +4787,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
             </button>
           )}
           <BrandLogo height={isMobile ? 28 : 40} onDark={true} />
-            {!isMobile && <button onClick={() => setPage("landing")} style={{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"7px", padding:"4px 12px", fontSize:"12px", fontWeight:600, color:"rgba(255,255,255,0.45)", fontFamily:font, cursor:"pointer", letterSpacing:"0.03em" }}>← Home</button>}
+            {!isMobile && <button onClick={() => setPage("landing")} style={{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"7px", padding:"4px 12px", fontSize:"15px", fontWeight:600, color:"rgba(255,255,255,0.45)", fontFamily:font, cursor:"pointer", letterSpacing:"0.03em" }}>← Home</button>}
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
           {saveMsg && <span style={{ fontSize:"15px", color:P.accent, fontFamily:font, fontWeight:600 }}>✓ {saveMsg}</span>}
@@ -5228,10 +4800,10 @@ function GroupGrid({ user, onLogin, onLogout }) {
           <div style={{ width:1, height:16, background:"rgba(255,255,255,0.15)", marginLeft:"2px" }} />
           {user ? (
             <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
-              <div style={{ width:30, height:30, borderRadius:"50%", background:`linear-gradient(135deg, ${P.periwinkle}, ${P.periwinkleD})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"14px", fontWeight:800, color:P.white, fontFamily:font, flexShrink:0, cursor:"default" }} title={user.email}>
+              <div style={{ width:30, height:30, borderRadius:"50%", background:`linear-gradient(135deg, ${P.periwinkle}, ${P.periwinkleD})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"15px", fontWeight:800, color:P.white, fontFamily:font, flexShrink:0, cursor:"default" }} title={user.email}>
                 {user.name.charAt(0).toUpperCase()}
               </div>
-              <span style={{ fontSize:"14px", color:"rgba(255,255,255,0.75)", fontFamily:font, fontWeight:700 }}>{user.name}</span>
+              <span style={{ fontSize:"15px", color:"rgba(255,255,255,0.75)", fontFamily:font, fontWeight:700 }}>{user.name}</span>
               <button onClick={onLogout} style={{ background:"transparent", border:"1px solid rgba(255,255,255,0.15)", borderRadius:"8px", padding:"4px 10px", fontSize:"15px", fontWeight:700, fontFamily:font, color:"rgba(255,255,255,0.4)", cursor:"pointer" }}>Sign out</button>
             </div>
           ) : (
@@ -5243,14 +4815,14 @@ function GroupGrid({ user, onLogin, onLogout }) {
           {/* Mobile: auth control always visible — Sign In when logged out, account + Sign out when logged in */}
           {isMobile && !user && (
             <button onClick={() => setLoginOpen(true)} style={{ background:P.accent, border:"none", borderRadius:"8px", padding:"6px 14px", cursor:"pointer", fontFamily:font }}>
-              <span style={{ fontSize:"13px", fontWeight:600, color:P.white }}>Sign In</span>
+              <span style={{ fontSize:"15px", fontWeight:600, color:P.white }}>Sign In</span>
             </button>
           )}
           {isMobile && user && (
             <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
-              <div title={user.email} style={{ width:28, height:28, borderRadius:"50%", background:P.accentD, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:"12px", fontWeight:700, color:P.white, fontFamily:font, textTransform:"uppercase" }}>{(user.name || user.email || "?").trim().charAt(0)}</div>
+              <div title={user.email} style={{ width:28, height:28, borderRadius:"50%", background:P.accentD, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:"15px", fontWeight:700, color:P.white, fontFamily:font, textTransform:"uppercase" }}>{(user.name || user.email || "?").trim().charAt(0)}</div>
               <button onClick={onLogout} style={{ background:"transparent", border:"1px solid rgba(255,255,255,0.2)", borderRadius:"8px", padding:"6px 12px", cursor:"pointer", fontFamily:font }}>
-                <span style={{ fontSize:"13px", fontWeight:600, color:"rgba(255,255,255,0.7)" }}>Sign out</span>
+                <span style={{ fontSize:"15px", fontWeight:600, color:"rgba(255,255,255,0.7)" }}>Sign out</span>
               </button>
             </div>
           )}
@@ -5266,7 +4838,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
           {/* Mobile drawer close */}
           {isMobile && (
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"16px" }}>
-              <span style={{ fontSize:"13px", fontWeight:700, color:"rgba(255,255,255,0.5)", letterSpacing:"0.08em", textTransform:"uppercase" }}>Menu</span>
+              <span style={{ fontSize:"16px", fontWeight:700, color:"rgba(255,255,255,0.5)", letterSpacing:"0.08em", textTransform:"uppercase" }}>Menu</span>
               <button onClick={() => setSidebarOpen(false)} style={{ background:"rgba(255,255,255,0.1)", border:"none", borderRadius:"8px", width:30, height:30, cursor:"pointer", color:"rgba(255,255,255,0.6)", display:"flex", alignItems:"center", justifyContent:"center" }}>
                 <X size={14} strokeWidth={1.8}/>
               </button>
@@ -5277,7 +4849,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
           {/* ── Projects section ── */}
           <div style={{ marginTop:"18px" }}>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"8px", paddingLeft:"4px" }}>
-              <span style={{ fontSize:"15px", fontWeight:700, color:P.white, letterSpacing:"0.03em", textTransform:"uppercase" }}>Projects</span>
+              <span style={{ fontSize:"16px", fontWeight:700, color:P.white, letterSpacing:"0.03em", textTransform:"uppercase" }}>Projects</span>
               {(user || savedSessions.length > 0) && (
                 <span style={{ fontSize:"15px", color: user ? P.accent : "rgba(255,255,255,0.35)", fontWeight:600 }}>{user ? `Synced` : "Local only"}</span>
               )}
@@ -5293,10 +4865,10 @@ function GroupGrid({ user, onLogin, onLogout }) {
               style={{ width:"100%", display:"flex", alignItems:"center", gap:"8px", background:"rgba(255,255,255,0.07)", border:`1px dashed rgba(255,255,255,0.18)`, borderRadius:"8px", padding:"7px 10px", cursor:"pointer", marginBottom:"6px", fontFamily:font, transition:"all 0.15s", textAlign:"left" }}
               onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.12)"}
               onMouseLeave={e => e.currentTarget.style.background="rgba(255,255,255,0.07)"}>
-              <div style={{ width:24, height:24, borderRadius:"6px", background:"rgba(255,255,255,0.15)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"14px", flexShrink:0, color:P.white, fontWeight:900 }}>+</div>
+              <div style={{ width:24, height:24, borderRadius:"6px", background:"rgba(255,255,255,0.15)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"15px", flexShrink:0, color:P.white, fontWeight:900 }}>+</div>
               <div>
                 <div style={{ fontSize:"15px", fontWeight:800, color:P.white, fontFamily:font }}>New Project</div>
-                <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.4)", fontFamily:font }}>Start fresh</div>
+                <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.4)", fontFamily:font }}>Start fresh</div>
               </div>
             </button>
 
@@ -5308,9 +4880,9 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 </div>
                 <div style={{ minWidth:0, flex:1 }}>
                   <div style={{ fontSize:"15px", fontWeight:800, color:P.white, fontFamily:font, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{projectName || eventName || "Unsaved Project"}</div>
-                  <div style={{ fontSize:"14px", color:P.accent, fontFamily:font }}>{results ? `${results.length} guests · ${results.filter(r=>r.status!=="ok").length} flags` : "Active"}</div>
+                  <div style={{ fontSize:"15px", color:P.accent, fontFamily:font }}>{results ? `${results.length} guests · ${results.filter(r=>r.status!=="ok").length} flags` : "Active"}</div>
                 </div>
-                <span style={{ fontSize:"14px", background:P.accent, color:P.navy, padding:"2px 6px", borderRadius:"20px", fontFamily:font, fontWeight:800, flexShrink:0 }}>Active</span>
+                <span style={{ fontSize:"15px", background:P.accent, color:P.navy, padding:"2px 6px", borderRadius:"20px", fontFamily:font, fontWeight:800, flexShrink:0 }}>Active</span>
               </div>
             )}
 
@@ -5330,6 +4902,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                         setDepartureAirports(s.departureAirports||"");
                         setArrivalCutoff(s.arrivalCutoff||"");
                         setDepartureCutoff(s.departureCutoff||"");
+                        setLateArrivalCutoff(s.lateArrivalCutoff ?? "22:30");
                         if (s.results && s.results.length) { setResults(rehydrateResults(s.results)); setActiveTab("grid"); setFilter("all"); setExpanded(null); setShowSetup(false); }
                         else { setResults(null); setSaveMsg("This project was saved before full data was stored — re-upload its files to view it."); setTimeout(()=>setSaveMsg(""), 5000); }
                         if (isMobile) setSidebarOpen(false);
@@ -5342,11 +4915,11 @@ function GroupGrid({ user, onLogin, onLogout }) {
                       </div>
                       <div style={{ minWidth:0, flex:1 }}>
                         <div style={{ fontSize:"15px", fontWeight:800, color:P.white, fontFamily:font, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.name}</div>
-                        <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.4)", fontFamily:font }}>{s.guestCount} guests · {s.issueCount} flags</div>
+                        <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.4)", fontFamily:font }}>{s.guestCount} guests · {s.issueCount} flags</div>
                       </div>
-                      {results && <button onClick={e => { e.stopPropagation(); setCompareSession(s); setShowDiff(true); setActiveTab("grid"); }} style={{ background:"rgba(255,255,255,0.12)", border:`1px solid rgba(255,255,255,0.2)`, borderRadius:"5px", padding:"2px 7px", fontSize:"11px", color:P.white, fontWeight:700, fontFamily:font, cursor:"pointer", marginRight:"4px" }}>↔ Diff</button>}
+                      {results && <button onClick={e => { e.stopPropagation(); setCompareSession(s); setShowDiff(true); setActiveTab("grid"); }} style={{ background:"rgba(255,255,255,0.12)", border:`1px solid rgba(255,255,255,0.2)`, borderRadius:"5px", padding:"2px 7px", fontSize:"15px", color:P.white, fontWeight:700, fontFamily:font, cursor:"pointer", marginRight:"4px" }}>↔ Diff</button>}
                       <button onClick={e => { e.stopPropagation(); setSavedSessions(prev => { const next = prev.filter(x => x.id !== s.id); try { storage.set(storageKey, JSON.stringify(next)); } catch(ex) {} return next; }); }}
-                        style={{ background:"transparent", border:"none", color:"rgba(255,255,255,0.2)", fontSize:"14px", cursor:"pointer", padding:"2px 4px", flexShrink:0, lineHeight:1, borderRadius:"4px" }}
+                        style={{ background:"transparent", border:"none", color:"rgba(255,255,255,0.2)", fontSize:"15px", cursor:"pointer", padding:"2px 4px", flexShrink:0, lineHeight:1, borderRadius:"4px" }}
                         onMouseEnter={e => { e.currentTarget.style.color = P.red; e.currentTarget.style.background = "rgba(192,57,43,0.2)"; }}
                         onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.2)"; e.currentTarget.style.background = "transparent"; }}
                         title="Remove">✕</button>
@@ -5371,24 +4944,25 @@ function GroupGrid({ user, onLogin, onLogout }) {
           {/* Navigation — only shown after results */}
           {results && <>
             <div style={{ width:"100%", height:1, background:"rgba(255,255,255,0.08)", margin:"4px 0 14px" }} />
-            <div style={{ fontSize:"14px", fontWeight:600, color:"rgba(255,255,255,0.5)", letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"8px", paddingLeft:"2px" }}>Views</div>
+            <div style={{ fontSize:"17px", fontWeight:600, color:"rgba(255,255,255,0.5)", letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"8px", paddingLeft:"2px" }}>Views</div>
             {[
               { k:"grid", icon:<GridIcon size={16} line="rgba(255,255,255,0.85)"/>, label:"Group Grid", badge: null },
               { k:"summary", icon:<BarChart2 size={15} strokeWidth={1.8}/>, label:"Summary", badge: results.filter(r=>r.status!=="ok").length > 0 ? results.filter(r=>r.status!=="ok").length : null },
               { k:"comms", icon:<Mail size={15} strokeWidth={1.8}/>, label:"Communications", badge: (() => { const n = results.filter(r => r.email && (r.issues||[]).filter(x=>!(r.resolved||[]).includes(x.text)).length > 0).length; return n > 0 ? n : null; })() },
+              { k:"reports", icon:<SpreadsheetIcon size={16} line="rgba(255,255,255,0.85)" accent={P.accent}/>, label:"Reporting", badge: null },
             ].map(({ k, icon, label, badge }) => (
               <button key={k} onClick={() => { setActiveTab(k); if (isMobile) setSidebarOpen(false); }}
                 style={{ width:"100%", display:"flex", alignItems:"center", gap:"10px", background:activeTab===k?"rgba(0,201,177,0.18)":"transparent", border:`1px solid ${activeTab===k?"rgba(0,201,177,0.35)":"transparent"}`, borderRadius:"7px", padding:"7px 10px", cursor:"pointer", marginBottom:"2px", textAlign:"left", transition:"all 0.15s" }}
                 onMouseEnter={e => activeTab!==k && (e.currentTarget.style.background="rgba(255,255,255,0.07)")}
                 onMouseLeave={e => activeTab!==k && (e.currentTarget.style.background="transparent")}>
                 <span style={{ width:20, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, color:activeTab===k?P.accent:"rgba(255,255,255,0.45)" }}>{icon}</span>
-                <span style={{ flex:1, fontSize:"14px", fontWeight:700, color:activeTab===k?P.accent:"rgba(255,255,255,0.7)", fontFamily:font }}>{label}</span>
+                <span style={{ flex:1, fontSize:"15px", fontWeight:700, color:activeTab===k?P.accent:"rgba(255,255,255,0.7)", fontFamily:font }}>{label}</span>
                 {badge && <span style={{ background:P.red, color:P.white, fontSize:"15px", fontWeight:800, padding:"1px 7px", borderRadius:"20px", flexShrink:0 }}>{badge}</span>}
               </button>
             ))}
 
             <div style={{ width:"100%", height:1, background:"rgba(255,255,255,0.08)", margin:"14px 0" }} />
-            <div style={{ fontSize:"14px", fontWeight:600, color:"rgba(255,255,255,0.5)", letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"8px", paddingLeft:"2px" }}>Filters</div>
+            <div style={{ fontSize:"17px", fontWeight:600, color:"rgba(255,255,255,0.5)", letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"8px", paddingLeft:"2px" }}>Filters</div>
             {(() => {
               const alignedCount = results.filter(r=>r.status==="ok").length;
               const actionCount = results.filter(r=>r.status!=="ok").length;
@@ -5399,30 +4973,30 @@ function GroupGrid({ user, onLogin, onLogout }) {
               ];
               const subFilters = [
                 { k:"missing", icon:"○", label:"Missing records", count: results.filter(r=>r.issues.some(x=>x.type==="missing")).length, color:P.amber, indent:true },
-                { k:"window", icon:"🗓", label:"Outside dates", count: results.filter(r=>r.issues.some(x=>x.type==="window")).length, color:"#C4A0F0", indent:true },
-                { k:"mismatch", icon:"⇄", label:"Date mismatches", count: results.filter(r=>r.issues.some(x=>x.type==="mismatch")).length, color:"#E67E22", indent:true },
-                { k:"duplicate", icon:<AlertCircle size={13} strokeWidth={1.8}/>, label:"Duplicates", count: results.filter(r=>r.issues.some(x=>x.type==="duplicate")).length, color:"#FF8A65", indent:true },
+                { k:"window", icon:"🗓", label:"Outside dates", count: results.filter(r=>r.issues.some(x=>x.type==="window")).length, color:"#6B3FA0", indent:true },
+                { k:"mismatch", icon:"⇄", label:"Date mismatches", count: results.filter(r=>r.issues.some(x=>x.type==="mismatch")).length, color:"#C0392B", indent:true },
+                { k:"duplicate", icon:<AlertCircle size={13} strokeWidth={1.8}/>, label:"Duplicates", count: results.filter(r=>r.issues.some(x=>x.type==="duplicate")).length, color:"#C97A0A", indent:true },
               ].filter(f => f.count > 0);
               const renderBtn = ({ k, icon, label, count, color, indent }) => (
                 <button key={k} onClick={() => { setFilter(k); setActiveTab("grid"); if (isMobile) setSidebarOpen(false); }}
                   style={{ width:"100%", display:"flex", alignItems:"center", gap:"8px", background:filter===k&&activeTab==="grid"?"rgba(0,201,177,0.15)":"transparent", border:`1px solid ${filter===k&&activeTab==="grid"?"rgba(0,201,177,0.3)":"transparent"}`, borderRadius:"7px", padding:"6px 10px", paddingLeft: indent ? "26px" : "10px", cursor:"pointer", marginBottom:"2px", textAlign:"left" }}
                   onMouseEnter={e => (filter!==k||activeTab!=="grid") && (e.currentTarget.style.background="rgba(255,255,255,0.07)")}
                   onMouseLeave={e => (filter!==k||activeTab!=="grid") && (e.currentTarget.style.background="transparent")}>
-                  <span style={{ fontSize:"14px", color:color||"rgba(255,255,255,0.45)", width:16, textAlign:"center", flexShrink:0 }}>{icon}</span>
+                  <span style={{ fontSize:"15px", color:color||"rgba(255,255,255,0.45)", width:16, textAlign:"center", flexShrink:0 }}>{icon}</span>
                   <span style={{ flex:1, fontSize: indent ? "13px" : "15px", fontWeight:filter===k&&activeTab==="grid"?600:400, color:filter===k&&activeTab==="grid"?P.accent:(indent?"rgba(255,255,255,0.5)":"rgba(255,255,255,0.65)"), fontFamily:font }}>{label}</span>
-                  <span style={{ fontSize:"13px", fontWeight:600, color:filter===k&&activeTab==="grid"?P.accent:"rgba(255,255,255,0.4)", fontFamily:font }}>{count}</span>
+                  <span style={{ fontSize:"15px", fontWeight:600, color:filter===k&&activeTab==="grid"?P.accent:"rgba(255,255,255,0.4)", fontFamily:font }}>{count}</span>
                 </button>
               );
               return (<>
                 {mainFilters.map(renderBtn)}
                 {subFilters.length > 0 && (<>
-                  <div style={{ fontSize:"11px", fontWeight:500, color:"rgba(255,255,255,0.3)", letterSpacing:"0.04em", margin:"8px 0 4px", paddingLeft:"10px" }}>Within Action Needed</div>
+                  <div style={{ fontSize:"15px", fontWeight:500, color:"rgba(255,255,255,0.3)", letterSpacing:"0.04em", margin:"8px 0 4px", paddingLeft:"10px" }}>Within Action Needed</div>
                   {subFilters.map(renderBtn)}
                 </>)}
               </>);
             })()}
             <div style={{ width:"100%", height:1, background:"rgba(255,255,255,0.08)", margin:"14px 0" }} />
-            <div style={{ fontSize:"14px", fontWeight:800, color:"rgba(255,255,255,0.5)", letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"8px", paddingLeft:"4px" }}>Export</div>
+            <div style={{ fontSize:"17px", fontWeight:800, color:"rgba(255,255,255,0.5)", letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"8px", paddingLeft:"4px" }}>Export</div>
             <button onClick={exportReport} style={{ width:"100%", display:"flex", alignItems:"center", gap:"8px", background:"transparent", border:`1.5px solid rgba(255,255,255,0.12)`, borderRadius:"9px", padding:"7px 10px", cursor:"pointer", marginBottom:"6px", fontFamily:font }}
               onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.08)"}
               onMouseLeave={e => e.currentTarget.style.background="transparent"}>
@@ -5473,7 +5047,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
             <div style={{ display:"flex", alignItems:"center", gap:"11px", flex:"1 1 200px", minWidth:0 }}>
               <span style={{ width:4, height:34, background:P.accent, borderRadius:"3px", flexShrink:0 }} />
               <div style={{ display:"flex", flexDirection:"column", minWidth:0, flex:1 }}>
-                <span style={{ fontSize:"11px", fontWeight:600, color:P.grey400, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"1px" }}>Event</span>
+                <span style={{ fontSize:"18px", fontWeight:600, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"1px" }}>Event</span>
                 <input value={eventName} onChange={e => setEventName(e.target.value)} placeholder="Name your event"
                   style={{ width:"100%", minWidth:0, background:"transparent", border:"none", fontSize:"22px", fontWeight:600, letterSpacing:"-0.02em", color:P.navy, fontFamily:font, outline:"none", padding:"0", lineHeight:1.15 }} />
               </div>
@@ -5481,12 +5055,12 @@ function GroupGrid({ user, onLogin, onLogout }) {
             <div style={{ display:"flex", alignItems:"center", gap:"8px", flexShrink:0 }}>
             <div style={{ position:"relative", display:"flex" }}>
               <button onClick={() => setWindowOpen(!windowOpen)}
-                style={{ display:"inline-flex", alignItems:"center", gap:"7px", height:"36px", background:hasWindow?P.periwinkle+"14":P.grey50, border:`1.5px solid ${hasWindow?P.periwinkle+"55":P.grey100}`, borderRadius:"9px", padding:"0 13px", fontSize:"13px", fontWeight:500, color:hasWindow?P.periwinkleD:P.grey600, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>
+                style={{ display:"inline-flex", alignItems:"center", gap:"7px", height:"36px", background:hasWindow?P.periwinkle+"14":P.grey50, border:`1.5px solid ${hasWindow?P.periwinkle+"55":P.grey100}`, borderRadius:"9px", padding:"0 13px", fontSize:"17px", fontWeight:500, color:hasWindow?P.periwinkleD:P.grey600, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>
                 {hasWindow ? "Dates set" : "Approved travel dates"} <CalendarIcon size={15} line={hasWindow?P.periwinkleD:P.grey600} accent={P.accent}/>
               </button>
               {windowOpen && (
                 <div style={{ position:"absolute", top:"calc(100% + 6px)", right:0, zIndex:60, width:"260px", background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"12px", padding:"14px", boxShadow:"0 12px 32px rgba(15,29,53,0.16)" }}>
-                  <div style={{ fontSize:"12px", color:P.grey400, fontFamily:font, marginBottom:"10px", lineHeight:1.5 }}>Flag guests arriving or departing outside these dates.</div>
+                  <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font, marginBottom:"10px", lineHeight:1.5 }}>Flag guests arriving or departing outside these dates.</div>
                   <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
                     {[
                       { label:"Earliest arrival", val:arrivalStart, set:setArrivalStart },
@@ -5495,21 +5069,21 @@ function GroupGrid({ user, onLogin, onLogout }) {
                       { label:"Latest departure", val:departureEnd, set:setDepartureEnd },
                     ].map(({ label, val, set }) => (
                       <div key={label}>
-                        <div style={{ fontSize:"12px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"3px" }}>{label}</div>
+                        <div style={{ fontSize:"13px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"3px" }}>{label}</div>
                         <input type="date" value={val} onChange={e => set(e.target.value)}
-                          style={{ width:"100%", background:P.grey50, border:`1.5px solid ${val?P.accent+"66":P.grey100}`, borderRadius:"8px", padding:"7px 9px", fontSize:"13px", fontFamily:font, color:val?P.navy:P.grey400, outline:"none", boxSizing:"border-box" }} />
+                          style={{ width:"100%", background:P.grey50, border:`1.5px solid ${val?P.accent+"66":P.grey100}`, borderRadius:"8px", padding:"7px 9px", fontSize:"17px", fontFamily:font, color:val?P.navy:P.grey600, outline:"none", boxSizing:"border-box" }} />
                       </div>
                     ))}
                     <div style={{ display:"flex", gap:"8px", marginTop:"4px" }}>
-                      {hasWindow && <button onClick={() => { setArrivalStart(""); setArrivalEnd(""); setDepartureStart(""); setDepartureEnd(""); }} style={{ flex:1, background:"transparent", border:`1px solid ${P.grey200}`, borderRadius:"7px", padding:"6px", color:P.grey600, fontSize:"12px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>Clear</button>}
-                      <button onClick={() => setWindowOpen(false)} style={{ flex:1, background:P.navy, border:"none", borderRadius:"7px", padding:"6px", color:P.white, fontSize:"12px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>Done</button>
+                      {hasWindow && <button onClick={() => { setArrivalStart(""); setArrivalEnd(""); setDepartureStart(""); setDepartureEnd(""); }} style={{ flex:1, background:"transparent", border:`1px solid ${P.grey200}`, borderRadius:"7px", padding:"6px", color:P.grey600, fontSize:"13px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>Clear</button>}
+                      <button onClick={() => setWindowOpen(false)} style={{ flex:1, background:P.navy, border:"none", borderRadius:"7px", padding:"6px", color:P.white, fontSize:"15px", fontWeight:500, fontFamily:font, cursor:"pointer" }}>Done</button>
                     </div>
                   </div>
                 </div>
               )}
             </div>
             <button onClick={() => setContactsOpen(true)}
-              style={{ display:"inline-flex", alignItems:"center", gap:"7px", height:"36px", background:(contacts.hotel.email||contacts.travel.email)?P.accent+"14":P.grey50, border:`1.5px solid ${(contacts.hotel.email||contacts.travel.email)?P.accent+"55":P.grey100}`, borderRadius:"9px", padding:"0 13px", fontSize:"13px", fontWeight:500, color:(contacts.hotel.email||contacts.travel.email)?P.accentD:P.grey600, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>
+              style={{ display:"inline-flex", alignItems:"center", gap:"7px", height:"36px", background:(contacts.hotel.email||contacts.travel.email)?P.accent+"14":P.grey50, border:`1.5px solid ${(contacts.hotel.email||contacts.travel.email)?P.accent+"55":P.grey100}`, borderRadius:"9px", padding:"0 13px", fontSize:"17px", fontWeight:500, color:(contacts.hotel.email||contacts.travel.email)?P.accentD:P.grey600, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>
               {(contacts.hotel.email||contacts.travel.email) ? "Contacts added" : "Contacts"} <PeopleIcon size={15} line={(contacts.hotel.email||contacts.travel.email)?P.accentD:P.grey600} accent={P.accent}/>
             </button>
             </div>
@@ -5517,8 +5091,8 @@ function GroupGrid({ user, onLogin, onLogout }) {
         )}
 
         {results && !showSetup && (
-          <div style={{ display:"flex", alignItems:"center", gap:"8px", flexWrap:"wrap", fontSize:"12px", color:P.grey400, fontFamily:font, margin:"-6px 0 16px", padding:"0 2px" }}>
-            <CalendarIcon size={13} line={P.grey400} accent={P.accent} />
+          <div style={{ display:"flex", alignItems:"center", gap:"8px", flexWrap:"wrap", fontSize:"13px", color:P.grey600, fontFamily:font, margin:"-6px 0 16px", padding:"0 2px" }}>
+            <CalendarIcon size={13} line={P.grey600} accent={P.accent} />
             <span>{hasWindow ? `${arrivalStart?fmt(parseDate(arrivalStart)):"—"} – ${departureEnd?fmt(parseDate(departureEnd)):"—"}` : "No travel window"}</span>
             <span style={{ color:P.grey200 }}>·</span>
             <span>{arrivalCutoff || departureCutoff ? `${arrivalCutoff?`Arr ${fmtTime(arrivalCutoff,"ampm")}`:""}${arrivalCutoff&&departureCutoff?" / ":""}${departureCutoff?`Dep ${fmtTime(departureCutoff,"ampm")}`:""}` : "No cutoff"}</span>
@@ -5529,18 +5103,18 @@ function GroupGrid({ user, onLogin, onLogout }) {
             <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:"12px" }}>
               {paramsDirty && (
                 <button onClick={runCheck} disabled={loading}
-                  style={{ display:"inline-flex", alignItems:"center", gap:"7px", background:P.amber+"1A", border:`1.5px solid ${P.amber}66`, borderRadius:"9px", padding:"6px 13px", fontSize:"12px", fontWeight:600, color:"#9A6A12", fontFamily:font, cursor:loading?"wait":"pointer" }}>
-                  <CrossCheckIcon size={14} line="#9A6A12" accent={P.amber} />
+                  style={{ display:"inline-flex", alignItems:"center", gap:"7px", background:P.amber+"1A", border:`1.5px solid ${P.amber}66`, borderRadius:"9px", padding:"6px 13px", fontSize:"15px", fontWeight:600, color:"#C97A0A", fontFamily:font, cursor:loading?"wait":"pointer" }}>
+                  <CrossCheckIcon size={14} line="#C97A0A" accent={P.amber} />
                   {loading ? "Re-running…" : "Re-run to update flags"}
                 </button>
               )}
-              <button onClick={() => setShowSetup(true)} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"12px", fontWeight:600, fontFamily:font, cursor:"pointer", textDecoration:"underline" }}>Edit setup</button>
+              <button onClick={() => setShowSetup(true)} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"15px", fontWeight:600, fontFamily:font, cursor:"pointer", textDecoration:"underline" }}>Edit setup</button>
             </div>
           </div>
         )}
         {showSetup && results && (
           <div style={{ marginBottom:"12px" }}>
-            <button onClick={() => setShowSetup(false)} style={{ display:"inline-flex", alignItems:"center", gap:"6px", background:P.white, border:`1.5px solid ${P.grey200}`, borderRadius:"9px", padding:"7px 13px", fontSize:"13px", fontWeight:600, color:P.grey600, fontFamily:font, cursor:"pointer" }}>← Back to results</button>
+            <button onClick={() => setShowSetup(false)} style={{ display:"inline-flex", alignItems:"center", gap:"6px", background:P.white, border:`1.5px solid ${P.grey200}`, borderRadius:"9px", padding:"7px 13px", fontSize:"16px", fontWeight:600, color:P.grey600, fontFamily:font, cursor:"pointer" }}>← Back to results</button>
           </div>
         )}
         {/* ── Upload hero — full size when no results, compact strip when results exist ── */}
@@ -5556,6 +5130,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
             departureAirports={departureAirports} setDepartureAirports={setDepartureAirports}
             arrivalCutoff={arrivalCutoff} setArrivalCutoff={setArrivalCutoff}
             departureCutoff={departureCutoff} setDepartureCutoff={setDepartureCutoff}
+            lateArrivalCutoff={lateArrivalCutoff} setLateArrivalCutoff={setLateArrivalCutoff}
             isReRun={!!results}
             contacts={contacts} setContacts={setContacts} setContactsOpen={setContactsOpen}
             registrationFile={registrationFile} setRegistrationFile={setRegistrationFile}
@@ -5563,6 +5138,10 @@ function GroupGrid({ user, onLogin, onLogout }) {
             hotelFile={hotelFile} setHotelFile={setHotelFile}
             hotelProperty={hotelProperty} setHotelProperty={setHotelProperty}
             extraHotels={extraHotels} setExtraHotels={setExtraHotels}
+            extraFlights={extraFlights} setExtraFlights={setExtraFlights}
+            extraCars={extraCars} setExtraCars={setExtraCars}
+            extraReg={extraReg} setExtraReg={setExtraReg}
+            extraDietary={extraDietary} setExtraDietary={setExtraDietary}
             carFile={carFile} setCarFile={setCarFile}
             dietaryFile={dietaryFile} setDietaryFile={setDietaryFile}
             ready={ready} loading={loading} error={error} runCheck={runCheck} isMobile={isMobile}
@@ -5574,15 +5153,15 @@ function GroupGrid({ user, onLogin, onLogout }) {
               <UploadSquare label="Flight"  icon={<PlaneIcon size={22} />} accent={P.periwinkleD} file={flightFile}  setter={setFlightFile}  required={false}  sub="Optional" compact />
               <UploadSquare label="Hotel"   icon={<HotelIcon size={22} />} accent={P.navy}        file={hotelFile}   setter={setHotelFile}   required={false}  sub="Optional" compact />
               <UploadSquare label="Car"     icon={<CarIcon size={22} />}   accent={P.grey600}     file={carFile}     setter={setCarFile}     required={false} sub="Optional" compact />
-              {SHOW_DIETARY && <UploadSquare label="Dietary" icon={<Salad size={22} strokeWidth={1.8} color="#27AE60"/>} accent={P.teal}        file={dietaryFile} setter={setDietaryFile} required={false} sub="Optional" compact />}
+              {SHOW_DIETARY && <UploadSquare label="Dietary" icon={<Salad size={22} strokeWidth={1.8} color="#0D9E6E"/>} accent={P.teal}        file={dietaryFile} setter={setDietaryFile} required={false} sub="Optional" compact />}
               {!isMobile && <div style={{ width:1, height:32, background:P.grey100, flexShrink:0 }} />}
               <button onClick={runCheck} disabled={!ready || loading}
-                style={{ background:ready&&!loading?P.accent:P.grey100, color:ready&&!loading?P.white:P.grey400, border:"none", borderRadius:"7px", padding:"7px 16px", fontSize:"14px", fontWeight:600, fontFamily:font, cursor:ready&&!loading?"pointer":"not-allowed", transition:"all 0.18s", flexShrink:0, whiteSpace:"nowrap", boxShadow:ready&&!loading?"0 1px 6px rgba(0,201,177,0.3)":"none", gridColumn: isMobile ? "1 / -1" : "auto" }}>
+                style={{ background:ready&&!loading?P.accent:P.grey100, color:ready&&!loading?P.white:P.grey600, border:"none", borderRadius:"7px", padding:"7px 16px", fontSize:"18px", fontWeight:600, fontFamily:font, cursor:ready&&!loading?"pointer":"not-allowed", transition:"all 0.18s", flexShrink:0, whiteSpace:"nowrap", boxShadow:ready&&!loading?"0 1px 6px rgba(0,201,177,0.3)":"none", gridColumn: isMobile ? "1 / -1" : "auto" }}>
                 {loading ? "Checking…" : "Re-run Check"}
               </button>
             </div>
-            {error && <div style={{ fontSize:"13px", color:P.red, fontFamily:font, background:P.redLight, borderRadius:"8px", padding:"5px 10px", marginTop:"8px" }}>{error}</div>}
-            {results && <div style={{ fontSize:"13px", color:P.green, fontFamily:font, fontWeight:600, marginTop:"8px", textAlign: isMobile ? "center" : "right" }}>{results.length} guests · {results.filter(r=>r.status!=="ok").length} flags found</div>}
+            {error && <div style={{ fontSize:"15px", color:P.red, fontFamily:font, background:P.redLight, borderRadius:"8px", padding:"5px 10px", marginTop:"8px" }}>{error}</div>}
+            {results && <div style={{ fontSize:"15px", color:P.green, fontFamily:font, fontWeight:600, marginTop:"8px", textAlign: isMobile ? "center" : "right" }}>{results.length} guests · {results.filter(r=>r.status!=="ok").length} flags found</div>}
           </div>
         )}
 
@@ -5600,28 +5179,86 @@ function GroupGrid({ user, onLogin, onLogout }) {
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"12px" }}>
                       <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
                         <span style={{ fontSize:"15px", fontWeight:800, color:P.navy, fontFamily:font }}>↔ Changes vs "{compareSession.name}"</span>
-                        <span style={{ fontSize:"13px", color:P.grey400, fontFamily:font }}>{new Date(compareSession.date).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</span>
+                        <span style={{ fontSize:"16px", color:P.grey600, fontFamily:font }}>{new Date(compareSession.date).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</span>
                       </div>
-                      <button onClick={() => { setShowDiff(false); setCompareSession(null); }} style={{ background:"transparent", border:"none", color:P.grey400, cursor:"pointer", fontSize:"18px", lineHeight:1 }}>×</button>
+                      <button onClick={() => { setShowDiff(false); setCompareSession(null); }} style={{ background:"transparent", border:"none", color:P.grey600, cursor:"pointer", fontSize:"18px", lineHeight:1 }}>×</button>
                     </div>
                     <div style={{ display:"flex", gap:"12px", flexWrap:"wrap" }}>
                       {[
                         { label:"New guests", val:diff.added.length, color:P.green, bg:P.greenLight, items:diff.added.map(r=>r.displayName) },
                         { label:"Removed", val:diff.removed.length, color:P.red, bg:P.redLight, items:diff.removed.map(r=>r.displayName) },
                         { label:"Issues changed", val:diff.changed.length, color:P.amber, bg:P.amberLight, items:diff.changed.map(d=>`${d.curr.displayName}: ${d.prev.issues.map(x=>x.text).join(", ")||"none"} → ${d.curr.issues.map(x=>x.text).join(", ")||"none"}`) },
-                        { label:"Unchanged", val:diff.unchanged.length, color:P.grey400, bg:P.grey50, items:[] },
+                        { label:"Unchanged", val:diff.unchanged.length, color:P.grey600, bg:P.grey50, items:[] },
                       ].map(({label,val,color,bg,items}) => (
                         <div key={label} style={{ background:bg, border:`1px solid ${color}33`, borderRadius:"8px", padding:"10px 14px", minWidth:"110px" }}>
                           <div style={{ fontSize:"22px", fontWeight:700, color, fontFamily:fontDisplay }}>{val}</div>
-                          <div style={{ fontSize:"13px", fontWeight:600, color, fontFamily:font }}>{label}</div>
-                          {items.length > 0 && items.length <= 5 && <div style={{ marginTop:"6px", fontSize:"12px", color, fontFamily:font, lineHeight:1.6 }}>{items.map((x,i)=><div key={i} style={{ opacity:0.8 }}>• {x}</div>)}</div>}
-                          {items.length > 5 && <div style={{ marginTop:"6px", fontSize:"12px", color, fontFamily:font, opacity:0.8 }}>• {items[0]}<br/>• {items[1]}<br/>+{items.length-2} more</div>}
+                          <div style={{ fontSize:"15px", fontWeight:600, color, fontFamily:font }}>{label}</div>
+                          {items.length > 0 && items.length <= 5 && <div style={{ marginTop:"6px", fontSize:"15px", color, fontFamily:font, lineHeight:1.6 }}>{items.map((x,i)=><div key={i} style={{ opacity:0.8 }}>• {x}</div>)}</div>}
+                          {items.length > 5 && <div style={{ marginTop:"6px", fontSize:"15px", color, fontFamily:font, opacity:0.8 }}>• {items[0]}<br/>• {items[1]}<br/>+{items.length-2} more</div>}
                         </div>
                       ))}
                     </div>
                   </div>
                 );
               })()}
+          {activeTab === "reports" && (
+            <div style={{ maxWidth:"860px" }}>
+              <h2 style={{ fontSize:"20px", fontWeight:700, color:P.navy, fontFamily:fontDisplay, letterSpacing:"-0.02em", margin:"0 0 4px" }}>Reporting</h2>
+              <p style={{ fontSize:"18px", color:P.grey600, fontFamily:font, margin:"0 0 20px", lineHeight:1.5 }}>Export a clean onsite itinerary, the full cross-check report, or build a custom report for a specific vendor.</p>
+
+              <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"20px 22px", marginBottom:"16px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)" }}>
+                <div style={{ display:"flex", alignItems:"flex-start", gap:"12px", marginBottom:"14px" }}>
+                  <div style={{ width:40, height:40, borderRadius:"10px", background:P.navy, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><PeopleIcon size={20} line="rgba(255,255,255,0.95)" accent={P.accent} /></div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:"16px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"2px" }}>Onsite master itinerary</div>
+                    <div style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.5 }}>Every attendee A to Z by last name, with their full flight, hotel, and car details on one row. Built to print or use onsite.</div>
+                  </div>
+                </div>
+                <button onClick={exportOnsiteList} style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:P.accent, color:P.white, border:"none", borderRadius:"10px", padding:"11px 20px", fontSize:"15px", fontWeight:800, fontFamily:font, cursor:"pointer", boxShadow:"0 2px 12px rgba(0,201,177,0.35)" }}>Download onsite itinerary (Excel)</button>
+              </div>
+
+              <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"20px 22px", marginBottom:"16px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)" }}>
+                <div style={{ fontSize:"16px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"2px" }}>Full cross-check report</div>
+                <div style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.5, marginBottom:"14px" }}>Every attendee and every field, including flagged issues and any resolution notes.</div>
+                <button onClick={exportSelected} style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:"transparent", color:P.navy, border:`1.5px solid ${P.grey200}`, borderRadius:"10px", padding:"10px 18px", fontSize:"15px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>Export full report</button>
+              </div>
+
+              <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"20px 22px", marginBottom:"16px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)" }}>
+                <div style={{ fontSize:"16px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"2px" }}>Custom report</div>
+                <div style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.5, marginBottom:"16px" }}>Pick who it's for and choose the fields. The report includes all {results.length} attendees with just the columns you select.</div>
+
+                <div style={{ fontSize:"16px", fontWeight:700, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"8px" }}>Who is it for?</div>
+                <div style={{ display:"flex", gap:"8px", flexWrap:"wrap", marginBottom:"18px" }}>
+                  {[["general","Everything"],["hotel","Hotel"],["car","Car transfer"],["travel","Travel agency"]].map(([t,label]) => (
+                    <button key={t} onClick={() => applyReportTarget(t)} style={{ background:reportTarget===t?P.accent+"18":P.grey50, border:`1.5px solid ${reportTarget===t?P.accent:P.grey100}`, borderRadius:"9px", padding:"7px 14px", fontSize:"17px", fontWeight:700, color:reportTarget===t?P.accentD:P.grey600, fontFamily:font, cursor:"pointer" }}>{label}</button>
+                  ))}
+                </div>
+
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"8px" }}>
+                  <div style={{ fontSize:"16px", fontWeight:700, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em" }}>Columns</div>
+                  {reportFields.size > 0 && <button onClick={() => setReportFields(new Set())} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"15px", fontWeight:600, fontFamily:font, cursor:"pointer" }}>Clear all</button>}
+                </div>
+                <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, lineHeight:1.5, marginBottom:"10px" }}>Open a category and check the fields you want. Pick a preset above to start, then fine-tune.</div>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:"8px", marginBottom:"4px" }}>
+                  {["Attendee","Status","Flight","Hotel","Car"].map(group => (
+                    <ReportFieldDropdown key={group} group={group}
+                      fields={REPORT_FIELDS.filter(fl => fl.group===group)}
+                      selected={reportFields} onToggle={toggleReportField} onSetGroup={setReportFieldGroup} />
+                  ))}
+                </div>
+
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:"14px", flexWrap:"wrap", marginTop:"18px", paddingTop:"16px", borderTop:`1px solid ${P.grey100}` }}>
+                  <span style={{ fontSize:"17px", color:P.grey600, fontFamily:font }}>{reportFields.size} field{reportFields.size===1?"":"s"} selected · all {results.length} attendees</span>
+                  <button onClick={exportCustomReport} disabled={!reportFields.size} style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:reportFields.size?P.accent:P.grey100, color:reportFields.size?P.white:P.grey600, border:"none", borderRadius:"10px", padding:"11px 20px", fontSize:"18px", fontWeight:800, fontFamily:font, cursor:reportFields.size?"pointer":"not-allowed", boxShadow:reportFields.size?"0 2px 12px rgba(0,201,177,0.35)":"none" }}>Export custom report</button>
+                </div>
+
+                <div style={{ display:"flex", gap:"8px", alignItems:"flex-start", marginTop:"14px", background:P.grey50, borderRadius:"9px", padding:"10px 12px" }}>
+                  <span style={{ flexShrink:0, marginTop:"1px" }}><Mail size={14} strokeWidth={1.8} color={P.grey600} /></span>
+                  <span style={{ fontSize:"16px", color:P.grey600, fontFamily:font, lineHeight:1.5 }}>Sending a report straight to your vendor contact from the app is coming once your email is connected. For now, download the file here and attach it to your message.</span>
+                </div>
+              </div>
+            </div>
+          )}
           {activeTab === "comms" && (
             <CommHub
               results={results}
@@ -5639,7 +5276,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"20px" }}>
                 <div>
                   <h2 style={{ fontFamily:fontDisplay, fontSize:"18px", fontWeight:700, color:P.navy, margin:"0 0 3px" }}>{eventName||"Event"} — Summary</h2>
-                  <div style={{ fontSize:"14px", color:P.navyLight, fontFamily:font }}>{new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}</div>
+                  <div style={{ fontSize:"15px", color:P.navyLight, fontFamily:font }}>{new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}</div>
                 </div>
                 <div style={{ display:"flex", gap:"8px", alignItems:"center", flexWrap:"wrap" }}>
                   <Btn onClick={exportReport} outline>Export</Btn>
@@ -5651,12 +5288,12 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 {[{label:"Total Guests",val:counts.total,color:P.navy,icon:<Users size={14} strokeWidth={1.8}/>},{label:"Fully Aligned",val:counts.ok,color:P.green,icon:<Check size={14} strokeWidth={1.8}/>},{label:"Action Needed",val:counts.flagged,color:P.red,icon:<AlertTriangle size={14} strokeWidth={1.8}/>},{label:"Alignment Rate",val:(counts.total>0?Math.round(counts.ok/counts.total*100):0)+"%",color:P.periwinkleD,icon:<BarChart2 size={14} strokeWidth={1.8}/>}].map(({label,val,color,icon}) => (
                   <div key={label} style={{ background:P.offWhite, borderRadius:"12px", padding:"14px 16px" }}>
                     <div style={{ fontSize:"20px", fontWeight:900, color, fontFamily:font }}>{icon} {val}</div>
-                    <div style={{ fontSize:"14px", color:P.navy, fontWeight:600, marginTop:"4px", fontFamily:font }}>{label}</div>
+                    <div style={{ fontSize:"15px", color:P.navy, fontWeight:600, marginTop:"4px", fontFamily:font }}>{label}</div>
                   </div>
                 ))}
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"8px", marginBottom:"20px" }}>
-                {[{label:"Missing Records",val:counts.missing,color:P.amber,icon:<Circle size={14} strokeWidth={1.8}/>},{label:"Date Mismatches",val:results.filter(r=>r.issues.some(x=>x.type==="mismatch")).length,color:P.red,icon:<AlertTriangle size={14} strokeWidth={1.8}/>},{label:"Outside Window",val:counts.window,color:P.purple,icon:<Calendar size={14} strokeWidth={1.8}/>},{label:"Duplicate Names",val:counts.duplicate,color:"#E65100",icon:<AlertCircle size={14} strokeWidth={1.8}/>},...(SHOW_DIETARY?[{label:"Dietary / Access",val:counts.dietary,color:P.teal,icon:<Salad size={14} strokeWidth={1.8}/>}]:[])].map(({label,val,color,icon}) => (
+                {[{label:"Missing Records",val:counts.missing,color:P.amber,icon:<Circle size={14} strokeWidth={1.8}/>},{label:"Date Mismatches",val:results.filter(r=>r.issues.some(x=>x.type==="mismatch")).length,color:P.red,icon:<AlertTriangle size={14} strokeWidth={1.8}/>},{label:"Outside Window",val:counts.window,color:P.purple,icon:<Calendar size={14} strokeWidth={1.8}/>},{label:"Duplicate Names",val:counts.duplicate,color:"#C97A0A",icon:<AlertCircle size={14} strokeWidth={1.8}/>},...(SHOW_DIETARY?[{label:"Dietary / Access",val:counts.dietary,color:P.teal,icon:<Salad size={14} strokeWidth={1.8}/>}]:[])].map(({label,val,color,icon}) => (
                   <div key={label} style={{ background:P.offWhite, borderRadius:"10px", padding:"10px 14px", display:"flex", alignItems:"center", gap:"10px" }}>
                     <div style={{ fontSize:"18px", fontWeight:900, color, fontFamily:font, minWidth:"28px" }}>{val}</div>
                     <div style={{ fontSize:"15px", color:P.navy, fontWeight:600, fontFamily:font }}>{icon} {label}</div>
@@ -5669,7 +5306,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                   {results.filter(r=>r.status!=="ok").map((r,i) => (
                     <div key={i} style={{ background:P.redLight, borderRadius:"10px", padding:"10px 14px", display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"6px" }}>
                       <div>
-                        <div style={{ fontWeight:700, fontSize:"14px", color:P.navy, fontFamily:font }}>{r.firstName} {r.lastName}</div>
+                        <div style={{ fontWeight:700, fontSize:"15px", color:P.navy, fontFamily:font }}>{r.firstName} {r.lastName}</div>
                         <div style={{ fontSize:"15px", color:P.red, fontFamily:font, marginTop:"2px" }}>{r.issues.filter(x=>!(r.resolved||[]).includes(x.text)).map(x=>x.text).join(" · ")}</div>
                       </div>
                       <Btn onClick={() => setEmailModal(r)} small outline color={P.red}>Draft <Mail size={12} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></Btn>
@@ -5697,10 +5334,10 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 { k:"earlyarrival", l:"Early arrival",  v:counts.earlyarrival, c:P.periwinkleD },
                 { k:"earlydeparture", l:"Early departure", v:counts.earlydeparture, c:P.periwinkleD },
                 { k:"missing",      l:"Missing record", v:counts.missing,      c:P.amber },
-                { k:"airport",      l:"Wrong airport",  v:counts.airport,      c:"#2E6FD6" },
+                { k:"airport",      l:"Wrong airport",  v:counts.airport,      c:"#4F8EF7" },
                 { k:"window",       l:"Outside window", v:counts.window,       c:P.purple },
                 { k:"mismatch",     l:"Date mismatch",  v:counts.mismatch,     c:P.red },
-                { k:"duplicate",    l:"Duplicate",      v:counts.duplicate,    c:"#C2410C" },
+                { k:"duplicate",    l:"Duplicate",      v:counts.duplicate,    c:"#C97A0A" },
                 { k:"unregistered", l:"Unregistered",   v:counts.unregistered, c:P.grey600 },
               ].filter(card => ["all","ok","issues"].includes(card.k) || card.v > 0).map(({ k, l, v, c }) => {
                 const on = filter === k;
@@ -5708,7 +5345,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                   <button key={k} onClick={() => setFilter(k)} aria-pressed={on} title={`Show ${l.toLowerCase()}`}
                     style={{ textAlign:"left", background:on?c+"14":P.offWhite, border:`1.5px solid ${on?c:P.grey100}`, borderRadius:"12px", padding:"12px 14px", cursor:"pointer", transition:"all 0.12s", outline:"none" }}>
                     <div style={{ fontSize:"24px", fontWeight:900, color:c, fontFamily:font, lineHeight:1 }}>{v}</div>
-                    <div style={{ fontSize:"12px", fontWeight:600, color:on?c:P.grey600, fontFamily:font, marginTop:"5px" }}>{l}</div>
+                    <div style={{ fontSize:"16px", fontWeight:600, color:on?c:P.grey600, fontFamily:font, marginTop:"5px" }}>{l}</div>
                   </button>
                 );
               })}
@@ -5718,14 +5355,14 @@ function GroupGrid({ user, onLogin, onLogout }) {
               <div style={{ position:"relative", flex:1 }}>
                 <input placeholder="Search by name or email…" value={search} onChange={e => setSearch(e.target.value)}
                   style={{ width:"100%", background:P.white, border:`1.5px solid ${P.grey200}`, borderRadius:"10px", padding:"10px 12px 10px 34px", color:P.navy, fontSize:"15px", fontFamily:font, outline:"none", boxSizing:"border-box" }} />
-                <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:P.navyLight, fontSize:"14px", pointerEvents:"none" }}>🔍</span>
+                <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:P.navyLight, fontSize:"15px", pointerEvents:"none" }}>🔍</span>
                 {search && <button onClick={() => setSearch("")} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"transparent", border:"none", color:P.navyLight, fontSize:"15px", cursor:"pointer" }}>✕</button>}
               </div>
               {/* Filter pills replaced by the status scorecard above */}
               {/* Sort — full width row on mobile */}
               <div style={{ display:"flex", gap:"8px", alignItems:"center" }}>
               <select value={sortBy||""} onChange={e => { setSortBy(e.target.value||null); setSortDir("asc"); }}
-                style={{ background:P.white, border:`1.5px solid ${P.grey200}`, borderRadius:"8px", padding:"8px 10px", fontSize:"14px", fontWeight:700, fontFamily:font, color:P.navy, cursor:"pointer", outline:"none", flex: isMobile ? 1 : "none" }}>
+                style={{ background:P.white, border:`1.5px solid ${P.grey200}`, borderRadius:"8px", padding:"8px 10px", fontSize:"15px", fontWeight:700, fontFamily:font, color:P.navy, cursor:"pointer", outline:"none", flex: isMobile ? 1 : "none" }}>
                 <option value="">Sort by…</option>
                 <option value="lastName">Last Name A→Z</option>
                 <option value="firstName">First Name A→Z</option>
@@ -5739,17 +5376,17 @@ function GroupGrid({ user, onLogin, onLogout }) {
               </select>
               {sortBy && (
                 <button onClick={() => setSortDir(d => d==="asc"?"desc":"asc")}
-                  style={{ background:P.navy, border:"none", borderRadius:"8px", padding:"8px 10px", fontSize:"14px", fontWeight:700, fontFamily:font, color:P.white, cursor:"pointer" }}>
+                  style={{ background:P.navy, border:"none", borderRadius:"8px", padding:"8px 10px", fontSize:"15px", fontWeight:700, fontFamily:font, color:P.white, cursor:"pointer" }}>
                   {sortDir === "asc" ? "↑ Asc" : "↓ Desc"}
                 </button>
               )}
               <div title="Time display format" style={{ display:"flex", border:`1.5px solid ${P.grey200}`, borderRadius:"8px", overflow:"hidden", flexShrink:0 }}>
                 {[{k:"ampm",l:"AM/PM"},{k:"24hr",l:"24h"}].map(({k,l}) => (
                   <button key={k} onClick={() => setTimeFormat(k)}
-                    style={{ background:timeFormat===k?P.navy:P.white, color:timeFormat===k?P.white:P.grey600, border:"none", padding:"8px 10px", fontSize:"13px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>{l}</button>
+                    style={{ background:timeFormat===k?P.navy:P.white, color:timeFormat===k?P.white:P.grey600, border:"none", padding:"8px 10px", fontSize:"17px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>{l}</button>
                 ))}
               </div>
-              <span style={{ fontSize:"14px", color:P.navyLight, fontFamily:font, whiteSpace:"nowrap" }}>{displayRows.length} guests</span>
+              <span style={{ fontSize:"15px", color:P.navyLight, fontFamily:font, whiteSpace:"nowrap" }}>{displayRows.length} guests</span>
               </div>{/* end sort wrapper */}
             </div>
 
@@ -5759,16 +5396,16 @@ function GroupGrid({ user, onLogin, onLogout }) {
               <label style={{ display:"flex", alignItems:"center", gap:"7px", cursor:"pointer", flexShrink:0 }}>
                 <div onClick={toggleSelectAll} style={{ width:18, height:18, borderRadius:"5px", border:`2px solid ${allSelected?P.accent:someSelected?P.accent:P.grey300}`, background:allSelected?P.accent:someSelected?P.accent+"33":P.white, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0, transition:"all 0.15s" }}>
                   {allSelected && <span style={{ color:P.white, fontSize:"15px", fontWeight:900, lineHeight:1 }}>✓</span>}
-                  {!allSelected && someSelected && <span style={{ color:P.periwinkleD, fontSize:"14px", fontWeight:900, lineHeight:1 }}>—</span>}
+                  {!allSelected && someSelected && <span style={{ color:P.periwinkleD, fontSize:"15px", fontWeight:900, lineHeight:1 }}>—</span>}
                 </div>
-                <span style={{ fontSize:"13px", fontWeight:700, color:P.navy, fontFamily:font, whiteSpace:"nowrap" }}>
+                <span style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font, whiteSpace:"nowrap" }}>
                   {someSelected ? `${selCount} selected` : `Select all`}
                 </span>
               </label>
               <div style={{ width:1, height:20, background:P.grey100, flexShrink:0 }} />
               {/* Excel export — PRIMARY */}
               <button onClick={exportSelected}
-                style={{ display:"flex", alignItems:"center", gap:"5px", background:P.accent, border:"none", borderRadius:"7px", padding:"5px 13px", fontSize:"13px", fontWeight:700, fontFamily:font, color:P.white, cursor:"pointer", transition:"all 0.15s", whiteSpace:"nowrap", flexShrink:0, boxShadow:"0 1px 6px rgba(0,201,177,0.3)" }}>
+                style={{ display:"flex", alignItems:"center", gap:"5px", background:P.accent, border:"none", borderRadius:"7px", padding:"5px 13px", fontSize:"15px", fontWeight:700, fontFamily:font, color:P.white, cursor:"pointer", transition:"all 0.15s", whiteSpace:"nowrap", flexShrink:0, boxShadow:"0 1px 6px rgba(0,201,177,0.3)" }}>
                 {someSelected ? `Export ${selCount} to Excel` : "Export to Excel"} <FileSpreadsheet size={13} strokeWidth={1.8} style={{verticalAlign:"-2px",marginLeft:"4px"}}/>
               </button>
               {/* Email selected — send messages without leaving the cross-check tab */}
@@ -5777,30 +5414,30 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 return (
                   <button onClick={() => emailSelected()} disabled={emailable.length===0}
                     title={emailable.length===0 ? "Selected guests have no email or no open issues" : `Draft emails to ${emailable.length} guest(s)`}
-                    style={{ display:"flex", alignItems:"center", gap:"5px", background:emailable.length>0?P.white:P.grey50, border:`1.5px solid ${emailable.length>0?P.accent:P.grey100}`, borderRadius:"7px", padding:"5px 12px", fontSize:"13px", fontWeight:600, fontFamily:font, color:emailable.length>0?P.accentD:P.grey400, cursor:emailable.length>0?"pointer":"not-allowed", flexShrink:0, whiteSpace:"nowrap" }}>
+                    style={{ display:"flex", alignItems:"center", gap:"5px", background:emailable.length>0?P.white:P.grey50, border:`1.5px solid ${emailable.length>0?P.accent:P.grey100}`, borderRadius:"7px", padding:"5px 12px", fontSize:"17px", fontWeight:600, fontFamily:font, color:emailable.length>0?P.accentD:P.grey600, cursor:emailable.length>0?"pointer":"not-allowed", flexShrink:0, whiteSpace:"nowrap" }}>
                     Email {emailable.length>0?emailable.length:""} selected <Mail size={13} strokeWidth={1.8} style={{verticalAlign:"-2px",marginLeft:"2px"}}/>
                   </button>
                 );
               })()}
               {/* Share HTML Report — SECONDARY */}
               <button onClick={generateShareableReport}
-                style={{ display:"flex", alignItems:"center", gap:"5px", background:P.offWhite, border:`1.5px solid ${P.grey200}`, borderRadius:"7px", padding:"5px 12px", fontSize:"13px", fontWeight:600, fontFamily:font, color:P.grey600, cursor:"pointer", flexShrink:0, whiteSpace:"nowrap" }}>
+                style={{ display:"flex", alignItems:"center", gap:"5px", background:P.offWhite, border:`1.5px solid ${P.grey200}`, borderRadius:"7px", padding:"5px 12px", fontSize:"16px", fontWeight:600, fontFamily:font, color:P.grey600, cursor:"pointer", flexShrink:0, whiteSpace:"nowrap" }}>
                 Share HTML Report <Send size={12} strokeWidth={1.8} style={{verticalAlign:"-2px",marginLeft:"4px"}}/>
               </button>
               {someSelected && (
                 <button onClick={() => setSelectedRows(new Set())}
-                  style={{ background:"transparent", border:"none", fontSize:"13px", color:P.navyLight, fontFamily:font, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 }}>
+                  style={{ background:"transparent", border:"none", fontSize:"15px", color:P.navyLight, fontFamily:font, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 }}>
                   Clear
                 </button>
               )}
               <div style={{ marginLeft:"auto", display:"flex", gap:"6px", alignItems:"center", flexShrink:0 }}>
                 <button onClick={saveSession}
-                  style={{ display:"flex", alignItems:"center", gap:"5px", background:P.navy, border:"none", borderRadius:"7px", padding:"5px 14px", fontSize:"13px", fontWeight:700, fontFamily:font, color:P.white, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 }}>
+                  style={{ display:"flex", alignItems:"center", gap:"5px", background:P.navy, border:"none", borderRadius:"7px", padding:"5px 14px", fontSize:"15px", fontWeight:700, fontFamily:font, color:P.white, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 }}>
                   <Save size={13} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/> Save Project
                 </button>
                 {(filter !== "all" || sortBy) && (
                   <button onClick={() => { setFilter("all"); setSortBy(null); setSortDir("asc"); }}
-                    style={{ background:"transparent", border:`1px solid ${P.grey200}`, borderRadius:"6px", padding:"3px 8px", fontSize:"13px", fontWeight:600, color:P.navyLight, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>
+                    style={{ background:"transparent", border:`1px solid ${P.grey200}`, borderRadius:"6px", padding:"3px 8px", fontSize:"15px", fontWeight:600, color:P.navyLight, fontFamily:font, cursor:"pointer", whiteSpace:"nowrap" }}>
                     Clear filters
                   </button>
                 )}
@@ -5830,24 +5467,24 @@ function GroupGrid({ user, onLogin, onLogout }) {
               return (
             <div style={{ background:P.white, borderRadius:"10px", boxShadow:"0 1px 2px rgba(15,29,53,0.06), 0 4px 12px rgba(15,29,53,0.05)", border:`1px solid ${P.grey100}`, overflow:"hidden" }}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", borderBottom:`1px solid ${P.grey100}`, background:P.grey50 }}>
-                <span style={{ fontSize:"12px", color:P.grey400, fontFamily:font }}>Scroll to see all columns →</span>
+                <span style={{ fontSize:"13px", color:P.grey600, fontFamily:font }}>Scroll to see all columns →</span>
                 <div style={{ display:"flex", gap:"6px" }}>
                   <button onClick={() => { if (tableScrollRef.current) tableScrollRef.current.scrollBy({ left:-320, behavior:"smooth" }); }}
-                    style={{ width:"30px", height:"28px", borderRadius:"7px", border:`1px solid ${P.grey200}`, background:P.white, color:P.grey600, cursor:"pointer", fontSize:"14px", display:"flex", alignItems:"center", justifyContent:"center" }} title="Scroll left">‹</button>
+                    style={{ width:"30px", height:"28px", borderRadius:"7px", border:`1px solid ${P.grey200}`, background:P.white, color:P.grey600, cursor:"pointer", fontSize:"17px", display:"flex", alignItems:"center", justifyContent:"center" }} title="Scroll left">‹</button>
                   <button onClick={() => { if (tableScrollRef.current) tableScrollRef.current.scrollBy({ left:320, behavior:"smooth" }); }}
-                    style={{ width:"30px", height:"28px", borderRadius:"7px", border:`1px solid ${P.grey200}`, background:P.white, color:P.grey600, cursor:"pointer", fontSize:"14px", display:"flex", alignItems:"center", justifyContent:"center" }} title="Scroll right">›</button>
+                    style={{ width:"30px", height:"28px", borderRadius:"7px", border:`1px solid ${P.grey200}`, background:P.white, color:P.grey600, cursor:"pointer", fontSize:"17px", display:"flex", alignItems:"center", justifyContent:"center" }} title="Scroll right">›</button>
                 </div>
               </div>
               <div className="gg-table-wrap" ref={tableScrollRef} onScroll={e => setTableScrollTop(e.currentTarget.scrollTop)}
                 style={{ overflowX:"auto", overflowY:"auto", maxHeight:isMobile ? `calc(100vh - 220px)` : `${containerH}px` }}>
-                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"14px", minWidth:hasCars?"1060px":"760px" }}>
+                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"15px", minWidth:hasCars?"1060px":"760px" }}>
                   <thead style={{ position:"sticky", top:0, zIndex:10 }}>
                     <tr style={{ background:P.navy }}>
                       {/* Checkbox column */}
                       <th style={{ padding:"10px 8px 10px 14px", width:"32px" }}>
                         <div onClick={toggleSelectAll} style={{ width:16, height:16, borderRadius:"4px", border:`2px solid ${allSelected?"white":someSelected?"rgba(255,255,255,0.6)":"rgba(255,255,255,0.3)"}`, background:allSelected?"white":someSelected?"rgba(255,255,255,0.2)":"transparent", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", transition:"all 0.15s" }}>
                           {allSelected && <span style={{ color:P.navy, fontSize:"15px", fontWeight:900, lineHeight:1 }}>✓</span>}
-                          {!allSelected && someSelected && <span style={{ color:"white", fontSize:"8px", fontWeight:900, lineHeight:1 }}>—</span>}
+                          {!allSelected && someSelected && <span style={{ color:"white", fontSize:"15px", fontWeight:900, lineHeight:1 }}>—</span>}
                         </div>
                       </th>
                       {[
@@ -5873,7 +5510,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                         { l:"Note",      col:"note" },
                       ].map((h, i) => (
                         <th key={i} onClick={h.col ? () => toggleSort(h.col) : undefined}
-                          style={{ padding:"10px 12px", textAlign:"left", fontSize:"14px", fontWeight:800, color: sortBy===h.col?"white":"rgba(255,255,255,0.55)", letterSpacing:"0.1em", textTransform:"uppercase", width:h.w, whiteSpace:"nowrap", fontFamily:font, cursor:h.col?"pointer":"default", userSelect:"none", transition:"color 0.15s" }}>
+                          style={{ padding:"10px 12px", textAlign:"left", fontSize:"17px", fontWeight:800, color: sortBy===h.col?"white":"rgba(255,255,255,0.55)", letterSpacing:"0.1em", textTransform:"uppercase", width:h.w, whiteSpace:"nowrap", fontFamily:font, cursor:h.col?"pointer":"default", userSelect:"none", transition:"color 0.15s" }}>
                           {h.l}{sortBy===h.col ? (sortDir==="asc"?" ↑":" ↓") : h.col ? " ↕" : ""}
                         </th>
                       ))}
@@ -5904,41 +5541,41 @@ function GroupGrid({ user, onLogin, onLogout }) {
                             {/* First Name */}
                             <td style={{ padding:"10px 12px" }}>
                               <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
-                                <span style={{ fontWeight:600, fontSize:"14px", color:P.navy, fontFamily:font }}>
+                                <span style={{ fontWeight:600, fontSize:"15px", color:P.navy, fontFamily:font }}>
                                   {r.firstName || r.displayName.split(" ")[0]}
                                 </span>
                               </div>
                             </td>
                             {/* Last Name */}
-                            <td style={{ padding:"10px 12px", fontWeight:700, color:P.navy, fontSize:"14px", fontFamily:font }}>
+                            <td style={{ padding:"10px 12px", fontWeight:700, color:P.navy, fontSize:"15px", fontFamily:font }}>
                               {r.lastName || r.displayName.split(" ").slice(1).join(" ") || "—"}
                             </td>
                             {/* Email */}
-                            <td style={{ padding:"10px 12px", fontSize:"15px", color:r.email?P.grey600:P.grey200, fontFamily:font }}>
+                            <td style={{ padding:"10px 12px", fontSize:"13px", color:r.email?P.grey600:P.grey200, fontFamily:font }}>
                               {r.email || "—"}
                             </td>
                             <td style={{ padding:"10px 12px" }}><StatusChip status={r.status} /></td>
                             {/* Arrival side: flight arrival → car pickup → hotel check-in */}
-                            <td style={{ padding:"10px 12px", color:r.flight?P.grey600:P.red, fontSize:"15px", fontFamily:font, fontWeight:r.flight?500:700 }}>{r.flight ? fmt(r.flight.flightArrival) : "⚠ Missing"}{r.flight?.arrivalTime ? <div style={{ fontSize:"12px", color:P.grey400, fontWeight:500 }}>{fmtTime(r.flight.arrivalTime, timeFormat)}</div> : null}</td>
-                            <td style={{ padding:"10px 12px", color:P.grey600, fontSize:"14px", fontFamily:font, fontWeight:600, letterSpacing:"0.03em", whiteSpace:"nowrap" }}>{(r.flight?.arrivalAirport || r.flight?.airport || "").toUpperCase() || "—"}</td>
+                            <td style={{ padding:"10px 12px", color:r.flight?P.grey600:P.red, fontSize:"16px", fontFamily:font, fontWeight:r.flight?500:700 }}>{r.flight ? fmt(r.flight.flightArrival) : "⚠ Missing"}{r.flight?.arrivalTime ? <div style={{ fontSize:"13px", color:P.grey600, fontWeight:500 }}>{fmtTime(r.flight.arrivalTime, timeFormat)}</div> : null}</td>
+                            <td style={{ padding:"10px 12px", color:P.grey600, fontSize:"17px", fontFamily:font, fontWeight:600, letterSpacing:"0.03em", whiteSpace:"nowrap" }}>{(r.flight?.arrivalAirport || r.flight?.airport || "").toUpperCase() || "—"}</td>
                             {hasCars && <>
-                              <td style={{ padding:"10px 12px", color:P.navy, fontSize:"15px", fontFamily:font }}>{fmt(r.car?.pickupDate)}{r.car?.pickupTime ? <div style={{ fontSize:"12px", color:P.grey400, fontWeight:500 }}>{fmtTime(r.car.pickupTime, timeFormat)}</div> : null}</td>
+                              <td style={{ padding:"10px 12px", color:P.navy, fontSize:"16px", fontFamily:font }}>{fmt(r.car?.pickupDate)}{r.car?.pickupTime ? <div style={{ fontSize:"13px", color:P.grey600, fontWeight:500 }}>{fmtTime(r.car.pickupTime, timeFormat)}</div> : null}</td>
                               <td style={{ padding:"10px 12px", textAlign:"center" }}><Delta val={r.details?.pickupDiff} /></td>
                             </>}
-                            <td style={{ padding:"10px 12px", color:r.hotel?P.grey600:P.red, fontSize:"15px", fontFamily:font, fontWeight:r.hotel?500:700 }}>{r.hotel ? fmt(r.hotel.checkIn) : "⚠ Missing"}</td>
+                            <td style={{ padding:"10px 12px", color:r.hotel?P.grey600:P.red, fontSize:"13px", fontFamily:font, fontWeight:r.hotel?500:700 }}>{r.hotel ? fmt(r.hotel.checkIn) : "⚠ Missing"}</td>
                             <td style={{ padding:"10px 12px", textAlign:"center" }}><Delta val={r.details?.arrDiff} /></td>
                             {/* Departure side: hotel check-out → car dropoff → flight departure */}
-                            <td style={{ padding:"10px 12px", color:r.hotel?P.grey600:P.red, fontSize:"15px", fontFamily:font, fontWeight:r.hotel?500:700 }}>{r.hotel ? fmt(r.hotel.checkOut) : "⚠ Missing"}</td>
+                            <td style={{ padding:"10px 12px", color:r.hotel?P.grey600:P.red, fontSize:"13px", fontFamily:font, fontWeight:r.hotel?500:700 }}>{r.hotel ? fmt(r.hotel.checkOut) : "⚠ Missing"}</td>
                             <td style={{ padding:"10px 12px", textAlign:"center" }}><Delta val={r.details?.depDiff} /></td>
-                            {hasCars && <td style={{ padding:"10px 12px", color:P.navy, fontSize:"15px", fontFamily:font }}>{fmt(r.car?.dropoffDate)}{r.car?.dropoffTime ? <div style={{ fontSize:"12px", color:P.grey400, fontWeight:500 }}>{fmtTime(r.car.dropoffTime, timeFormat)}</div> : null}</td>}
-                            <td style={{ padding:"10px 12px", color:r.flight?P.grey600:P.red, fontSize:"15px", fontFamily:font, fontWeight:r.flight?500:700 }}>{r.flight ? fmt(r.flight.flightDeparture) : "⚠ Missing"}{r.flight?.departureTime ? <div style={{ fontSize:"12px", color:P.grey400, fontWeight:500 }}>{fmtTime(r.flight.departureTime, timeFormat)}</div> : null}</td>
-                            <td style={{ padding:"10px 12px", color:P.grey600, fontSize:"14px", fontFamily:font, fontWeight:600, letterSpacing:"0.03em", whiteSpace:"nowrap" }}>{(r.flight?.departureAirport || r.flight?.airport || "").toUpperCase() || "—"}</td>
+                            {hasCars && <td style={{ padding:"10px 12px", color:P.navy, fontSize:"16px", fontFamily:font }}>{fmt(r.car?.dropoffDate)}{r.car?.dropoffTime ? <div style={{ fontSize:"13px", color:P.grey600, fontWeight:500 }}>{fmtTime(r.car.dropoffTime, timeFormat)}</div> : null}</td>}
+                            <td style={{ padding:"10px 12px", color:r.flight?P.grey600:P.red, fontSize:"16px", fontFamily:font, fontWeight:r.flight?500:700 }}>{r.flight ? fmt(r.flight.flightDeparture) : "⚠ Missing"}{r.flight?.departureTime ? <div style={{ fontSize:"13px", color:P.grey600, fontWeight:500 }}>{fmtTime(r.flight.departureTime, timeFormat)}</div> : null}</td>
+                            <td style={{ padding:"10px 12px", color:P.grey600, fontSize:"17px", fontFamily:font, fontWeight:600, letterSpacing:"0.03em", whiteSpace:"nowrap" }}>{(r.flight?.departureAirport || r.flight?.airport || "").toUpperCase() || "—"}</td>
                             {hasHotelNames && (() => {
                               const wrongHotel = (r.issues||[]).some(x => x.text && x.text.includes("but assigned to"));
                               return <td style={{ padding:"10px 12px", color:wrongHotel?P.red:P.navy, fontSize:"15px", fontFamily:font, fontWeight:wrongHotel?600:500, whiteSpace:"nowrap" }}>{r.hotel?.hotel ? (wrongHotel ? "⚠ "+r.hotel.hotel : r.hotel.hotel) : "—"}</td>;
                             })()}
                             {hasDiet && <td style={{ padding:"10px 12px" }}>
-                              {r.diet?.dietary ? <span style={{ background:P.tealLight, color:P.teal, fontSize:"15px", fontWeight:700, padding:"2px 8px", borderRadius:"20px", fontFamily:font }}>{r.diet.dietary.slice(0,16)}{r.diet.dietary.length>16?"…":""}</span> : <span style={{ color:P.grey400 }}>—</span>}
+                              {r.diet?.dietary ? <span style={{ background:P.tealLight, color:P.teal, fontSize:"16px", fontWeight:700, padding:"2px 8px", borderRadius:"20px", fontFamily:font }}>{r.diet.dietary.slice(0,16)}{r.diet.dietary.length>16?"…":""}</span> : <span style={{ color:P.grey600 }}>—</span>}
                             </td>}
                             <td style={{ padding:"10px 12px" }}>
                               {activeIssues.length === 0
@@ -5946,9 +5583,9 @@ function GroupGrid({ user, onLogin, onLogout }) {
                                 : <div style={{ display:"flex", flexDirection:"column", gap:"2px" }}>
                                     {activeIssues.some(x=>x.type==="missing") && <span style={{ color:P.amber, fontSize:"15px", fontWeight:700, fontFamily:font }}>○ missing</span>}
                                     {activeIssues.some(x=>x.type==="window") && <span style={{ color:P.purple, fontSize:"15px", fontWeight:700, fontFamily:font }}>🗓 window</span>}
-                                    {activeIssues.some(x=>x.type==="airport") && <span style={{ color:"#4DA3FF", fontSize:"15px", fontWeight:700, fontFamily:font }}>✈ airport</span>}
+                                    {activeIssues.some(x=>x.type==="airport") && <span style={{ color:"#4F8EF7", fontSize:"15px", fontWeight:700, fontFamily:font }}>✈ airport</span>}
                                     {activeIssues.some(x=>x.type==="mismatch") && <span style={{ color:P.red, fontSize:"15px", fontWeight:700, fontFamily:font }}>⚑ mismatch</span>}
-                                    {activeIssues.some(x=>x.type==="duplicate") && <span style={{ color:"#E65100", fontSize:"15px", fontWeight:700, fontFamily:font }}>⚠ dupe</span>}
+                                    {activeIssues.some(x=>x.type==="duplicate") && <span style={{ color:"#C97A0A", fontSize:"15px", fontWeight:700, fontFamily:font }}>⚠ dupe</span>}
                                   </div>}
                             </td>
                             <td style={{ padding:"10px 12px" }}>
@@ -5963,10 +5600,10 @@ function GroupGrid({ user, onLogin, onLogout }) {
                                     <Btn onClick={() => setEmailModal(r)} small color={P.accent}>Draft Email <Mail size={12} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></Btn>
                                     <div style={{ flex:1, display:"flex", alignItems:"center", gap:"8px" }}>
                                       <span style={{ fontSize:"15px", fontWeight:700, color:P.navyLight, fontFamily:font, flexShrink:0 }}>Note</span>
-                                      <input value={r.note||""} onChange={e => updateMeta(r,{note:e.target.value})} placeholder={user ? `Planner note — saved to ${user.name}'s account` : "Planner note — saved locally (sign in to sync)"} onClick={e => e.stopPropagation()}
-                                        style={{ flex:1, background:P.white, border:`1.5px solid ${r.note ? P.periwinkle+"66" : P.grey200}`, borderRadius:"9px", padding:"5px 12px", fontSize:"14px", fontFamily:font, color:P.navy, outline:"none" }} />
+                                      <input value={r.note||""} onChange={e => updateMeta(r,{note:e.target.value, noteBy:(user&&user.name)||"You", noteAt:new Date().toISOString()})} placeholder={user ? `Planner note — saved to ${user.name}'s account` : "Planner note — saved locally (sign in to sync)"} onClick={e => e.stopPropagation()}
+                                        style={{ flex:1, background:P.white, border:`1.5px solid ${r.note ? P.periwinkle+"66" : P.grey200}`, borderRadius:"9px", padding:"5px 12px", fontSize:"15px", fontFamily:font, color:P.navy, outline:"none" }} />
                                       <Btn onClick={(e) => { if (e && e.stopPropagation) e.stopPropagation(); saveSession(); }} small color={P.accent}>Save Note</Btn>
-                                      {r.note && <span style={{ fontSize:"14px", color:P.green, fontFamily:font, fontWeight:700, flexShrink:0 }}>{user ? "synced" : "saved"}</span>}
+                                      {r.note && <span style={{ fontSize:"18px", color:P.green, fontFamily:font, fontWeight:700, flexShrink:0 }}>{user ? "synced" : "saved"}</span>}{r.note && r.noteAt && <span style={{ fontSize:"17px", color:P.grey600, fontFamily:font, flexShrink:0, whiteSpace:"nowrap" }}>{(r.noteBy||"You")} · {new Date(r.noteAt).toLocaleString([], { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" })}</span>}
                                     </div>
                                     <span style={{ fontSize:"15px", color:P.navyLight, fontFamily:font }}>{r.matchedBy==="email"?"✉ email match":"👤 name match"}</span>
                                   </div>
@@ -6016,7 +5653,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                                         </span>
                                       </div>
                                       {r.issues.length === 0
-                                        ? <div style={{ color:P.green, fontSize:"14px", fontWeight:700, fontFamily:font }}>✓ All clear</div>
+                                        ? <div style={{ color:P.green, fontSize:"15px", fontWeight:700, fontFamily:font }}>✓ All clear</div>
                                         : r.issues.map((issue, j) => <IssueTag key={j} issue={issue} resolved={r.resolved} onResolve={txt => toggleResolve(r, txt)} />)}
                                       {r.resolved?.length > 0 && <div style={{ fontSize:"15px", color:P.navyLight, fontFamily:font, marginTop:"4px" }}>{r.resolved.length} resolved</div>}
                                     </Card>
@@ -6038,7 +5675,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                   <span style={{ color:P.amber }}>○ missing</span>
                   <span style={{ color:P.red }}>⚑ mismatch</span>
                   <span style={{ color:P.purple }}>🗓 window</span>
-                  <span style={{ color:"#E65100" }}>⚠ dupe</span>
+                  <span style={{ color:"#C97A0A" }}>⚠ dupe</span>
                 </div>
               </div>
             </div>
@@ -6059,13 +5696,14 @@ function GroupGrid({ user, onLogin, onLogout }) {
             { k:"grid",    icon:<GridIcon size={20} line="rgba(255,255,255,0.85)"/>, label:"Grid" },
             { k:"summary", icon:<BarChart2 size={20} strokeWidth={1.8}/>,  label:"Summary" },
             { k:"comms",   icon:<Mail size={20} strokeWidth={1.8}/>,       label:"Comms" },
+            { k:"reports", icon:<SpreadsheetIcon size={20} line="rgba(255,255,255,0.85)" accent={P.accent}/>, label:"Report" },
           ].map(({ k, icon, label }) => {
             const active = activeTab === k;
             return (
               <button key={k} onClick={() => { setActiveTab(k); setSidebarOpen(false); }}
                 style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:"3px", background:"transparent", border:"none", cursor:"pointer", padding:"4px 0" }}>
                 <span style={{ color: active ? P.accent : "rgba(255,255,255,0.4)", display:"flex", alignItems:"center" }}>{icon}</span>
-                <span style={{ fontSize:"10px", fontWeight: active ? 700 : 500, color: active ? P.accent : "rgba(255,255,255,0.4)", fontFamily:font, letterSpacing:"0.04em" }}>{label}</span>
+                <span style={{ fontSize:"15px", fontWeight: active ? 700 : 500, color: active ? P.accent : "rgba(255,255,255,0.4)", fontFamily:font, letterSpacing:"0.04em" }}>{label}</span>
               </button>
             );
           })}
@@ -6074,7 +5712,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
             <span style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:"3px", color:"rgba(255,255,255,0.4)" }}>
               {[0,1,2].map(i => <span key={i} style={{ width:16, height:2, background:"rgba(255,255,255,0.4)", borderRadius:2, display:"block" }} />)}
             </span>
-            <span style={{ fontSize:"10px", fontWeight:500, color:"rgba(255,255,255,0.4)", fontFamily:font, letterSpacing:"0.04em" }}>Menu</span>
+            <span style={{ fontSize:"15px", fontWeight:500, color:"rgba(255,255,255,0.4)", fontFamily:font, letterSpacing:"0.04em" }}>Menu</span>
           </button>
         </div>
       )}
