@@ -1225,17 +1225,11 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
     // Attendee-type arrival-day rules (e.g., International arrives Sunday, Domestic Monday). VIP = no rule.
     if (typeRules && typeRules.length && reg && reg.attendeeType) {
       const gt = String(reg.attendeeType).trim().toLowerCase();
-      const rule = typeRules.find(r => r.type && String(r.type).trim().toLowerCase() === gt && ((r.day !== "" && r.day !== "date" && r.day != null) || (r.day === "date" && r.date)));
+      const rule = typeRules.find(r => r.type && String(r.type).trim().toLowerCase() === gt && r.date);
       const arrD = flight?.flightArrival || hotel?.checkIn || reg?.regCheckIn;
       if (rule && arrD) {
-        if (rule.day === "date") {
-          const want = parseDate(rule.date);
-          if (want && diffDays(arrD, want) !== 0) issues.push({ type:"typerule", text:`${reg.attendeeType} should arrive ${fmt(want)}, arrives ${fmt(arrD)}` });
-        } else {
-          const DN = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-          const actual = arrD.getDay();
-          if (actual !== +rule.day) issues.push({ type:"typerule", text:`${reg.attendeeType} should arrive ${DN[+rule.day]}, arrives ${DN[actual]} (${fmt(arrD)})` });
-        }
+        const want = parseDate(rule.date);
+        if (want && diffDays(arrD, want) !== 0) issues.push({ type:"typerule", text:`${reg.attendeeType} should arrive ${fmt(want)}, arrives ${fmt(arrD)}` });
       }
     }
     // Abstract submitters who never registered (association speaker/presenter follow-up).
@@ -4209,7 +4203,7 @@ export default function GroupGridApp() {
 }
 
 // ── Upload Square component (hooks must be at component top level) ──────────
-function UploadSquare({ label, icon, accent, file, setter, required, sub, compact }) {
+function UploadSquare({ label, icon, accent, file, setter, sub, compact }) {
   const [drag, setDrag] = useState(false);
   const onDrop = e => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) setter(f); };
 
@@ -4232,7 +4226,7 @@ function UploadSquare({ label, icon, accent, file, setter, required, sub, compac
           ) : (
             <>
               <div style={{ fontSize:"15px", fontWeight:800, color:P.navy, fontFamily:font, whiteSpace:"nowrap" }}>{label}</div>
-              <div style={{ fontSize:"15px", color:P.navyLight, fontFamily:font }}>{sub}{!required ? " · Optional" : ""}</div>
+              <div style={{ fontSize:"15px", color:P.navyLight, fontFamily:font }}>{sub}</div>
             </>
           )}
         </div>
@@ -4249,9 +4243,6 @@ function UploadSquare({ label, icon, accent, file, setter, required, sub, compac
       onDrop={onDrop}
       style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"120px", border:`1.5px dashed ${drag ? accent : file ? accent : P.grey200}`, borderRadius:"12px", padding:"20px 12px 16px", cursor:"pointer", background:file ? accent+"08" : drag ? accent+"05" : P.white, transition:"all 0.18s", position:"relative", textAlign:"center" }}>
       <input type="file" accept=".xlsx,.xls,.csv" style={{ display:"none" }} onChange={e => e.target.files[0] && setter(e.target.files[0])} />
-      {!required && !file && (
-        <span style={{ position:"absolute", top:7, right:10, fontSize:"15px", color:P.grey600, fontFamily:font, fontWeight:500, textTransform:"uppercase", letterSpacing:"0.06em" }}>Optional</span>
-      )}
       <div style={{ width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", marginBottom:"8px", color:file?P.accent:accent, flexShrink:0 }}>{file ? <Check size={24} strokeWidth={1.8} color={P.green}/> : icon}</div>
       {file ? (
         <>
@@ -4303,10 +4294,6 @@ function buildTemplateXlsx(def) {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, def.sheet);
   return wb;
-}
-function downloadTemplate(type) {
-  const def = TEMPLATE_DEFS[type]; if (!def) return;
-  XLSX.writeFile(buildTemplateXlsx(def), def.file);
 }
 // Minimal in-browser ZIP writer (store method, no external dependency) so every upload
 // template can be downloaded together in a single .zip.
@@ -4457,7 +4444,7 @@ function ExtraUploads({ show, items, setItems, Icon, color }) {
   );
 }
 
-function SetupTile({ label, sub, icon, accent, file, setter, required, recommended, columns, templateType }) {
+function SetupTile({ label, sub, icon, accent, file, setter, required, columns }) {
   const [drag, setDrag] = useState(false);
   const [hover, setHover] = useState(false);
   const onDrop = e => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) setter(f); };
@@ -4465,25 +4452,11 @@ function SetupTile({ label, sub, icon, accent, file, setter, required, recommend
     <label
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
       onDragOver={e => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)} onDrop={onDrop}
-      style={{ position:"relative", display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", justifyContent:"center", minHeight:"108px", border:`1.5px ${file?"solid":"dashed"} ${file?accent:drag?accent:P.grey200}`, borderRadius:"11px", padding:"12px 10px", cursor:"pointer", background:file?accent+"0D":drag?accent+"08":P.grey50, transition:"all 0.15s" }}>
+      style={{ position:"relative", display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", justifyContent:"center", minHeight:"84px", border:`1.5px ${file?"solid":"dashed"} ${file?accent:drag?accent:P.grey200}`, borderRadius:"11px", padding:"14px 8px", cursor:"pointer", background:file?accent+"0D":drag?accent+"08":P.grey50, transition:"all 0.15s" }}>
       <input type="file" accept=".xlsx,.xls,.csv,.pdf" style={{ display:"none" }} onChange={e => e.target.files[0] && setter(e.target.files[0])} />
-      <span style={{ position:"absolute", top:7, left:0, right:0, display:"flex", justifyContent:"center" }}>
-        {recommended
-          ? <span style={{ fontSize:"15px", fontWeight:600, padding:"1px 7px", borderRadius:"20px", background:"#DCF2F2", color:"#0A7B7A", fontFamily:font }}>Source of truth</span>
-          : required
-            ? <span style={{ fontSize:"15px", fontWeight:600, padding:"1px 7px", borderRadius:"20px", background:P.redLight, color:P.red, fontFamily:font }}>Required</span>
-            : <span style={{ fontSize:"15px", fontWeight:500, padding:"1px 7px", borderRadius:"20px", background:P.grey100, color:P.grey600, fontFamily:font }}>Optional</span>}
-      </span>
-      <div style={{ marginTop:"12px", marginBottom:"5px", color:file?P.green:accent }}>{file ? <Check size={20} strokeWidth={1.8} color={P.green}/> : icon}</div>
-      <div style={{ fontSize:"15px", fontWeight:500, color:P.navy, fontFamily:font, marginBottom:"2px", wordBreak:"break-word", maxWidth:"130px", lineHeight:1.25 }}>{file ? file.name : label}</div>
-      <div style={{ fontSize:"15px", color:file?P.green:P.grey600, fontFamily:font, fontWeight:file?500:400 }}>{file ? "Ready" : sub}</div>
-      {!file && templateType && (
-        <button onClick={e => { e.preventDefault(); e.stopPropagation(); downloadTemplate(templateType); }}
-          title="Download a correctly formatted Excel template"
-          style={{ position:"absolute", bottom:7, left:0, right:0, margin:"0 auto", width:"fit-content", background:"transparent", border:"none", color:P.periwinkleD, fontSize:"15px", fontWeight:600, fontFamily:font, cursor:"pointer", textDecoration:"underline" }}>
-          Download template
-        </button>
-      )}
+      <div style={{ marginTop:"2px", marginBottom:"6px", color:file?P.green:accent }}>{file ? <Check size={20} strokeWidth={1.8} color={P.green}/> : icon}</div>
+      <div style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"1px", wordBreak:"break-word", maxWidth:"140px", lineHeight:1.25 }}>{file ? file.name : label}</div>
+      {(file || sub) && <div style={{ fontSize:"12.5px", color:file?P.green:required?P.red:P.grey600, fontFamily:font, fontWeight:(file||required)?600:400, marginTop:"1px" }}>{file ? "Ready" : sub}</div>}
       {file && <button onClick={e => { e.preventDefault(); setter(null); }} style={{ position:"absolute", top:8, right:10, background:"transparent", border:"none", color:P.grey600, cursor:"pointer", lineHeight:1 }} title="Remove"><X size={13} strokeWidth={1.8}/></button>}
       {hover && !file && columns && (
         <div style={{ position:"absolute", bottom:"calc(100% + 8px)", left:"50%", transform:"translateX(-50%)", width:"210px", background:P.navy, borderRadius:"10px", padding:"12px 14px", boxShadow:"0 8px 24px rgba(0,0,0,0.3)", zIndex:30, textAlign:"left", pointerEvents:"none" }}>
@@ -4517,6 +4490,7 @@ function SetupScreen({
   const anyTravel = !!(arrivalStart || arrivalEnd || departureStart || departureEnd || arrivalCutoff || departureCutoff || lateArrivalCutoff || (typeRules && typeRules.length) || preferredAirports || departureAirports);
   const updateContact = (group, field, val) => setContacts(prev => ({ ...prev, [group]: { ...prev[group], [field]: val } }));
   const [optionalOpen, setOptionalOpen] = useState(false);
+  const [advTravel, setAdvTravel] = useState(false);
   const optionalCount = (anyTravel ? 1 : 0) + (hasContacts ? 1 : 0);
   return (
     <div style={{ maxWidth:"760px", margin:"0 auto", width:"100%" }}>
@@ -4575,131 +4549,96 @@ function SetupScreen({
       {/* ── Box 2 · Travel parameters ── */}
       <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)" }}>
         <div style={{ fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Travel parameters <span style={{ fontSize:"13px", fontWeight:400, color:P.grey600 }}>· optional</span></div>
-        <div style={{ fontSize:"12.5px", color:P.grey600, fontFamily:font, marginBottom:"16px", lineHeight:1.5 }}>Set your approved travel window, cutoffs, and airports. GroupGrid flags anyone who falls outside them. Skip this to run without travel flags.</div>
+        <div style={{ fontSize:"12.5px", color:P.grey600, fontFamily:font, marginBottom:"18px", lineHeight:1.5 }}>Set your approved dates and airports so GroupGrid can flag anyone who falls outside them. Skip this to run without travel flags.</div>
 
-        {/* Arrival */}
-        <div style={{ display:"flex", alignItems:"center", gap:"9px", marginBottom:"12px" }}>
-          <PlaneIcon size={18} line={P.periwinkleD} accent={P.accent} />
-          <span style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font }}>Arrival</span>
-        </div>
-        <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px", marginBottom:"12px" }}>
+        <div style={{ fontSize:"11.5px", fontWeight:600, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"9px" }}>Approved travel window</div>
+        <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"10px" }}>
           {[
             { label:"Earliest arrival", val:arrivalStart, set:setArrivalStart },
             { label:"Latest arrival", val:arrivalEnd, set:setArrivalEnd },
-          ].map(({ label, val, set }) => (
-            <div key={label}>
-              <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>{label}</label>
-              <input type="date" value={val} onChange={e => set(e.target.value)}
-                style={{ width:"100%", background:P.grey50, border:`1.5px solid ${val?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"18px", color:val?P.navy:P.grey600, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
-            </div>
-          ))}
-        </div>
-        <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px", marginBottom:"10px" }}>
-          <div>
-            <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Early-arrival cutoff</label>
-            <input type="time" value={arrivalCutoff} onChange={e => setArrivalCutoff(e.target.value)}
-              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${arrivalCutoff?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"18px", color:arrivalCutoff?P.navy:P.grey600, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
-            <div style={{ fontSize:"11.5px", color:P.grey600, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Lands before this, needs the night before.</div>
-          </div>
-          <div>
-            <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Arrival airport(s)</label>
-            <input type="text" value={preferredAirports} onChange={e => setPreferredAirports(e.target.value)} placeholder="e.g. JFK, LGA"
-              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${preferredAirports?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"18px", color:preferredAirports?P.navy:P.grey600, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
-            <div style={{ fontSize:"11.5px", color:P.grey600, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Codes for your arrival city.</div>
-          </div>
-        </div>
-        <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px", marginBottom:"10px" }}>
-          <div>
-            <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Late-arrival cutoff</label>
-            <input type="time" value={lateArrivalCutoff} onChange={e => setLateArrivalCutoff(e.target.value)}
-              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${lateArrivalCutoff?P.amber+"88":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"18px", color:lateArrivalCutoff?P.navy:P.grey600, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
-            <div style={{ fontSize:"11.5px", color:P.grey600, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Lands after this with a room booked, flags a possible late arrival so you can tell the hotel to hold it. Default 10:30 PM. Clear to turn off.</div>
-          </div>
-          <div style={{ display:"flex", alignItems:"flex-end" }}>
-            <button type="button" onClick={() => setLateArrivalCutoff(lateArrivalCutoff ? "" : "22:30")}
-              style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"12.5px", fontWeight:600, fontFamily:font, cursor:"pointer", padding:"0 0 8px" }}>{lateArrivalCutoff ? "Turn off late-arrival flag" : "Turn on (10:30 PM)"}</button>
-          </div>
-        </div>
-        <div style={{ display:"flex", gap:"8px", alignItems:"flex-start", fontSize:"13px", color:P.grey600, fontFamily:font, lineHeight:1.5, background:P.amber+"12", borderRadius:"9px", padding:"9px 12px", marginBottom:"16px" }}>
-          <span style={{ flexShrink:0, marginTop:"1px" }}><FlagIcon size={14} line={P.amber} accent={P.amber} /></span>
-          <span><strong style={{ color:P.navyLight, fontWeight:600 }}>Flags</strong> arrivals outside the window, early landings with no prior-night room, late arrivals after your cutoff, or landings at other airports.</span>
-        </div>
-
-        {/* Departure */}
-        <div style={{ display:"flex", alignItems:"center", gap:"9px", marginBottom:"12px" }}>
-          <span style={{ display:"inline-flex", transform:"scaleX(-1)" }}><PlaneIcon size={18} line={P.periwinkleD} accent={P.accent} /></span>
-          <span style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font }}>Departure</span>
-        </div>
-        <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px", marginBottom:"12px" }}>
-          {[
             { label:"Earliest departure", val:departureStart, set:setDepartureStart },
             { label:"Latest departure", val:departureEnd, set:setDepartureEnd },
           ].map(({ label, val, set }) => (
             <div key={label}>
-              <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>{label}</label>
+              <label style={{ display:"block", fontSize:"12px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"5px" }}>{label}</label>
               <input type="date" value={val} onChange={e => set(e.target.value)}
-                style={{ width:"100%", background:P.grey50, border:`1.5px solid ${val?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"18px", color:val?P.navy:P.grey600, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+                style={{ width:"100%", background:P.grey50, border:`1.5px solid ${val?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"9px 12px", fontSize:"15px", color:val?P.navy:P.grey600, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
             </div>
           ))}
-        </div>
-        <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px", marginBottom:"10px" }}>
-          <div>
-            <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Earliest departure time</label>
-            <input type="time" value={departureCutoff} onChange={e => setDepartureCutoff(e.target.value)}
-              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${departureCutoff?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"18px", color:departureCutoff?P.navy:P.grey600, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
-            <div style={{ fontSize:"11.5px", color:P.grey600, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Earliest a flight may leave that day.</div>
-          </div>
-          <div>
-            <label style={{ display:"block", fontSize:"12.5px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"6px" }}>Departure airport(s)</label>
-            <input type="text" value={departureAirports} onChange={e => setDepartureAirports(e.target.value)} placeholder="e.g. JFK, LGA"
-              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${departureAirports?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"10px 13px", fontSize:"18px", color:departureAirports?P.navy:P.grey600, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
-            <div style={{ fontSize:"11.5px", color:P.grey600, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Codes for your departure city.</div>
-          </div>
-        </div>
-        <div style={{ display:"flex", gap:"8px", alignItems:"flex-start", fontSize:"13px", color:P.grey600, fontFamily:font, lineHeight:1.5, background:P.amber+"12", borderRadius:"9px", padding:"9px 12px", marginBottom:"4px" }}>
-          <span style={{ flexShrink:0, marginTop:"1px" }}><FlagIcon size={14} line={P.amber} accent={P.amber} /></span>
-          <span><strong style={{ color:P.navyLight, fontWeight:600 }}>Flags</strong> departures outside the window, before your earliest time, or from other airports.</span>
         </div>
 
-        {/* Arrival rules by attendee type */}
-        <div style={{ marginTop:"18px", paddingTop:"14px", borderTop:`1px solid ${P.grey100}` }}>
-          <div style={{ display:"flex", alignItems:"center", gap:"9px", marginBottom:"6px" }}>
-            <PeopleIcon size={18} line={P.periwinkleD} accent={P.accent} />
-            <span style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font }}>Arrival rules by attendee type</span>
+        <div style={{ fontSize:"11.5px", fontWeight:600, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", margin:"14px 0 9px" }}>Airports</div>
+        <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px" }}>
+          <div>
+            <label style={{ display:"block", fontSize:"12px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"5px" }}>Arrival airport(s)</label>
+            <input type="text" value={preferredAirports} onChange={e => setPreferredAirports(e.target.value)} placeholder="e.g. JFK, LGA"
+              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${preferredAirports?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"9px 12px", fontSize:"15px", color:preferredAirports?P.navy:P.grey600, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
           </div>
-          <div style={{ fontSize:"12.5px", color:P.grey600, fontFamily:font, marginBottom:"12px", lineHeight:1.5 }}>Set an expected arrival day per attendee type, for example International and Speakers arrive Sunday, Domestic arrives Monday. Leave a type off the list, or set it to Any day, for no rule (like VIPs). The type must be a column in your registration list.</div>
-          {typeRules.map(r => (
-            <div key={r.id} style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"8px", flexWrap:"wrap" }}>
-              <input value={r.type} onChange={e => setTypeRules(prev => prev.map(x => x.id===r.id ? { ...x, type:e.target.value } : x))} placeholder="Attendee type (e.g. International)"
-                style={{ flex:"1 1 180px", minWidth:0, background:P.grey50, border:`1.5px solid ${r.type?P.accent+"66":P.grey100}`, borderRadius:"9px", padding:"9px 12px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
-              <select value={r.day} onChange={e => setTypeRules(prev => prev.map(x => x.id===r.id ? { ...x, day:e.target.value } : x))}
-                style={{ flex:"0 0 160px", background:P.white, border:`1.5px solid ${P.grey200}`, borderRadius:"9px", padding:"9px 10px", fontSize:"14px", fontWeight:600, color:P.navy, fontFamily:font, cursor:"pointer", outline:"none" }}>
-                <option value="">Any day (no rule)</option>
-                <option value="0">Arrives Sunday</option>
-                <option value="1">Arrives Monday</option>
-                <option value="2">Arrives Tuesday</option>
-                <option value="3">Arrives Wednesday</option>
-                <option value="4">Arrives Thursday</option>
-                <option value="5">Arrives Friday</option>
-                <option value="6">Arrives Saturday</option>
-                <option value="date">Arrives on exact date…</option>
-              </select>
-              {r.day === "date" && (
-                <input type="date" value={r.date || ""} onChange={e => setTypeRules(prev => prev.map(x => x.id===r.id ? { ...x, date:e.target.value } : x))}
-                  style={{ flex:"0 0 150px", background:P.grey50, border:`1.5px solid ${r.date?P.accent+"66":P.grey100}`, borderRadius:"9px", padding:"9px 10px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
-              )}
-              <button type="button" onClick={() => setTypeRules(prev => prev.filter(x => x.id!==r.id))} title="Remove rule"
-                style={{ background:"transparent", border:"none", color:P.grey600, cursor:"pointer", flexShrink:0, padding:"4px" }}><X size={16} strokeWidth={1.8}/></button>
+          <div>
+            <label style={{ display:"block", fontSize:"12px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"5px" }}>Departure airport(s)</label>
+            <input type="text" value={departureAirports} onChange={e => setDepartureAirports(e.target.value)} placeholder="e.g. JFK, LGA"
+              style={{ width:"100%", background:P.grey50, border:`1.5px solid ${departureAirports?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"9px 12px", fontSize:"15px", color:departureAirports?P.navy:P.grey600, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
+          </div>
+        </div>
+
+        <button type="button" onClick={() => setAdvTravel(o => !o)}
+          style={{ display:"flex", alignItems:"center", gap:"7px", background:"transparent", border:"none", padding:"14px 0 0", cursor:"pointer", fontFamily:font }}>
+          <span style={{ display:"inline-flex", transform: advTravel ? "rotate(90deg)" : "none", transition:"transform 0.15s", color:P.grey600 }}><ChevronRight size={16} strokeWidth={2}/></span>
+          <span style={{ fontSize:"13px", fontWeight:600, color:P.navy }}>Advanced options</span>
+          <span style={{ fontSize:"12px", color:P.grey600 }}>· cutoffs and attendee-type rules</span>
+        </button>
+
+        {advTravel && (
+          <div style={{ marginTop:"14px" }}>
+            <div className="gg-setup-grid2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"12px" }}>
+              <div>
+                <label style={{ display:"block", fontSize:"12px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"5px" }}>Early-arrival cutoff</label>
+                <input type="time" value={arrivalCutoff} onChange={e => setArrivalCutoff(e.target.value)}
+                  style={{ width:"100%", background:P.grey50, border:`1.5px solid ${arrivalCutoff?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"9px 12px", fontSize:"15px", color:arrivalCutoff?P.navy:P.grey600, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
+                <div style={{ fontSize:"11.5px", color:P.grey600, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Lands before this, needs the night before.</div>
+              </div>
+              <div>
+                <label style={{ display:"block", fontSize:"12px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"5px" }}>Earliest departure time</label>
+                <input type="time" value={departureCutoff} onChange={e => setDepartureCutoff(e.target.value)}
+                  style={{ width:"100%", background:P.grey50, border:`1.5px solid ${departureCutoff?P.accent+"66":P.grey100}`, borderRadius:"10px", padding:"9px 12px", fontSize:"15px", color:departureCutoff?P.navy:P.grey600, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
+                <div style={{ fontSize:"11.5px", color:P.grey600, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Earliest a flight may leave that day.</div>
+              </div>
             </div>
-          ))}
-          <button type="button" onClick={() => setTypeRules(prev => [...prev, { id:Date.now(), type:"", day:"" }])}
-            style={{ display:"inline-flex", alignItems:"center", gap:"6px", background:"transparent", border:"none", color:P.accentD, fontSize:"13px", fontWeight:600, fontFamily:font, cursor:"pointer", padding:"4px 0", marginTop:"2px" }}>
-            <Plus size={14} strokeWidth={2}/> Add an attendee-type rule
-          </button>
-          <div style={{ display:"flex", gap:"8px", alignItems:"flex-start", fontSize:"13px", color:P.grey600, fontFamily:font, lineHeight:1.5, background:P.amber+"12", borderRadius:"9px", padding:"9px 12px", marginTop:"12px" }}>
-            <span style={{ flexShrink:0, marginTop:"1px" }}><FlagIcon size={14} line={P.amber} accent={P.amber} /></span>
-            <span><strong style={{ color:P.navyLight, fontWeight:600 }}>Flags</strong> anyone whose arrival day does not match the rule for their attendee type.</span>
+            <div>
+              <label style={{ display:"flex", alignItems:"center", justifyContent:"space-between", fontSize:"12px", fontWeight:500, color:P.grey600, fontFamily:font, marginBottom:"5px" }}>
+                <span>Late-arrival cutoff</span>
+                <button type="button" onClick={() => setLateArrivalCutoff(lateArrivalCutoff ? "" : "22:30")} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"12px", fontWeight:600, fontFamily:font, cursor:"pointer" }}>{lateArrivalCutoff ? "Turn off" : "Turn on (10:30 PM)"}</button>
+              </label>
+              <input type="time" value={lateArrivalCutoff} onChange={e => setLateArrivalCutoff(e.target.value)}
+                style={{ width:"100%", background:P.grey50, border:`1.5px solid ${lateArrivalCutoff?P.amber+"88":P.grey100}`, borderRadius:"10px", padding:"9px 12px", fontSize:"15px", color:lateArrivalCutoff?P.navy:P.grey600, fontFamily:font, fontWeight:600, outline:"none", boxSizing:"border-box" }} />
+              <div style={{ fontSize:"11.5px", color:P.grey600, fontFamily:font, marginTop:"5px", lineHeight:1.4 }}>Lands after this with a room booked, flags a possible late arrival so you can tell the hotel to hold it.</div>
+            </div>
+
+            <div style={{ marginTop:"16px", paddingTop:"14px", borderTop:`1px solid ${P.grey100}` }}>
+              <div style={{ fontSize:"13px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"4px" }}>Arrival rules by attendee type</div>
+              <div style={{ fontSize:"12px", color:P.grey600, fontFamily:font, marginBottom:"12px", lineHeight:1.5 }}>Give a type an expected arrival date, for example Speakers arrive Dec 7. The type must be a column in your registration list. Leave a type off for no rule, like VIPs.</div>
+              {typeRules.map(r => (
+                <div key={r.id} style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"8px", flexWrap:"wrap" }}>
+                  <input value={r.type} onChange={e => setTypeRules(prev => prev.map(x => x.id===r.id ? { ...x, type:e.target.value } : x))} placeholder="Attendee type (e.g. International)"
+                    style={{ flex:"1 1 180px", minWidth:0, background:P.grey50, border:`1.5px solid ${r.type?P.accent+"66":P.grey100}`, borderRadius:"9px", padding:"9px 12px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+                  <input type="date" value={r.date || ""} onChange={e => setTypeRules(prev => prev.map(x => x.id===r.id ? { ...x, date:e.target.value } : x))}
+                    title="Expected arrival date for this attendee type"
+                    style={{ flex:"0 0 165px", background:P.grey50, border:`1.5px solid ${r.date?P.accent+"66":P.grey100}`, borderRadius:"9px", padding:"9px 10px", fontSize:"14px", fontWeight:600, color:r.date?P.navy:P.grey600, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+                  <button type="button" onClick={() => setTypeRules(prev => prev.filter(x => x.id!==r.id))} title="Remove rule"
+                    style={{ background:"transparent", border:"none", color:P.grey600, cursor:"pointer", flexShrink:0, padding:"4px" }}><X size={16} strokeWidth={1.8}/></button>
+                </div>
+              ))}
+              <button type="button" onClick={() => setTypeRules(prev => [...prev, { id:Date.now(), type:"", date:"" }])}
+                style={{ display:"inline-flex", alignItems:"center", gap:"6px", background:"transparent", border:"none", color:P.accentD, fontSize:"13px", fontWeight:600, fontFamily:font, cursor:"pointer", padding:"4px 0", marginTop:"2px" }}>
+                <Plus size={14} strokeWidth={2}/> Add an attendee-type rule
+              </button>
+            </div>
           </div>
+        )}
+
+        <div style={{ display:"flex", gap:"8px", alignItems:"flex-start", fontSize:"12.5px", color:P.grey600, fontFamily:font, lineHeight:1.5, background:P.amber+"12", borderRadius:"9px", padding:"9px 12px", marginTop:"16px" }}>
+          <span style={{ flexShrink:0, marginTop:"1px" }}><FlagIcon size={14} line={P.amber} accent={P.amber} /></span>
+          <span><strong style={{ color:P.navyLight, fontWeight:600 }}>GroupGrid flags</strong> arrivals or departures outside your window, wrong airports, early or late arrivals past your cutoffs, and attendee-type date mismatches.</span>
         </div>
       </div>
 
@@ -4737,7 +4676,11 @@ function SetupScreen({
 
       <div style={{ order:2, background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)", opacity: hasName ? 1 : 0.55, pointerEvents: hasName ? "auto" : "none", transition:"opacity 0.2s" }}>
         <div style={{ fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 2 · Upload files {!hasName && <span style={{ fontSize:"13px", fontWeight:400, color:P.grey600 }}>· name your project first</span>}</div>
-        <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font, marginBottom:"14px" }}>Upload whatever you have — registration, flights, hotels, cars. GroupGrid cross-checks any 2 or more. Excel or CSV. Hover a tile for expected columns.</div>
+        <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font, marginBottom:"12px", lineHeight:1.5 }}>Upload whatever you have. GroupGrid cross-checks any 2 or more files (Excel, CSV, or PDF). Hover a tile to see the columns it expects.</div>
+        <div style={{ display:"flex", gap:"8px", alignItems:"flex-start", fontSize:"12.5px", color:P.navyLight, fontFamily:font, marginBottom:"14px", padding:"9px 12px", background:P.periwinkle+"0D", borderRadius:"9px", border:`1px solid ${P.periwinkle}22`, lineHeight:1.5 }}>
+          <span style={{ background:P.periwinkle+"22", color:P.periwinkleD, borderRadius:"5px", padding:"1px 7px", fontSize:"11.5px", fontWeight:700, flexShrink:0 }}>TIP</span>
+          <span>Include an <strong style={{ fontWeight:600 }}>Email</strong> column for the most accurate matching. GroupGrid matches by email first, then name.</span>
+        </div>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:"10px", flexWrap:"wrap", marginBottom:"12px" }}>
           <span style={{ fontSize:"13px", fontWeight:500, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em" }}>Upload any 2 or more</span>
           <button type="button" onClick={downloadAllTemplates}
@@ -4746,9 +4689,9 @@ function SetupScreen({
           </button>
         </div>
         <div className="gg-setup-tiles3" style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"10px", marginBottom:"14px" }}>
-          <SetupTile label="Registration List" sub="Best anchor" icon={<PeopleIcon size={20} />} accent={P.accentD} file={registrationFile} setter={setRegistrationFile} templateType="registration" recommended columns={["First/Last Name (or Name)","Email","Company / Job Title (opt)","Requested Check-In / Out (opt)","Flight / Hotel Request (opt)"]} />
-          <SetupTile label="Flight Manifest" sub=".xlsx, .csv, .pdf" icon={<PlaneIcon size={20} />} accent={P.periwinkleD} file={flightFile} setter={setFlightFile} templateType="flight" columns={["First/Last Name (or Name)","Email (opt)","Arrival Date","Departure Date","Flight # (opt)"]} />
-          <SetupTile label="Hotel Roster" sub=".xlsx, .csv, .pdf" icon={<HotelIcon size={20} />} accent={P.navy} file={hotelFile} setter={setHotelFile} templateType="hotel" columns={["First/Last Name (or Name)","Email (opt)","Check-In Date","Check-Out Date","Hotel / Room (opt)"]} />
+          <SetupTile label="Registration List" sub="Required" icon={<PeopleIcon size={20} />} accent={P.accentD} file={registrationFile} setter={setRegistrationFile} required columns={["First/Last Name (or Name)","Email","Company / Job Title (opt)","Requested Check-In / Out (opt)","Flight / Hotel Request (opt)"]} />
+          <SetupTile label="Flight Manifest" icon={<PlaneIcon size={20} />} accent={P.periwinkleD} file={flightFile} setter={setFlightFile} columns={["First/Last Name (or Name)","Email (opt)","Arrival Date","Departure Date","Flight # (opt)"]} />
+          <SetupTile label="Hotel Roster" icon={<HotelIcon size={20} />} accent={P.navy} file={hotelFile} setter={setHotelFile} columns={["First/Last Name (or Name)","Email (opt)","Check-In Date","Check-Out Date","Hotel / Room (opt)"]} />
         </div>
 
         <ExtraUploads show={!!registrationFile} items={extraReg} setItems={setExtraReg} Icon={Users} color={P.accentD} />
@@ -4786,16 +4729,12 @@ function SetupScreen({
 
         <div style={{ fontSize:"13px", fontWeight:500, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>More files</div>
         <div className="gg-setup-tiles2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px" }}>
-          <SetupTile label="Car Transfers" sub=".xlsx, .csv, .pdf" icon={<CarIcon size={20} />} accent={P.grey600} file={carFile} setter={setCarFile} templateType="car" columns={["First/Last Name (or Name)","Email (opt)","Pickup Date","Dropoff Date","Pickup Location (opt)"]} />
-          <SetupTile label="Abstract Submissions" sub=".xlsx, .csv, .pdf" icon={<SpreadsheetIcon size={20} />} accent={P.purple} file={abstractFile} setter={setAbstractFile} templateType="abstract" columns={["First/Last Name (or Name)","Email","Abstract Title (opt)","Status (opt)"]} />
-          {SHOW_DIETARY && <SetupTile label="Dietary & Access" sub=".xlsx, .csv, .pdf" icon={<Salad size={20} strokeWidth={1.8} color="#0D9E6E"/>} accent={P.teal} file={dietaryFile} setter={setDietaryFile} templateType="dietary" columns={["First/Last Name (or Name)","Email (opt)","Dietary Restrictions","Accessibility Needs","Special Notes (opt)"]} />}
+          <SetupTile label="Car Transfers" icon={<CarIcon size={20} />} accent={P.grey600} file={carFile} setter={setCarFile} columns={["First/Last Name (or Name)","Email (opt)","Pickup Date","Dropoff Date","Pickup Location (opt)"]} />
+          <SetupTile label="Abstract Submissions" icon={<SpreadsheetIcon size={20} />} accent={P.purple} file={abstractFile} setter={setAbstractFile} columns={["First/Last Name (or Name)","Email","Abstract Title (opt)","Status (opt)"]} />
+          {SHOW_DIETARY && <SetupTile label="Dietary & Access" icon={<Salad size={20} strokeWidth={1.8} color="#0D9E6E"/>} accent={P.teal} file={dietaryFile} setter={setDietaryFile} columns={["First/Last Name (or Name)","Email (opt)","Dietary Restrictions","Accessibility Needs","Special Notes (opt)"]} />}
         </div>
         <ExtraUploads show={!!carFile} items={extraCars} setItems={setExtraCars} Icon={Car} color={P.grey600} />
         {SHOW_DIETARY && <ExtraUploads show={!!dietaryFile} items={extraDietary} setItems={setExtraDietary} Icon={Salad} color="#0D9E6E" />}
-        <div style={{ fontSize:"15px", color:P.navyLight, fontFamily:font, marginTop:"16px", padding:"10px 13px", background:P.periwinkle+"0D", borderRadius:"9px", border:`1px solid ${P.periwinkle}22`, lineHeight:1.5 }}>
-          <span style={{ background:P.periwinkle+"22", color:P.periwinkleD, borderRadius:"5px", padding:"1px 7px", fontSize:"15px", fontWeight:600, marginRight:"7px" }}>TIP</span>
-          Include an <strong style={{ fontWeight:600 }}>Email Address</strong> column for the most accurate matching. GroupGrid matches by email first, then name.
-        </div>
       </div>
       </div>
 
@@ -5123,6 +5062,37 @@ function GroupGrid({ user, onLogin, onLogout }) {
     setAutoSaveStatus("idle");
     setSaveMsg(user ? "Saved to this device" : "Saved to this device");
     setTimeout(() => setSaveMsg(""), 3000);
+  }
+  // Export a saved project to a portable .ggproj file (JSON). Nothing leaves the device
+  // beyond the file the user chooses to save; no server involved.
+  function exportSession(session) {
+    const payload = { app:"GroupGrid", type:"project", version:1, exportedAt:new Date().toISOString(), project: session };
+    const blob = new Blob([JSON.stringify(payload)], { type:"application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${(session.name||"groupgrid-project").replace(/[^\w.-]+/g,"-")}.ggproj`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
+  // Import a .ggproj (or plain project JSON) back into the saved-projects list on this device.
+  function importSessionFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        const proj = (data && data.type === "project" && data.project) ? data.project : (data && data.name ? data : null);
+        if (!proj || !proj.name) { setSaveMsg("That file is not a GroupGrid project."); setTimeout(() => setSaveMsg(""), 4000); return; }
+        const imported = { ...proj, id: Date.now() };
+        setSavedSessions(prev => {
+          const next = [imported, ...prev.filter(x => x.name !== imported.name)].slice(0, 50);
+          try { storage.set(storageKey, JSON.stringify(next)); } catch(e) {}
+          return next;
+        });
+        setSaveMsg(`Loaded "${proj.name}" into your projects. Click it to open.`); setTimeout(() => setSaveMsg(""), 5000);
+      } catch(e) { setSaveMsg("Could not read that project file."); setTimeout(() => setSaveMsg(""), 4000); }
+    };
+    reader.readAsText(file);
   }
 
   // Multi-hotel: build and send a separate guest list to each property's contact, containing only that property's guests.
@@ -5817,6 +5787,10 @@ function GroupGrid({ user, onLogin, onLogout }) {
                         <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.4)", fontFamily:font }}>{s.guestCount} guests · {s.issueCount} flags</div>
                       </div>
                       {results && <button onClick={e => { e.stopPropagation(); setCompareSession(s); setShowDiff(true); setActiveTab("grid"); }} style={{ background:"rgba(255,255,255,0.12)", border:`1px solid rgba(255,255,255,0.2)`, borderRadius:"5px", padding:"2px 7px", fontSize:"15px", color:P.white, fontWeight:700, fontFamily:font, cursor:"pointer", marginRight:"4px" }}>↔ Diff</button>}
+                      <button onClick={e => { e.stopPropagation(); exportSession(s); }} title="Download project file"
+                        style={{ background:"transparent", border:"none", color:"rgba(255,255,255,0.3)", fontSize:"15px", cursor:"pointer", padding:"2px 5px", flexShrink:0, lineHeight:1, borderRadius:"4px" }}
+                        onMouseEnter={e => { e.currentTarget.style.color = P.white; e.currentTarget.style.background = "rgba(255,255,255,0.12)"; }}
+                        onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.3)"; e.currentTarget.style.background = "transparent"; }}>↓</button>
                       <button onClick={e => { e.stopPropagation(); setSavedSessions(prev => { const next = prev.filter(x => x.id !== s.id); try { storage.set(storageKey, JSON.stringify(next)); } catch(ex) {} return next; }); }}
                         style={{ background:"transparent", border:"none", color:"rgba(255,255,255,0.2)", fontSize:"15px", cursor:"pointer", padding:"2px 4px", flexShrink:0, lineHeight:1, borderRadius:"4px" }}
                         onMouseEnter={e => { e.currentTarget.style.color = P.red; e.currentTarget.style.background = "rgba(192,57,43,0.2)"; }}
@@ -5827,6 +5801,14 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 })}
               </div>
             )}
+
+            <label style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:"7px", width:"100%", marginTop:"8px", background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.14)", borderRadius:"8px", padding:"7px 10px", cursor:"pointer", fontFamily:font }}
+              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
+              onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}>
+              <input type="file" accept=".ggproj,.json,application/json" style={{ display:"none" }} onChange={e => { if (e.target.files[0]) { importSessionFile(e.target.files[0]); e.target.value = ""; } }} />
+              <FileSpreadsheet size={13} strokeWidth={1.8} color="rgba(255,255,255,0.6)"/>
+              <span style={{ fontSize:"15px", fontWeight:600, color:"rgba(255,255,255,0.6)" }}>Load project from file</span>
+            </label>
 
             {savedSessions.length === 0 && !flightFile && !results && (
               <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.3)", fontFamily:font, paddingLeft:"4px", paddingTop:"2px", fontStyle:"italic" }}>No saved projects yet</div>
@@ -6050,11 +6032,11 @@ function GroupGrid({ user, onLogin, onLogout }) {
         ) : (
           <div style={{ marginBottom:"16px", padding:"10px 14px", background:P.white, borderRadius:"12px", border:`1px solid ${P.grey100}` }}>
             <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "auto auto auto auto auto auto auto auto", gap:"8px", alignItems:"center" }}>
-              <UploadSquare label="Registration" icon={<PeopleIcon size={22} />} accent={P.accentD} file={registrationFile} setter={setRegistrationFile} required={false} sub="Source of truth" compact />
-              <UploadSquare label="Flight"  icon={<PlaneIcon size={22} />} accent={P.periwinkleD} file={flightFile}  setter={setFlightFile}  required={false}  sub="Optional" compact />
-              <UploadSquare label="Hotel"   icon={<HotelIcon size={22} />} accent={P.navy}        file={hotelFile}   setter={setHotelFile}   required={false}  sub="Optional" compact />
-              <UploadSquare label="Car"     icon={<CarIcon size={22} />}   accent={P.grey600}     file={carFile}     setter={setCarFile}     required={false} sub="Optional" compact />
-              {SHOW_DIETARY && <UploadSquare label="Dietary" icon={<Salad size={22} strokeWidth={1.8} color="#0D9E6E"/>} accent={P.teal}        file={dietaryFile} setter={setDietaryFile} required={false} sub="Optional" compact />}
+              <UploadSquare label="Registration" icon={<PeopleIcon size={22} />} accent={P.accentD} file={registrationFile} setter={setRegistrationFile} sub="Required" compact />
+              <UploadSquare label="Flight"  icon={<PlaneIcon size={22} />} accent={P.periwinkleD} file={flightFile}  setter={setFlightFile}   sub="" compact />
+              <UploadSquare label="Hotel"   icon={<HotelIcon size={22} />} accent={P.navy}        file={hotelFile}   setter={setHotelFile}    sub="" compact />
+              <UploadSquare label="Car"     icon={<CarIcon size={22} />}   accent={P.grey600}     file={carFile}     setter={setCarFile}     sub="" compact />
+              {SHOW_DIETARY && <UploadSquare label="Dietary" icon={<Salad size={22} strokeWidth={1.8} color="#0D9E6E"/>} accent={P.teal}        file={dietaryFile} setter={setDietaryFile} sub="" compact />}
               {!isMobile && <div style={{ width:1, height:32, background:P.grey100, flexShrink:0 }} />}
               <button onClick={runCheck} disabled={!ready || loading}
                 style={{ background:ready&&!loading?P.accent:P.grey100, color:ready&&!loading?P.white:P.grey600, border:"none", borderRadius:"7px", padding:"7px 16px", fontSize:"18px", fontWeight:600, fontFamily:font, cursor:ready&&!loading?"pointer":"not-allowed", transition:"all 0.18s", flexShrink:0, whiteSpace:"nowrap", boxShadow:ready&&!loading?"0 1px 6px rgba(0,201,177,0.3)":"none", gridColumn: isMobile ? "1 / -1" : "auto" }}>
