@@ -59,13 +59,753 @@
  * Conventions: colors come from P.*, never hardcoded hex. Body text 15px, captions 12.5–13px,
  * headings via fontDisplay (Poppins). Customer-facing copy avoids em dashes.
  */
-import React, { useState, useCallback, useEffect, useRef, Fragment } from "react";
+import React, { useState, useEffect, useRef, Fragment } from "react";
 import * as XLSX from "xlsx";
 import { Plane, Hotel, Car, Salad, BarChart2, Mail, Lock, Calendar, Send, AlertTriangle, AlertCircle, Circle, Copy, Check, X, Plus, ShieldCheck, Ban, FileSpreadsheet, Users, Download, Save, Trash2, Pencil, ChevronRight, ChevronDown, CreditCard} from "lucide-react";
-import { P, font, fontDisplay } from "./theme.js";
-import { BrandMark, BrandLogo, BrandWordmark, GridIcon, CrossCheckIcon, FlagIcon, ClearedIcon, SpreadsheetIcon, MagnifierIcon, UploadIcon, PlaneIcon, HotelIcon, CarIcon, CalendarIcon, PeopleIcon, AlertIcon, CityIcon, GlobeIcon, BadgeIcon } from "./icons.jsx";
-import { parseTimeStr, fmtTime, parseDate, atNoon, fmt, rehydrateDate, rehydrateResults, stripTime, diffDays, findCol, normName, normEmail, splitName } from "./format.js";
-import { DEFAULT_TEMPLATES, fillTemplate, getApplicableTemplates, TEMPLATE_AUDIENCE, TEMPLATE_CATEGORY, CATEGORY_ORDER, TemplateIcon, VENDOR_BODY, VENDOR_BODY_OVERRIDE } from "./templates.js";
+
+
+// ===== inlined: design tokens (theme) =====
+// GroupGrid design tokens: color palette and type families. Single source of truth.
+const P = {
+  navy:"#0C1E3F", navyLight:"#1A2E52", periwinkle:"#6B7FD4", periwinkleL:"#9BAAE8",
+  periwinkleD:"#4C62C4", white:"#FFFFFF", offWhite:"#F0F2F7", grey50:"#EEF1F8",
+  grey100:"#DDE2EF", grey200:"#B8C0D8", grey400:"#7E8BA8", grey600:"#4A5568",
+  green:"#0D9E6E", greenLight:"#E3F7F0", amber:"#C97A0A", amberLight:"#FEF2DC",
+  red:"#C0392B", redLight:"#FDECEC", purple:"#6B3FA0", purpleLight:"#EEE5F9",
+  teal:"#0A7B7A", tealLight:"#DCF2F2", blue:"#4F8EF7", blueLight:"#EAF2FE",
+  accent:"#00C9B1", accentLight:"#E0FAF7", accentD:"#00A896",
+};
+const font = "'IBM Plex Sans', sans-serif";
+const fontDisplay = "'Poppins', sans-serif";
+
+// ===== inlined: pure helpers (format) =====
+// GroupGrid pure helpers: date and time parsing/formatting, name and column normalization.
+// No React or app state, safe to import anywhere.
+
+// Times are stored canonically as 24h "HH:MM"; fmtTime renders them in the chosen format.
+function parseTimeStr(val) {
+  const p = n => String(n).padStart(2, "0");
+  if (val === null || val === undefined || val === "") return "";
+  if (typeof val === "number") {
+    const frac = val - Math.floor(val);
+    if (frac <= 0) return ""; // a pure date serial carries no time
+    const total = Math.round(frac * 24 * 60);
+    return p(Math.floor(total / 60) % 24) + ":" + p(total % 60);
+  }
+  if (val instanceof Date && !isNaN(val)) {
+    const hh = val.getHours(), mm = val.getMinutes();
+    if (hh === 0 && mm === 0) return ""; // midnight from a date-only cell is treated as "no time"
+    return p(hh) + ":" + p(mm);
+  }
+  const s = String(val).trim();
+  const m = s.match(/(\d{1,2}):(\d{2})\s*([ap]\.?m\.?)?/i); // 14:30, 2:30 PM, 9:05am, or embedded in a datetime
+  if (m) {
+    let hh = +m[1]; const mm = +m[2], ap = m[3] ? m[3].toLowerCase()[0] : null;
+    if (ap === "p" && hh < 12) hh += 12;
+    if (ap === "a" && hh === 12) hh = 0;
+    if (hh > 23 || mm > 59) return "";
+    return p(hh) + ":" + p(mm);
+  }
+  return "";
+}
+// Render a canonical "HH:MM" as 12h "2:30 PM" (default) or 24h "14:30".
+function fmtTime(hhmm, fmt) {
+  if (!hhmm) return "";
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
+  if (!m) return hhmm;
+  let hh = +m[1]; const mm = m[2];
+  if (fmt === "24hr") return String(hh).padStart(2, "0") + ":" + mm;
+  const ap = hh >= 12 ? "PM" : "AM"; let h12 = hh % 12; if (h12 === 0) h12 = 12;
+  return h12 + ":" + mm + " " + ap;
+}
+
+function parseDate(val) {
+  if (val === null || val === undefined || val === "") return null;
+  // Already a Date object
+  if (val instanceof Date && !isNaN(val)) return atNoon(val.getFullYear(), val.getMonth(), val.getDate());
+  // Excel serial number. Whole part = date; fractional part = time of day. We only want the calendar day.
+  if (typeof val === "number") {
+    const d = new Date(Math.round((Math.floor(val) - 25569) * 86400 * 1000)); // floor() drops the time fraction
+    if (isNaN(d)) return null;
+    // Excel serials are UTC-based; read UTC components so the day doesn't shift by timezone.
+    return atNoon(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  }
+  const s = String(val).trim();
+  if (!s) return null;
+  // Pull the DATE part out of a combined "date + time" string so a late-night time can't roll the day over.
+  // Handles: "2026-06-18", "2026-06-18 23:45", "2026-06-18T23:45:00Z", "6/18/2026 11:45 PM", "06/18/2026"
+  let m = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);            // ISO-ish: YYYY-MM-DD (optionally followed by time)
+  if (m) return atNoon(+m[1], +m[2] - 1, +m[3]);
+  m = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/);              // US-ish: M/D/YYYY (optionally followed by time)
+  if (m) { let y = +m[3]; if (y < 100) y += 2000; return atNoon(y, +m[1] - 1, +m[2]); }
+  // Fallback: let the browser try, then normalize to noon-local on the day it landed on.
+  const d = new Date(s);
+  if (isNaN(d)) return null;
+  return atNoon(d.getFullYear(), d.getMonth(), d.getDate());
+}
+// Build a date at noon local time. Noon avoids any midnight/timezone edge from ever shifting the calendar day.
+function atNoon(y, mo, day) { const d = new Date(y, mo, day, 12, 0, 0, 0); return isNaN(d) ? null : d; }
+function fmt(date) { if (!date) return "—"; return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); }
+// When results are restored from localStorage (JSON), Date objects come back as strings.
+// Rehydrate every date field back into a real Date so .toLocaleDateString()/.getTime() work.
+function rehydrateDate(v) {
+  if (!v) return v;
+  if (v instanceof Date) return v;
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? null : d;
+}
+function rehydrateResults(results) {
+  if (!Array.isArray(results)) return results;
+  return results.map(r => {
+    const out = { ...r };
+    if (out.flight) out.flight = { ...out.flight, flightArrival: rehydrateDate(out.flight.flightArrival), flightDeparture: rehydrateDate(out.flight.flightDeparture) };
+    if (out.hotel)  out.hotel  = { ...out.hotel,  checkIn: rehydrateDate(out.hotel.checkIn), checkOut: rehydrateDate(out.hotel.checkOut) };
+    if (out.car)    out.car    = { ...out.car,    pickupDate: rehydrateDate(out.car.pickupDate), dropoffDate: rehydrateDate(out.car.dropoffDate) };
+    if (out.reg)    out.reg    = { ...out.reg,    regCheckIn: rehydrateDate(out.reg.regCheckIn), regCheckOut: rehydrateDate(out.reg.regCheckOut) };
+    if (out.regCheckIn)  out.regCheckIn  = rehydrateDate(out.regCheckIn);
+    if (out.regCheckOut) out.regCheckOut = rehydrateDate(out.regCheckOut);
+    return out;
+  });
+}
+function stripTime(d) { if (!d) return null; const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
+function diffDays(a, b) { if (!a || !b) return null; return Math.round((stripTime(a) - stripTime(b)) / 86400000); }
+function findCol(headers, candidates) {
+  const h = headers.map(x => String(x || "").toLowerCase().trim());
+  // Exact header match first (so "Arrival" the date isn't confused with "Arrival Airport").
+  for (const c of candidates) { const i = h.indexOf(c); if (i !== -1) return i; }
+  // Then substring match as a fallback.
+  for (const c of candidates) { const i = h.findIndex(x => x.includes(c)); if (i !== -1) return i; }
+  return -1;
+}
+function normName(n) { return String(n || "").toLowerCase().replace(/[^a-z]/g, ""); }
+function normEmail(e) { return String(e || "").toLowerCase().trim(); }
+function splitName(full) {
+  const s = String(full || "").trim();
+  if (!s) return { firstName: "", lastName: "" };
+  // Handle "Last, First" format
+  if (s.includes(",")) {
+    const [last, ...rest] = s.split(",");
+    return { firstName: rest.join(",").trim(), lastName: last.trim() };
+  }
+  const parts = s.split(/\s+/);
+  if (parts.length === 1) return { firstName: parts[0], lastName: "" };
+  const lastName = parts.pop();
+  return { firstName: parts.join(" "), lastName };
+}
+
+// ===== inlined: brand marks + icons =====
+// GroupGrid brand mark, logo lockup, wordmark, and the single-line icon set.
+
+// ── Official brand mark (from the GroupGrid logo kit): a navy rounded square with a
+// 3×3 dot grid. The diagonal (top-left, center, bottom-right) is teal — the clean
+// cross-check — and the other six dots are light blue-grey. One source of truth for
+// every logo placement so the mark is identical everywhere.
+const MARK_TEAL = "#00C9B1";
+const MARK_DOT  = "#A9C2DC";
+function markDots() {
+  // diagonal = teal, others = light blue-grey, exactly per the official artwork
+  const pos = [28, 50, 72];
+  const out = [];
+  pos.forEach((cy, r) => pos.forEach((cx, c) => {
+    out.push(<circle key={`${r}-${c}`} cx={cx} cy={cy} r="9" fill={r === c ? MARK_TEAL : MARK_DOT} />);
+  }));
+  return out;
+}
+function BrandMark({ size = 28, onDark = true }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0, display: "block" }}>
+      <rect width="100" height="100" rx="26" fill={onDark ? "#0A1A33" : "#0C1E3F"} />
+      {markDots()}
+    </svg>
+  );
+}
+// Full official lockup: the mark + the two-tone GroupGrid wordmark (Poppins).
+// viewBox 0 0 470 100, matching the kit's logo-onlight / logo-ondark SVGs.
+function BrandLogo({ height = 26, onDark = true }) {
+  return (
+    <svg width={height * 4.7} height={height} viewBox="0 0 470 100" xmlns="http://www.w3.org/2000/svg" style={{ display: "block", flexShrink: 0 }}>
+      <rect width="100" height="100" rx="26" fill={onDark ? "#0A1A33" : "#0C1E3F"} />
+      {markDots()}
+      <text x="120" y="50" dominantBaseline="central" fontFamily="'Poppins', 'Helvetica Neue', Arial, sans-serif" fontWeight="600" fontSize="54" letterSpacing="-1">
+        <tspan fill={onDark ? "#FFFFFF" : "#0C1E3F"}>Group</tspan><tspan fill={MARK_TEAL}>Grid</tspan>
+      </text>
+    </svg>
+  );
+}
+// Two-tone wordmark: "Group" in the foreground color, "Grid" in teal.
+function BrandWordmark({ light = true, size = 16 }) {
+  return (
+    <span style={{ fontFamily: fontDisplay, fontWeight: 700, fontSize: `${size}px`, letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>
+      <span style={{ color: light ? P.white : P.navy }}>Group</span>
+      <span style={{ color: P.accent }}>Grid</span>
+    </span>
+  );
+}
+
+// ── Signature icons: official Group Grid single-line set (from the brand kit),
+// navy line + one teal accent on the matched/active part. 1.8 stroke, round cap/join.
+const ICON_STROKE = 1.8;
+function GridIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  const r = 1.9, pos = [7, 12, 17];
+  const dots = [];
+  pos.forEach((cy, ri) => pos.forEach((cx, ci) => {
+    dots.push(<circle key={`${ri}-${ci}`} cx={cx} cy={cy} r={r} fill={ri === ci ? accent : line} />);
+  }));
+  return <svg width={size} height={size} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>{dots}</svg>;
+}
+function svgIcon(size, line, paths) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={line} strokeWidth={ICON_STROKE} strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>{paths}</svg>;
+}
+function CrossCheckIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <><path d="M5 8.5a7 7 0 0 1 11.5-2.7L19 8" /><path d="M19 16a7 7 0 0 1-11.5 2.7L5 16" /><path d="M19 4v4h-4" stroke={accent} /><path d="M5 20v-4h4" stroke={accent} /></>);
+}
+function FlagIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <><path d="M6 21V4" /><path d="M6 4.5h11l-2.2 4 2.2 4H6" stroke={accent} /></>);
+}
+function ClearedIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <><circle cx="12" cy="12" r="9.5" /><path d="M7.5 12.3l3.1 3.1L16.5 9" stroke={accent} /></>);
+}
+function SpreadsheetIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M4 10h16M10 10v10" stroke={accent} /></>);
+}
+function MagnifierIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <><circle cx="11" cy="11" r="6.2" /><path d="M20 20l-4.6-4.6" /><path d="M8.4 11l2 2 3.4-3.4" stroke={accent} /></>);
+}
+function UploadIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <><path d="M12 16V5" /><path d="M8 9l4-4 4 4" stroke={accent} /><path d="M5 20h14" /></>);
+}
+function PlaneIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />);
+}
+function HotelIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <><path d="M3 19v-6.5l2-1V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3.5l2 1V19" /><path d="M3 13h18" stroke={accent} /><path d="M7 11.5V10h4v1.5" /></>);
+}
+function CarIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <><path d="M4 16l1.7-4.9A2 2 0 0 1 7.6 9.8h8.8a2 2 0 0 1 1.9 1.3L20 16" /><path d="M3 16h18v2.6h-2.3V16M5.3 18.6V16" /><circle cx="8" cy="16" r="1.3" /><circle cx="16" cy="16" r="1.3" /></>);
+}
+function CalendarIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 9.5h16M8 3v4M16 3v4" /><path d="M8.5 13.5l2 2 3.5-3.5" stroke={accent} /></>);
+}
+function PeopleIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <><circle cx="9" cy="8.5" r="3" /><path d="M3.5 19c0-3.1 2.4-4.9 5.5-4.9s5.5 1.8 5.5 4.9" /><path d="M16 6.4a2.8 2.8 0 0 1 0 5.5" stroke={accent} /><path d="M17 14.3c2.4.4 3.7 2.1 3.7 4.7" stroke={accent} /></>);
+}
+function AlertIcon({ size = 20, line = P.navy, accent = P.amber }) {
+  return svgIcon(size, line, <><path d="M12 4 2.5 20.5h19z" /><path d="M12 10v4.5" stroke={accent} /><path d="M12 17.6v.2" stroke={accent} /></>);
+}
+function CityIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <><path d="M3 20V9.5l5-2.5V20" /><path d="M8 20V4l6 2.6V20" /><path d="M14 20v-7l5 2V20" /><path d="M2.5 20h19" /><path d="M10.5 10v0M10.5 13.5v0M5.3 12v0" stroke={accent} /></>);
+}
+function GlobeIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <><circle cx="12" cy="12" r="8.2" /><path d="M3.8 12h16.4" stroke={accent} /><path d="M12 3.8c2.6 2.3 2.6 14.1 0 16.4M12 3.8c-2.6 2.3-2.6 14.1 0 16.4" /></>);
+}
+function BadgeIcon({ size = 20, line = P.navy, accent = P.accent }) {
+  return svgIcon(size, line, <><rect x="7" y="3" width="10" height="6" rx="1.5" /><rect x="5.5" y="9" width="13" height="11" rx="2" /><path d="M9.5 14h5" stroke={accent} /></>);
+}
+
+// ===== inlined: email templates + routing =====
+// GroupGrid email templates: default library, vendor bodies, routing tables, and TemplateIcon.
+
+// ── Default Email Templates ───────────────────────────────────────────────────
+const DEFAULT_TEMPLATES = {
+  arrives_early: {
+    id: "arrives_early",
+    label: "Arrives Before Check-In",
+    icon: "✈",
+    color: P.amber,
+    description: "Guest flight arrives before hotel check-in date",
+    subject: "{{eventName}} [Arrival]: Could you confirm your travel details?",
+    body: `Hi {{guestName}},
+
+We are reviewing travel for {{eventName}} and spotted a timing gap to confirm with you:
+
+──────────────────────
+Flight arrives: {{flightArrival}}{{arrivalTimeTail}} into {{arrivalAirport}} (Flight {{flightIn}})
+Hotel check-in: {{checkIn}} at {{hotel}}
+
+Your flight lands the day before your hotel check-in.
+──────────────────────
+
+What we need: reply to let us know one of these.
+
+  My arrival night is covered, no change needed.
+  Please add an extra night at {{hotel}} for me.
+
+Happy to contact {{hotel}} for you if that is easier.
+
+Warmly,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  },
+  arrives_late: {
+    id: "arrives_late",
+    label: "Possible Late Arrival",
+    icon: "🌙",
+    color: P.amber,
+    description: "Guest arrives after the late-arrival cutoff — hotel may release the room",
+    subject: "{{eventName}} [Late Arrival]: Please hold the room for {{guestFullName}}",
+    body: `Hi {{guestName}},
+
+A quick heads-up about your arrival for {{eventName}}:
+
+──────────────────────
+Expected arrival: {{expectedArrival}}
+Hotel check-in: {{checkIn}} at {{hotel}}
+──────────────────────
+
+Your arrival is later in the evening, so we are letting {{hotel}} know to hold your room. No action needed on your side — just reply if your plans change.
+
+Warmly,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  },
+  departs_late: {
+    id: "departs_late",
+    label: "Departs After Check-Out",
+    icon: "🏨",
+    color: P.amber,
+    description: "Guest flight departs after hotel check-out date",
+    subject: "{{eventName}} [Departure]: Could you confirm your travel details?",
+    body: `Hi {{guestName}},
+
+We are reviewing travel for {{eventName}} and spotted a timing gap to confirm:
+
+──────────────────────
+Hotel check-out: {{checkOut}} at {{hotel}}
+Flight departs: {{flightDeparture}}{{departureTimeTail}} from {{departureAirport}} (Flight {{flightOut}})
+
+Your hotel checks out before your flight departs.
+──────────────────────
+
+What we need: reply to let us know one of these.
+
+  My departure night is covered, no change needed.
+  Please extend my stay at {{hotel}} by one night.
+
+Happy to contact {{hotel}} for you if that is easier.
+
+Warmly,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  },
+  missing_hotel: {
+    id: "missing_hotel",
+    label: "No Hotel Record Found",
+    icon: "🏨",
+    color: P.red,
+    description: "Guest appears in flight list but no hotel booking on file",
+    subject: "{{eventName}} [Hotel]: Could you confirm your travel details?",
+    body: `Hi {{guestName}},
+
+We are reviewing travel for {{eventName}} and we do not have a hotel booking on file for you:
+
+──────────────────────
+Flight arrives: {{flightArrival}}{{arrivalTimeTail}} into {{arrivalAirport}} (Flight {{flightIn}})
+Hotel booking: Not on file
+──────────────────────
+
+We do not want you arriving without a room. What we need: reply with one of these.
+
+  I booked my own hotel. Confirmation: ___________
+  Please book a room for me.
+
+Warmly,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  },
+  missing_flight: {
+    id: "missing_flight",
+    label: "No Flight Record Found",
+    icon: "✈",
+    color: P.red,
+    description: "Guest appears in hotel list but no flight on file",
+    subject: "{{eventName}} [Flight]: Could you confirm your travel details?",
+    body: `Hi {{guestName}},
+
+Your room at {{hotel}} is confirmed for {{eventName}}, but we do not have your flight details yet:
+
+──────────────────────
+Flight: Not on file
+Hotel check-in: {{checkIn}} at {{hotel}}
+──────────────────────
+
+What we need: reply with your inbound and outbound flight numbers, dates, and arrival airport. If you are not flying, just let us know and we will update your record.
+
+Warmly,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  },
+  missing_transfer: {
+    id: "missing_transfer",
+    label: "No Transfer on File",
+    icon: "🚗",
+    color: P.amber,
+    description: "Guest has no car transfer record",
+    subject: "{{eventName}} [Transfer]: Could you confirm your travel details?",
+    body: `Hi {{guestName}},
+
+We are arranging ground transfers for {{eventName}} and do not have one on file for you:
+
+──────────────────────
+Flight arrives: {{flightArrival}}{{arrivalTimeTail}} into {{arrivalAirport}} (Flight {{flightIn}})
+Transfer: Not on file
+──────────────────────
+
+What we need: reply with your preference.
+
+  Yes, please arrange a transfer from {{arrivalAirport}} to {{hotel}}.
+  No thanks, I have my own transportation.
+
+Warmly,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  },
+  car_mismatch: {
+    id: "car_mismatch",
+    label: "Car Transfer Timing",
+    icon: "🚗",
+    color: P.red,
+    description: "Car transfer time does not line up with the guest's flight",
+    subject: "{{eventName}} [Car Transfer]: Could you confirm your travel details?",
+    body: `Hi {{guestName}},
+
+We are reviewing ground transfers for {{eventName}} and your transfer times do not line up with your flights:
+
+──────────────────────
+Flight arrives: {{flightArrival}}{{arrivalTimeTail}}
+Car pickup: {{carPickup}}
+
+Flight departs: {{flightDeparture}}{{departureTimeTail}}
+Car dropoff: {{carDropoff}}
+──────────────────────
+
+What we need: reply to confirm these times are right, or tell us what to adjust.
+
+Warmly,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  },
+  needs_registration: {
+    id: "needs_registration",
+    label: "Needs to Register",
+    icon: "📝",
+    color: P.purple,
+    description: "Guest has travel booked but is not on the registration list",
+    subject: "{{eventName}} [Registration]: Could you confirm your travel details?",
+    body: `Hi {{guestName}},
+
+We can see travel arranged for you for {{eventName}}, but you are not yet on our registration list:
+
+──────────────────────
+We have booked for you:
+{{bookedTravel}}
+
+Registration: Not on file
+──────────────────────
+
+What we need: complete your registration for {{eventName}}. It takes a minute and confirms your spot. If you believe you already registered, just reply and we will check.
+
+Warmly,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  },
+  wrong_airport: {
+    id: "wrong_airport",
+    label: "Different Airport",
+    icon: "✈",
+    color: "#4F8EF7",
+    description: "Guest is flying into an airport that isn't a preferred event airport",
+    subject: "{{eventName}} [Airport]: Could you confirm your travel details?",
+    body: `Hi {{guestName}},
+
+We are reviewing travel for {{eventName}} and noticed your arrival airport:
+
+──────────────────────
+Flight arrives: {{arrivalAirport}} on {{flightArrival}}{{arrivalTimeTail}} (Flight {{flightIn}})
+
+This is not an airport we are coordinating arrivals around.
+──────────────────────
+
+This may be intentional. What we need: reply to confirm your airport is correct, or let us know if you would like help adjusting it.
+
+Warmly,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  },
+  outside_window: {
+    id: "outside_window",
+    label: "Outside Approved Travel Window",
+    icon: "🗓",
+    color: P.purple,
+    description: "Guest travel dates fall outside the approved event window",
+    subject: "{{eventName}} [Travel Dates]: Could you confirm your travel details?",
+    body: `Hi {{guestName}},
+
+We are reviewing travel for {{eventName}} and your dates fall outside the event travel window:
+
+──────────────────────
+Flight arrives: {{flightArrival}}{{arrivalTimeTail}} into {{arrivalAirport}}
+Flight departs: {{flightDeparture}}{{departureTimeTail}} from {{departureAirport}}
+Event window: {{eventStart}} to {{eventEnd}}
+──────────────────────
+
+This may be intentional. What we need: reply to confirm your dates are correct, or tell us if they need a change.
+
+Warmly,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  },
+  general_confirmation: {
+    id: "general_confirmation",
+    label: "General Travel Confirmation",
+    icon: "✅",
+    color: P.green,
+    description: "Proactive confirmation request for all guests",
+    subject: "{{eventName}} [Travel Review]: Could you confirm your travel details?",
+    body: `Hi {{guestName}},
+
+A quick travel check for {{eventName}}. Here is what we have on file:
+
+──────────────────────
+Arrival: {{flightArrival}}{{arrivalTimeTail}} into {{arrivalAirport}} (Flight {{flightIn}})
+Hotel: {{checkIn}} to {{checkOut}} at {{hotel}}
+Departure: {{flightDeparture}}{{departureTimeTail}} from {{departureAirport}} (Flight {{flightOut}})
+──────────────────────
+
+What we need: reply to confirm it is correct, or tell us what to change.
+
+  Looks good, I am all set.
+  Please update: ___________
+
+Warmly,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  },
+};
+function fillTemplate(template, record, extra = {}) {
+  const map = {
+    "{{guestName}}": record.firstName || record.displayName || "",
+    "{{guestFirstName}}": record.firstName || record.displayName.split(" ")[0] || "",
+    "{{guestLastName}}": record.lastName || record.displayName.split(" ").slice(1).join(" ") || "",
+    "{{guestFullName}}": record.displayName || "",
+    "{{eventName}}": extra.eventName || "our event",
+    "{{flightArrival}}": fmt(record.flight?.flightArrival) || "—",
+    "{{flightDeparture}}": fmt(record.flight?.flightDeparture) || "—",
+    "{{arrivalTime}}": fmtTime(record.flight?.arrivalTime, "ampm") || "—",
+    "{{departureTime}}": fmtTime(record.flight?.departureTime, "ampm") || "—",
+    "{{arrivalTimeTail}}": record.flight?.arrivalTime ? ` at ${fmtTime(record.flight.arrivalTime, "ampm")}` : "",
+    "{{departureTimeTail}}": record.flight?.departureTime ? ` at ${fmtTime(record.flight.departureTime, "ampm")}` : "",
+    "{{carPickupTime}}": fmtTime(record.car?.pickupTime, "ampm") || "—",
+    "{{carDropoffTime}}": fmtTime(record.car?.dropoffTime, "ampm") || "—",
+    "{{flightIn}}": record.flight?.flightIn || "—",
+    "{{flightOut}}": record.flight?.flightOut || "—",
+    "{{arrivalAirport}}": record.flight?.arrivalAirport || record.flight?.airport || "the airport",
+    "{{departureAirport}}": record.flight?.departureAirport || record.flight?.airport || "the airport",
+    "{{airport}}": record.flight?.airport || record.flight?.arrivalAirport || record.flight?.departureAirport || "the airport",
+    "{{checkIn}}": fmt(record.hotel?.checkIn) || "—",
+    "{{checkOut}}": fmt(record.hotel?.checkOut) || "—",
+    "{{hotel}}": record.hotel?.hotel || "the hotel",
+    "{{room}}": record.hotel?.room || "—",
+    "{{expectedArrival}}": (() => {
+      const f = record.flight, c = record.car;
+      if (f?.flightArrival) return `${fmt(f.flightArrival)}${f.arrivalTime ? ` at ${fmtTime(f.arrivalTime, "ampm")}` : ""}${f.flightIn ? ` (Flight ${f.flightIn})` : ""}`;
+      if (c?.pickupDate) return `${fmt(c.pickupDate)}${c.pickupTime ? ` at ${fmtTime(c.pickupTime, "ampm")}` : ""} (car transfer)`;
+      return "—";
+    })(),
+    "{{bookedTravel}}": (() => {
+      const lines = [];
+      if (record.flight) {
+        const arr = fmt(record.flight.flightArrival);
+        const t = record.flight.arrivalTime ? ` at ${fmtTime(record.flight.arrivalTime, "ampm")}` : "";
+        const tail = record.flight.flightIn ? ` (Flight ${record.flight.flightIn})` : "";
+        lines.push(`Flight arrival: ${arr || "on file"}${t}${tail}`);
+      }
+      if (record.hotel) {
+        lines.push(`Hotel: ${record.hotel.hotel || "booking on file"}`);
+      }
+      if (record.car) {
+        const ct = record.car.pickupTime ? ` at ${fmtTime(record.car.pickupTime, "ampm")}` : "";
+        lines.push(`Car transfer: ${fmt(record.car.pickupDate) || "on file"}${ct}`);
+      }
+      if (!lines.length) lines.push("Travel details on file");
+      return lines.join("\n");
+    })(),
+    "{{hotelContact}}": extra.hotelName || "Hotel Team",
+    "{{travelContact}}": extra.travelName || "Travel Team",
+    "{{carContact}}": extra.carName || "Transfer Team",
+    "{{guestEmailParen}}": record.email ? ` (${record.email})` : "",
+    "{{flightInTail}}": record.flight?.flightIn ? ` — Flight ${record.flight.flightIn}` : "",
+    "{{flightOutTail}}": record.flight?.flightOut ? ` — Flight ${record.flight.flightOut}` : "",
+    "{{issueSummary}}": (record.issues || []).filter(x => !(record.resolved || []).includes(x.text)).map(x => x.text).join("; ") || "—",
+    "{{carPickup}}": fmt(record.car?.pickupDate) || "—",
+    "{{carDropoff}}": fmt(record.car?.dropoffDate) || "—",
+    "{{plannerName}}": extra.plannerName || "The Planning Team",
+    "{{arrivalEnd}}": extra.arrivalEnd ? fmt(parseDate(extra.arrivalEnd)) : "—",
+    "{{departureEnd}}": extra.departureEnd ? fmt(parseDate(extra.departureEnd)) : "—",
+    "{{eventStart}}": extra.arrivalStart ? fmt(parseDate(extra.arrivalStart)) : "—",
+    "{{eventEnd}}": extra.departureEnd ? fmt(parseDate(extra.departureEnd)) : "—",
+  };
+  let s = template;
+  Object.entries(map).forEach(([k, v]) => { s = s.split(k).join(v); });
+  return s;
+}
+
+function getApplicableTemplates(record) {
+  const applicable = [];
+  const issues = record.issues || [];
+  const has = (sub) => issues.some(x => x.text && x.text.includes(sub));
+  // Hotel arrival-timing issues (flight vs check-in, or check-in differs from registration) → hotel
+  if (has("check-in")) applicable.push("arrives_early");
+  // Hotel departure-timing issues (flight vs check-out, or check-out differs from registration) → hotel
+  else if (has("check-out")) applicable.push("departs_late");
+  // Missing hotel — matches both the registration-anchored text and the travel-vs-travel fallback text
+  if (has("no hotel booked") || has("Missing from hotel roster") || has("no hotel' but no reason")) applicable.push("missing_hotel");
+  // Missing flight — same, across both engine paths
+  if (has("no flight booked") || has("Missing from flight manifest") || has("no flight' but no reason")) applicable.push("missing_flight");
+  if (has("Missing from car transfers")) applicable.push("missing_transfer");
+  // Car transfer timing mismatch (pickup vs flight arrival, dropoff vs flight departure)
+  if (has("Car pickup") || has("Car dropoff")) applicable.push("car_mismatch");
+  if (has("not on registration list") || issues.some(x => x.type === "unregistered")) applicable.push("needs_registration");
+  if (issues.some(x => x.type === "window")) applicable.push("outside_window");
+  if (issues.some(x => x.type === "airport")) applicable.push("wrong_airport");
+  if (issues.some(x => x.type === "earlyarrival") && !applicable.includes("arrives_early")) applicable.push("arrives_early");
+  if (issues.some(x => x.type === "latearrival")) applicable.push("arrives_late");
+  return applicable;
+}
+
+// ── Email routing: who each template is addressed TO, by default ───────────────
+// audience: "hotel" | "travel" | "car" | "guest". Vendor-routed templates carry a
+// vendor-addressed body so the recipient never gets a "Hi {{guestName}}" email meant
+// for the attendee. The original guest-addressed body stays on the template as a fallback.
+const TEMPLATE_AUDIENCE = {
+  arrives_early:      "hotel",
+  arrives_late:       "hotel",
+  departs_late:       "hotel",
+  missing_hotel:      "hotel",
+  missing_flight:     "travel",
+  outside_window:     "guest",
+  wrong_airport:      "guest",
+  missing_transfer:   "car",
+  car_mismatch:       "car",
+  needs_registration: "guest",
+  general_confirmation: "guest",
+};
+// Group the comms by what they are about, so hotel/flight/car messages sit together.
+const TEMPLATE_CATEGORY = {
+  arrives_early:      "Hotel",
+  arrives_late:       "Hotel",
+  departs_late:       "Hotel",
+  missing_hotel:      "Hotel",
+  missing_flight:     "Flight",
+  wrong_airport:      "Flight",
+  outside_window:     "Flight",
+  missing_transfer:   "Car Transfer",
+  car_mismatch:       "Car Transfer",
+  needs_registration: "Registration & Confirmation",
+  general_confirmation: "Registration & Confirmation",
+};
+const CATEGORY_ORDER = ["Hotel", "Flight", "Car Transfer", "Registration & Confirmation", "Custom"];
+// Brand icon for each template (single-line GroupGrid icon set).
+const TEMPLATE_ICON_KEY = {
+  arrives_early:      "hotel",
+  arrives_late:       "hotel",
+  departs_late:       "hotel",
+  missing_hotel:      "hotel",
+  missing_flight:     "plane",
+  wrong_airport:      "flag",
+  outside_window:     "calendar",
+  missing_transfer:   "car",
+  car_mismatch:       "car",
+  needs_registration: "people",
+  general_confirmation: "cleared",
+};
+const TEMPLATE_ICONS = { hotel: HotelIcon, plane: PlaneIcon, car: CarIcon, flag: FlagIcon, calendar: CalendarIcon, people: PeopleIcon, cleared: ClearedIcon };
+function TemplateIcon({ tmpl, size = 20 }) {
+  const Comp = TEMPLATE_ICONS[TEMPLATE_ICON_KEY[tmpl.id]];
+  if (Comp) return <Comp size={size} line={tmpl.color} accent={tmpl.color} />;
+  return <span style={{ fontSize: size - 2 }}>{tmpl.icon}</span>; // custom templates keep their emoji
+}
+// Vendor-addressed bodies, keyed by audience. The planner is writing TO the vendor about a guest.
+const VENDOR_BODY = {
+  hotel: `Dear {{hotelContact}},
+
+I am writing about {{guestFullName}}{{guestEmailParen}} for {{eventName}}. While reviewing guest records we found an issue to confirm:
+
+──────────────────────
+Guest: {{guestFullName}}
+Flight arrival: {{flightArrival}}{{arrivalTimeTail}}{{flightInTail}}
+Hotel check-in: {{checkIn}} at {{hotel}}
+Hotel check-out: {{checkOut}}
+Flight departure: {{flightDeparture}}{{departureTimeTail}}{{flightOutTail}}
+
+Issue: {{issueSummary}}
+──────────────────────
+
+Could you confirm the correct booking details at your earliest convenience? Thank you.
+
+Warm regards,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  travel: `Dear {{travelContact}},
+
+I am writing about the itinerary for {{guestFullName}}{{guestEmailParen}} for {{eventName}}. While reviewing guest records we found something to confirm:
+
+──────────────────────
+Guest: {{guestFullName}}
+Inbound: {{flightArrival}}{{arrivalTimeTail}} into {{arrivalAirport}}{{flightInTail}}
+Hotel check-in: {{checkIn}} at {{hotel}}
+Hotel check-out: {{checkOut}}
+Outbound: {{flightDeparture}}{{departureTimeTail}} from {{departureAirport}}{{flightOutTail}}
+
+Issue: {{issueSummary}}
+──────────────────────
+
+Please advise on the correct details and any changes needed. Thank you.
+
+Warm regards,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  car: `Dear {{carContact}},
+
+I am writing about the ground transfer for {{guestFullName}}{{guestEmailParen}} for {{eventName}}. While reviewing guest records we found something to confirm:
+
+──────────────────────
+Guest: {{guestFullName}}
+Flight arrival: {{flightArrival}}{{arrivalTimeTail}}{{flightInTail}}
+Car pickup: {{carPickup}}
+Car dropoff: {{carDropoff}}
+Flight departure: {{flightDeparture}}{{departureTimeTail}}{{flightOutTail}}
+
+Issue: {{issueSummary}}
+──────────────────────
+
+Could you confirm the transfer times are correct, or let us know if they need adjusting? Thank you.
+
+Warm regards,
+{{plannerName}}
+{{eventName}} Planning Team`,
+};
+// Per-template vendor bodies. When a built-in template needs a message tailored beyond the
+// generic per-audience VENDOR_BODY, its id maps to a specific body here and takes precedence.
+const VENDOR_BODY_OVERRIDE = {
+  arrives_late: `Dear {{hotelContact}},
+
+I am writing about a late arrival for {{guestFullName}}{{guestEmailParen}}, a confirmed guest for {{eventName}}. Their travel is scheduled to arrive later in the evening, potentially after your standard check-in cutoff:
+
+──────────────────────
+Guest: {{guestFullName}}
+Room / confirmation: {{room}}
+Hotel check-in: {{checkIn}} at {{hotel}}
+Expected arrival: {{expectedArrival}}
+──────────────────────
+
+Please hold the room for a late arrival so it is not released if the guest has not checked in by your standard cutoff. Kindly confirm the room will be held.
+
+Thank you very much.
+
+Warm regards,
+{{plannerName}}
+{{eventName}} Planning Team`,
+};
 
 // Build version — bump this whenever code is deployed so you can confirm at a glance which build is live.
 const APP_VERSION = "v9.5 · Jun 2026";
