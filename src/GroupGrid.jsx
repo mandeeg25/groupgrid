@@ -554,6 +554,28 @@ Warmly,
 {{plannerName}}
 {{eventName}} Planning Team`,
   },
+  abstract_reminder: {
+    id: "abstract_reminder",
+    label: "Submitted Abstract, Not Registered",
+    icon: "📝",
+    color: P.purple,
+    description: "Submitted an abstract but has not completed registration",
+    subject: "{{eventName}} [Registration]: Please complete your registration",
+    body: `Hi {{guestName}},
+
+Thank you for submitting an abstract for {{eventName}}. We do not yet see a completed registration for you:
+
+──────────────────────
+Abstract: on file
+Registration: Not on file
+──────────────────────
+
+What we need: please complete your registration so we can confirm your spot and, if you are presenting, coordinate your travel. If you have already registered, just reply and we will check.
+
+Warmly,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  },
   general_confirmation: {
     id: "general_confirmation",
     label: "General Travel Confirmation",
@@ -669,6 +691,7 @@ function getApplicableTemplates(record) {
   if (issues.some(x => x.type === "airport")) applicable.push("wrong_airport");
   if (issues.some(x => x.type === "earlyarrival") && !applicable.includes("arrives_early")) applicable.push("arrives_early");
   if (issues.some(x => x.type === "latearrival")) applicable.push("arrives_late");
+  if (issues.some(x => x.type === "abstract_unreg")) applicable.push("abstract_reminder");
   return applicable;
 }
 
@@ -687,6 +710,7 @@ const TEMPLATE_AUDIENCE = {
   missing_transfer:   "car",
   car_mismatch:       "car",
   needs_registration: "guest",
+  abstract_reminder: "guest",
   general_confirmation: "guest",
 };
 // Group the comms by what they are about, so hotel/flight/car messages sit together.
@@ -701,6 +725,7 @@ const TEMPLATE_CATEGORY = {
   missing_transfer:   "Car Transfer",
   car_mismatch:       "Car Transfer",
   needs_registration: "Registration & Confirmation",
+  abstract_reminder: "Registration & Confirmation",
   general_confirmation: "Registration & Confirmation",
 };
 const CATEGORY_ORDER = ["Hotel", "Flight", "Car Transfer", "Registration & Confirmation", "Custom"];
@@ -716,6 +741,7 @@ const TEMPLATE_ICON_KEY = {
   missing_transfer:   "car",
   car_mismatch:       "car",
   needs_registration: "people",
+  abstract_reminder: "people",
   general_confirmation: "cleared",
 };
 const TEMPLATE_ICONS = { hotel: HotelIcon, plane: PlaneIcon, car: CarIcon, flag: FlagIcon, calendar: CalendarIcon, people: PeopleIcon, cleared: ClearedIcon };
@@ -1025,6 +1051,9 @@ function parseCarSheet(wb) {
 function parseDietarySheet(wb) {
   return parseSheet(wb, { name:["name","attendee","guest","passenger"], email:["email","e-mail","email address"], dietary:["dietary","diet","food","restriction","allergy","allergies"], accessibility:["accessibility","access","mobility","accommodation","disability","special need"], specialNotes:["notes","special","request","other","additional"] });
 }
+function parseAbstractSheet(wb) {
+  return parseSheet(wb, { name:["name","author","presenter","speaker","submitter","attendee"], email:["email","e-mail","email address"], title:["abstract title","title","abstract","paper","session","topic","presentation"], status:["status","decision","accepted","review status","outcome"] });
+}
 function parseRegistrationSheet(wb) {
   return parseSheet(wb, {
     name:["name","attendee","registrant","guest","participant"],
@@ -1042,24 +1071,27 @@ function parseRegistrationSheet(wb) {
     regNotes:["notes","note","registration notes","reg notes","comments","comment","special requests","remark","remarks","exception","exceptions","approval","approvals","approved"],
     reason:["reason","justification","exception reason","no travel reason","opt out reason","explanation"],
     assignedHotel:["assigned hotel","hotel assignment","assigned property","designated hotel","hotel block","room block","expected hotel"],
+    attendeeType:["attendee type","attendeetype","registrant type","segment","category","audience","type"],
   });
 }
 
-function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registration) {
+function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registration, abstracts) {
   registration = registration || [];
+  abstracts = abstracts || [];
   const hasReg = registration.length > 0;
+  const hasAbstracts = abstracts.length > 0;
   const hasFlights = flights.length > 0;
   const hasHotels = hotels.length > 0;
-  const { arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, lateArrivalCutoff } = aw || {};
+  const { arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, lateArrivalCutoff, typeRules } = aw || {};
   const mkMaps = (arr) => { const byE = new Map(), byN = new Map(); arr.forEach(x => { if (x.email) byE.set(x.email, x); const k = normName(x.name); if (k) byN.set(k, x); }); return [byE, byN]; };
-  const [fByE, fByN] = mkMaps(flights), [hByE, hByN] = mkMaps(hotels), [cByE, cByN] = mkMaps(cars), [dByE, dByN] = mkMaps(dietary), [rByE, rByN] = mkMaps(registration);
-  const allLists = [...flights,...hotels,...cars,...dietary,...registration];
+  const [fByE, fByN] = mkMaps(flights), [hByE, hByN] = mkMaps(hotels), [cByE, cByN] = mkMaps(cars), [dByE, dByN] = mkMaps(dietary), [rByE, rByN] = mkMaps(registration), [abByE, abByN] = mkMaps(abstracts);
+  const allLists = [...flights,...hotels,...cars,...dietary,...registration,...abstracts];
   const emailKeys = new Set(allLists.map(x => x.email).filter(Boolean));
   const nameKeys = new Set(allLists.map(x => normName(x.name)).filter(Boolean));
   const emailMatchedNames = new Set();
-  emailKeys.forEach(ek => [fByE.get(ek),hByE.get(ek),cByE.get(ek),dByE.get(ek),rByE.get(ek)].forEach(r => { if (r) emailMatchedNames.add(normName(r.name)); }));
+  emailKeys.forEach(ek => [fByE.get(ek),hByE.get(ek),cByE.get(ek),dByE.get(ek),rByE.get(ek),abByE.get(ek)].forEach(r => { if (r) emailMatchedNames.add(normName(r.name)); }));
   const dupSources = new Map();
-  [flights,hotels,cars,dietary,registration].forEach(list => {
+  [flights,hotels,cars,dietary,registration,abstracts].forEach(list => {
     const seen = new Map();
     list.forEach(x => { const k = normName(x.name); if (!k) return; if (!seen.has(k)) seen.set(k, []); seen.get(k).push(x.source || ""); });
     seen.forEach((srcs, k) => { if (srcs.length > 1) { if (!dupSources.has(k)) dupSources.set(k, new Set()); srcs.forEach(sc => { if (sc) dupSources.get(k).add(sc); }); } });
@@ -1091,9 +1123,9 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
     return true;
   };
 
-  function build(flight, hotel, car, diet, key, matchedBy, reg) {
-    const displayName = reg?.name || flight?.name || hotel?.name || car?.name || diet?.name || key;
-    const email = reg?.email || flight?.email || hotel?.email || car?.email || diet?.email || "";
+  function build(flight, hotel, car, diet, key, matchedBy, reg, abstract) {
+    const displayName = reg?.name || flight?.name || hotel?.name || car?.name || diet?.name || abstract?.name || key;
+    const email = reg?.email || flight?.email || hotel?.email || car?.email || diet?.email || abstract?.email || "";
     const metaKey = email || key;
     const existing = existingMeta?.[metaKey] || {};
     const issues = [];
@@ -1190,6 +1222,27 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
     const depAptList = (departureAirports && departureAirports.length) ? departureAirports : preferredAirports;
     if (arrApt && isWrongAirport(arrApt, preferredAirports)) issues.push({ type:"airport", text:`Arrives at ${arrApt.toUpperCase()} (not a preferred airport)` });
     if (depApt && depApt !== arrApt && isWrongAirport(depApt, depAptList)) issues.push({ type:"airport", text:`Departs from ${depApt.toUpperCase()} (not a preferred airport)` });
+    // Attendee-type arrival-day rules (e.g., International arrives Sunday, Domestic Monday). VIP = no rule.
+    if (typeRules && typeRules.length && reg && reg.attendeeType) {
+      const gt = String(reg.attendeeType).trim().toLowerCase();
+      const rule = typeRules.find(r => r.type && String(r.type).trim().toLowerCase() === gt && ((r.day !== "" && r.day !== "date" && r.day != null) || (r.day === "date" && r.date)));
+      const arrD = flight?.flightArrival || hotel?.checkIn || reg?.regCheckIn;
+      if (rule && arrD) {
+        if (rule.day === "date") {
+          const want = parseDate(rule.date);
+          if (want && diffDays(arrD, want) !== 0) issues.push({ type:"typerule", text:`${reg.attendeeType} should arrive ${fmt(want)}, arrives ${fmt(arrD)}` });
+        } else {
+          const DN = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+          const actual = arrD.getDay();
+          if (actual !== +rule.day) issues.push({ type:"typerule", text:`${reg.attendeeType} should arrive ${DN[+rule.day]}, arrives ${DN[actual]} (${fmt(arrD)})` });
+        }
+      }
+    }
+    // Abstract submitters who never registered (association speaker/presenter follow-up).
+    if (hasReg && hasAbstracts && abstract && !reg) {
+      const accepted = /accept/i.test(abstract.status || "");
+      issues.push({ type:"abstract_unreg", text: accepted ? "Accepted abstract but not registered" : "Submitted an abstract but not registered" });
+    }
     if (dupNames.has(normName(displayName))) { const _srcs = [...(dupSources.get(normName(displayName)) || [])]; issues.push({ type:"duplicate", text: _srcs.length ? `Appears in multiple files (${_srcs.join(", ")})` : "Appears in more than one file" }); }
     const seen = new Set(); const uniqueIssues = issues.filter(x => { if (seen.has(x.text)) return false; seen.add(x.text); return true; });
     // Notes from the registration file are informational only. Flags are cleared in-app with Resolve.
@@ -1198,14 +1251,14 @@ function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, registrati
     const active = uniqueIssues.filter(x => !resolved.includes(x.text));
     const status = active.length === 0 ? "ok" : active.length === 1 ? "warn" : "error";
     const { firstName, lastName } = splitName(displayName);
-    const resolvedFirstName = reg?.firstName || flight?.firstName || hotel?.firstName || car?.firstName || diet?.firstName || firstName;
-    const resolvedLastName  = reg?.lastName  || flight?.lastName  || hotel?.lastName  || car?.lastName  || diet?.lastName  || lastName;
-    return { key, displayName, firstName:resolvedFirstName, lastName:resolvedLastName, email, matchedBy, flight, hotel, car, diet, reg, registered: !!reg, issues:uniqueIssues, status, details, note: fileNote || existing.note || "", noteBy: existing.noteBy || "", noteAt: existing.noteAt || "", resolved };
+    const resolvedFirstName = reg?.firstName || flight?.firstName || hotel?.firstName || car?.firstName || diet?.firstName || abstract?.firstName || firstName;
+    const resolvedLastName  = reg?.lastName  || flight?.lastName  || hotel?.lastName  || car?.lastName  || diet?.lastName  || abstract?.lastName  || lastName;
+    return { key, displayName, firstName:resolvedFirstName, lastName:resolvedLastName, email, matchedBy, flight, hotel, car, diet, reg, abstract, registered: !!reg, issues:uniqueIssues, status, details, note: fileNote || existing.note || "", noteBy: existing.noteBy || "", noteAt: existing.noteAt || "", resolved };
   }
 
   const results = [];
-  emailKeys.forEach(ek => results.push(build(fByE.get(ek)||null, hByE.get(ek)||null, cByE.get(ek)||null, dByE.get(ek)||null, ek, "email", rByE.get(ek)||null)));
-  nameKeys.forEach(nk => { if (emailMatchedNames.has(nk)) return; results.push(build(fByN.get(nk)||null, hByN.get(nk)||null, cByN.get(nk)||null, dByN.get(nk)||null, nk, "name", rByN.get(nk)||null)); });
+  emailKeys.forEach(ek => results.push(build(fByE.get(ek)||null, hByE.get(ek)||null, cByE.get(ek)||null, dByE.get(ek)||null, ek, "email", rByE.get(ek)||null, abByE.get(ek)||null)));
+  nameKeys.forEach(nk => { if (emailMatchedNames.has(nk)) return; results.push(build(fByN.get(nk)||null, hByN.get(nk)||null, cByN.get(nk)||null, dByN.get(nk)||null, nk, "name", rByN.get(nk)||null, abByN.get(nk)||null)); });
   return results;
 }
 
@@ -4240,13 +4293,64 @@ const TEMPLATE_DEFS = {
     ["Name","Email","Dietary Restriction","Notes"],
     ["Jane Doe","jane.doe@example.com","Vegetarian","No nuts"],
   ]},
+  abstract: { file:"GroupGrid_Abstract_Template.xlsx", sheet:"Abstracts", rows:[
+    ["Name","Email","Abstract Title","Status"],
+    ["Jane Doe","jane.doe@example.com","Trends in Cyber Resilience","Accepted"],
+  ]},
 };
-function downloadTemplate(type) {
-  const def = TEMPLATE_DEFS[type]; if (!def) return;
+function buildTemplateXlsx(def) {
   const ws = XLSX.utils.aoa_to_sheet(def.rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, def.sheet);
-  XLSX.writeFile(wb, def.file);
+  return wb;
+}
+function downloadTemplate(type) {
+  const def = TEMPLATE_DEFS[type]; if (!def) return;
+  XLSX.writeFile(buildTemplateXlsx(def), def.file);
+}
+// Minimal in-browser ZIP writer (store method, no external dependency) so every upload
+// template can be downloaded together in a single .zip.
+function gg_crc32(bytes) {
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) {
+    crc ^= bytes[i];
+    for (let k = 0; k < 8; k++) crc = (crc & 1) ? (crc >>> 1) ^ 0xEDB88320 : crc >>> 1;
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+function gg_makeZip(files) {
+  const enc = new TextEncoder();
+  const u16 = n => [n & 0xFF, (n >>> 8) & 0xFF];
+  const u32 = n => [n & 0xFF, (n >>> 8) & 0xFF, (n >>> 16) & 0xFF, (n >>> 24) & 0xFF];
+  const parts = [], central = []; let offset = 0;
+  files.forEach(f => {
+    const name = enc.encode(f.name), crc = gg_crc32(f.data), size = f.data.length;
+    const local = Uint8Array.from([].concat(u32(0x04034b50), u16(20), u16(0), u16(0), u16(0), u16(0), u32(crc), u32(size), u32(size), u16(name.length), u16(0)));
+    parts.push(local, name, f.data);
+    central.push(Uint8Array.from([].concat(u32(0x02014b50), u16(20), u16(20), u16(0), u16(0), u16(0), u16(0), u32(crc), u32(size), u32(size), u16(name.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset))), name);
+    offset += local.length + name.length + size;
+  });
+  const cdStart = offset; let cdSize = 0;
+  central.forEach(c => { parts.push(c); cdSize += c.length; });
+  parts.push(Uint8Array.from([].concat(u32(0x06054b50), u16(0), u16(0), u16(files.length), u16(files.length), u32(cdSize), u32(cdStart), u16(0))));
+  let total = 0; parts.forEach(p => total += p.length);
+  const out = new Uint8Array(total); let pos = 0;
+  parts.forEach(p => { out.set(p, pos); pos += p.length; });
+  return out;
+}
+function downloadAllTemplates() {
+  const types = ["registration", "flight", "hotel", "car", "abstract"].concat(SHOW_DIETARY ? ["dietary"] : []);
+  const files = types.map(t => {
+    const def = TEMPLATE_DEFS[t];
+    const data = new Uint8Array(XLSX.write(buildTemplateXlsx(def), { type: "array", bookType: "xlsx" }));
+    return { name: def.file, data };
+  });
+  const blob = new Blob([gg_makeZip(files)], { type: "application/zip" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "GroupGrid_Upload_Templates.zip";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
 // ── PDF table extraction (beta) ───────────────────────────────────────────────
@@ -4399,17 +4503,18 @@ function SetupScreen({
   arrivalCutoff, setArrivalCutoff,
   departureCutoff, setDepartureCutoff,
   lateArrivalCutoff, setLateArrivalCutoff,
+  typeRules, setTypeRules,
   contacts, setContacts, setContactsOpen,
   registrationFile, setRegistrationFile, flightFile, setFlightFile, hotelFile, setHotelFile,
   hotelProperty, setHotelProperty, extraHotels, setExtraHotels,
   extraFlights, setExtraFlights, extraCars, setExtraCars, extraReg, setExtraReg, extraDietary, setExtraDietary,
-  carFile, setCarFile, dietaryFile, setDietaryFile,
+  carFile, setCarFile, dietaryFile, setDietaryFile, abstractFile, setAbstractFile,
   ready, loading, error, runCheck, isMobile, isReRun
 }) {
   const hasName = !!(projectName && projectName.trim());
   const canRun = hasName && ready && !loading;
   const hasContacts = contacts && (contacts.hotel?.email || contacts.travel?.email || contacts.car?.email);
-  const anyTravel = !!(arrivalStart || arrivalEnd || departureStart || departureEnd || arrivalCutoff || departureCutoff || lateArrivalCutoff || preferredAirports || departureAirports);
+  const anyTravel = !!(arrivalStart || arrivalEnd || departureStart || departureEnd || arrivalCutoff || departureCutoff || lateArrivalCutoff || (typeRules && typeRules.length) || preferredAirports || departureAirports);
   const updateContact = (group, field, val) => setContacts(prev => ({ ...prev, [group]: { ...prev[group], [field]: val } }));
   const [optionalOpen, setOptionalOpen] = useState(false);
   const optionalCount = (anyTravel ? 1 : 0) + (hasContacts ? 1 : 0);
@@ -4555,6 +4660,47 @@ function SetupScreen({
           <span style={{ flexShrink:0, marginTop:"1px" }}><FlagIcon size={14} line={P.amber} accent={P.amber} /></span>
           <span><strong style={{ color:P.navyLight, fontWeight:600 }}>Flags</strong> departures outside the window, before your earliest time, or from other airports.</span>
         </div>
+
+        {/* Arrival rules by attendee type */}
+        <div style={{ marginTop:"18px", paddingTop:"14px", borderTop:`1px solid ${P.grey100}` }}>
+          <div style={{ display:"flex", alignItems:"center", gap:"9px", marginBottom:"6px" }}>
+            <PeopleIcon size={18} line={P.periwinkleD} accent={P.accent} />
+            <span style={{ fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font }}>Arrival rules by attendee type</span>
+          </div>
+          <div style={{ fontSize:"12.5px", color:P.grey600, fontFamily:font, marginBottom:"12px", lineHeight:1.5 }}>Set an expected arrival day per attendee type, for example International and Speakers arrive Sunday, Domestic arrives Monday. Leave a type off the list, or set it to Any day, for no rule (like VIPs). The type must be a column in your registration list.</div>
+          {typeRules.map(r => (
+            <div key={r.id} style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"8px", flexWrap:"wrap" }}>
+              <input value={r.type} onChange={e => setTypeRules(prev => prev.map(x => x.id===r.id ? { ...x, type:e.target.value } : x))} placeholder="Attendee type (e.g. International)"
+                style={{ flex:"1 1 180px", minWidth:0, background:P.grey50, border:`1.5px solid ${r.type?P.accent+"66":P.grey100}`, borderRadius:"9px", padding:"9px 12px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+              <select value={r.day} onChange={e => setTypeRules(prev => prev.map(x => x.id===r.id ? { ...x, day:e.target.value } : x))}
+                style={{ flex:"0 0 160px", background:P.white, border:`1.5px solid ${P.grey200}`, borderRadius:"9px", padding:"9px 10px", fontSize:"14px", fontWeight:600, color:P.navy, fontFamily:font, cursor:"pointer", outline:"none" }}>
+                <option value="">Any day (no rule)</option>
+                <option value="0">Arrives Sunday</option>
+                <option value="1">Arrives Monday</option>
+                <option value="2">Arrives Tuesday</option>
+                <option value="3">Arrives Wednesday</option>
+                <option value="4">Arrives Thursday</option>
+                <option value="5">Arrives Friday</option>
+                <option value="6">Arrives Saturday</option>
+                <option value="date">Arrives on exact date…</option>
+              </select>
+              {r.day === "date" && (
+                <input type="date" value={r.date || ""} onChange={e => setTypeRules(prev => prev.map(x => x.id===r.id ? { ...x, date:e.target.value } : x))}
+                  style={{ flex:"0 0 150px", background:P.grey50, border:`1.5px solid ${r.date?P.accent+"66":P.grey100}`, borderRadius:"9px", padding:"9px 10px", fontSize:"14px", color:P.navy, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+              )}
+              <button type="button" onClick={() => setTypeRules(prev => prev.filter(x => x.id!==r.id))} title="Remove rule"
+                style={{ background:"transparent", border:"none", color:P.grey600, cursor:"pointer", flexShrink:0, padding:"4px" }}><X size={16} strokeWidth={1.8}/></button>
+            </div>
+          ))}
+          <button type="button" onClick={() => setTypeRules(prev => [...prev, { id:Date.now(), type:"", day:"" }])}
+            style={{ display:"inline-flex", alignItems:"center", gap:"6px", background:"transparent", border:"none", color:P.accentD, fontSize:"13px", fontWeight:600, fontFamily:font, cursor:"pointer", padding:"4px 0", marginTop:"2px" }}>
+            <Plus size={14} strokeWidth={2}/> Add an attendee-type rule
+          </button>
+          <div style={{ display:"flex", gap:"8px", alignItems:"flex-start", fontSize:"13px", color:P.grey600, fontFamily:font, lineHeight:1.5, background:P.amber+"12", borderRadius:"9px", padding:"9px 12px", marginTop:"12px" }}>
+            <span style={{ flexShrink:0, marginTop:"1px" }}><FlagIcon size={14} line={P.amber} accent={P.amber} /></span>
+            <span><strong style={{ color:P.navyLight, fontWeight:600 }}>Flags</strong> anyone whose arrival day does not match the rule for their attendee type.</span>
+          </div>
+        </div>
       </div>
 
       {/* ── Box 3 · Contact details (expanded inline) ── */}
@@ -4592,7 +4738,13 @@ function SetupScreen({
       <div style={{ order:2, background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", marginBottom:"14px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)", opacity: hasName ? 1 : 0.55, pointerEvents: hasName ? "auto" : "none", transition:"opacity 0.2s" }}>
         <div style={{ fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Step 2 · Upload files {!hasName && <span style={{ fontSize:"13px", fontWeight:400, color:P.grey600 }}>· name your project first</span>}</div>
         <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font, marginBottom:"14px" }}>Upload whatever you have — registration, flights, hotels, cars. GroupGrid cross-checks any 2 or more. Excel or CSV. Hover a tile for expected columns.</div>
-        <div style={{ fontSize:"13px", fontWeight:500, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>Upload any 2 or more</div>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:"10px", flexWrap:"wrap", marginBottom:"12px" }}>
+          <span style={{ fontSize:"13px", fontWeight:500, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em" }}>Upload any 2 or more</span>
+          <button type="button" onClick={downloadAllTemplates}
+            style={{ display:"inline-flex", alignItems:"center", gap:"6px", background:P.accent+"14", border:`1px solid ${P.accent}55`, borderRadius:"8px", padding:"6px 12px", fontSize:"13px", fontWeight:600, color:P.accentD, fontFamily:font, cursor:"pointer" }}>
+            <Download size={14} strokeWidth={1.8}/> Download all templates (.zip)
+          </button>
+        </div>
         <div className="gg-setup-tiles3" style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"10px", marginBottom:"14px" }}>
           <SetupTile label="Registration List" sub="Best anchor" icon={<PeopleIcon size={20} />} accent={P.accentD} file={registrationFile} setter={setRegistrationFile} templateType="registration" recommended columns={["First/Last Name (or Name)","Email","Company / Job Title (opt)","Requested Check-In / Out (opt)","Flight / Hotel Request (opt)"]} />
           <SetupTile label="Flight Manifest" sub=".xlsx, .csv, .pdf" icon={<PlaneIcon size={20} />} accent={P.periwinkleD} file={flightFile} setter={setFlightFile} templateType="flight" columns={["First/Last Name (or Name)","Email (opt)","Arrival Date","Departure Date","Flight # (opt)"]} />
@@ -4635,6 +4787,7 @@ function SetupScreen({
         <div style={{ fontSize:"13px", fontWeight:500, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"12px" }}>More files</div>
         <div className="gg-setup-tiles2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px" }}>
           <SetupTile label="Car Transfers" sub=".xlsx, .csv, .pdf" icon={<CarIcon size={20} />} accent={P.grey600} file={carFile} setter={setCarFile} templateType="car" columns={["First/Last Name (or Name)","Email (opt)","Pickup Date","Dropoff Date","Pickup Location (opt)"]} />
+          <SetupTile label="Abstract Submissions" sub=".xlsx, .csv, .pdf" icon={<SpreadsheetIcon size={20} />} accent={P.purple} file={abstractFile} setter={setAbstractFile} templateType="abstract" columns={["First/Last Name (or Name)","Email","Abstract Title (opt)","Status (opt)"]} />
           {SHOW_DIETARY && <SetupTile label="Dietary & Access" sub=".xlsx, .csv, .pdf" icon={<Salad size={20} strokeWidth={1.8} color="#0D9E6E"/>} accent={P.teal} file={dietaryFile} setter={setDietaryFile} templateType="dietary" columns={["First/Last Name (or Name)","Email (opt)","Dietary Restrictions","Accessibility Needs","Special Notes (opt)"]} />}
         </div>
         <ExtraUploads show={!!carFile} items={extraCars} setItems={setExtraCars} Icon={Car} color={P.grey600} />
@@ -4728,6 +4881,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
   const [extraDietary, setExtraDietary] = useState([]);
   const [carFile, setCarFile] = useState(null);
   const [dietaryFile, setDietaryFile] = useState(null);
+  const [abstractFile, setAbstractFile] = useState(null);
   const [registrationFile, setRegistrationFile] = useState(null);
   const [results, setResults] = useState(null);
   const [timeFormat, setTimeFormat] = useState("ampm"); // "ampm" | "24hr"
@@ -4746,6 +4900,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
   const [arrivalCutoff, setArrivalCutoff] = useState(""); // "HH:MM" — early-arrival cutoff; empty = off
   const [departureCutoff, setDepartureCutoff] = useState(""); // "HH:MM" — earliest allowed departure time; empty = off
   const [lateArrivalCutoff, setLateArrivalCutoff] = useState("22:30"); // "HH:MM" — flag arrivals after this as possible late arrivals; empty = off
+  const [typeRules, setTypeRules] = useState([]); // [{ id, type, day }] — day is "0".."6" (Sun..Sat) or "" for no rule
   const [lastRunSig, setLastRunSig] = useState(""); // snapshot of params at last run, to detect post-run edits
   const [eventName, setEventName] = useState("");
   const [projectName, setProjectName] = useState(""); // internal save label, distinct from eventName (used in comms)
@@ -4856,7 +5011,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
   // (the old bug: every note/date change reset the 60s countdown, so it rarely fired).
   const autosaveData = useRef({});
   useEffect(() => {
-    autosaveData.current = { results, meta, projectName, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, lateArrivalCutoff, storageKey };
+    autosaveData.current = { results, meta, projectName, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, lateArrivalCutoff, typeRules, storageKey };
   }, [results, meta, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, storageKey]);
 
   useEffect(() => {
@@ -4871,7 +5026,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
           name: d.projectName || d.eventName || `Session ${new Date().toLocaleDateString()}`,
           date: new Date().toISOString(),
           meta: d.meta, projectName: d.projectName, eventName: d.eventName, arrivalStart: d.arrivalStart, arrivalEnd: d.arrivalEnd, departureStart: d.departureStart, departureEnd: d.departureEnd,
-          preferredAirports: d.preferredAirports, departureAirports: d.departureAirports, arrivalCutoff: d.arrivalCutoff, departureCutoff: d.departureCutoff, lateArrivalCutoff: d.lateArrivalCutoff,
+          preferredAirports: d.preferredAirports, departureAirports: d.departureAirports, arrivalCutoff: d.arrivalCutoff, departureCutoff: d.departureCutoff, lateArrivalCutoff: d.lateArrivalCutoff, typeRules: d.typeRules,
           guestCount: d.results.length,
           issueCount: d.results.filter(r => r.status !== "ok").length,
           autoSaved: true,
@@ -4912,7 +5067,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
     if (uploadedCount < 2) return;
     setLoading(true); setError(null); setExpanded(null);
     try {
-      let flights = [], hotels = [], cars = [], dietary = [], registration = [];
+      let flights = [], hotels = [], cars = [], dietary = [], registration = [], abstracts = [];
       if (flightFile)       { const w = await readXlsx(flightFile);       flights = tagSrc(parseFlightSheet(w), flightFile.name); }
       for (const ex of extraFlights) { if (ex.file) { const w = await readXlsx(ex.file); flights = flights.concat(tagSrc(parseFlightSheet(w), ex.source || ex.file.name)); } }
       if (hotelFile)        { const w = await readXlsx(hotelFile);        hotels = tagSrc(parseHotelSheetTagged(w, hotelProperty), hotelProperty || hotelFile.name); }
@@ -4923,10 +5078,11 @@ function GroupGrid({ user, onLogin, onLogout }) {
       for (const ex of extraDietary) { if (ex.file) { const w = await readXlsx(ex.file); dietary = dietary.concat(tagSrc(parseDietarySheet(w), ex.source || ex.file.name)); } }
       if (registrationFile) { const w = await readXlsx(registrationFile); registration = tagSrc(parseRegistrationSheet(w), registrationFile.name); }
       for (const ex of extraReg) { if (ex.file) { const w = await readXlsx(ex.file); registration = registration.concat(tagSrc(parseRegistrationSheet(w), ex.source || ex.file.name)); } }
-      const aw = { arrivalStart:parseDate(arrivalStart), arrivalEnd:parseDate(arrivalEnd), departureStart:parseDate(departureStart), departureEnd:parseDate(departureEnd), preferredAirports: preferredAirports.split(",").map(s=>s.trim()).filter(Boolean), departureAirports: departureAirports.split(",").map(s=>s.trim()).filter(Boolean), arrivalCutoff, departureCutoff, lateArrivalCutoff };
-      const allResults = crossMatch(flights, hotels, cars, dietary, aw, meta, registration);
+      if (abstractFile)     { const w = await readXlsx(abstractFile);     abstracts = tagSrc(parseAbstractSheet(w), abstractFile.name); }
+      const aw = { arrivalStart:parseDate(arrivalStart), arrivalEnd:parseDate(arrivalEnd), departureStart:parseDate(departureStart), departureEnd:parseDate(departureEnd), preferredAirports: preferredAirports.split(",").map(s=>s.trim()).filter(Boolean), departureAirports: departureAirports.split(",").map(s=>s.trim()).filter(Boolean), arrivalCutoff, departureCutoff, lateArrivalCutoff, typeRules };
+      const allResults = crossMatch(flights, hotels, cars, dietary, aw, meta, registration, abstracts);
       setResults(allResults); setShowSetup(false);
-      setLastRunSig(JSON.stringify({ arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, lateArrivalCutoff, eventName }));
+      setLastRunSig(JSON.stringify({ arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, lateArrivalCutoff, typeRules, eventName }));
     } catch (err) { setError("Could not read files: " + err.message); }
     setLoading(false);
   }
@@ -4951,7 +5107,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
 
   function saveSession() {
     if (!results) return;
-    const session = { id:Date.now(), name:(projectName||eventName)||`Session ${new Date().toLocaleDateString()}`, date:new Date().toISOString(), meta, projectName, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, lateArrivalCutoff, guestCount:results.length, issueCount:results.filter(r=>r.status!=="ok").length, results };
+    const session = { id:Date.now(), name:(projectName||eventName)||`Session ${new Date().toLocaleDateString()}`, date:new Date().toISOString(), meta, projectName, eventName, arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, lateArrivalCutoff, typeRules, guestCount:results.length, issueCount:results.filter(r=>r.status!=="ok").length, results };
     const next = [session, ...savedSessions.filter(s => s.name !== session.name)].slice(0, 50);
     setSavedSessions(next);
     try {
@@ -5442,14 +5598,16 @@ function GroupGrid({ user, onLogin, onLogout }) {
     if (filter === "airport") return r.issues.some(x => x.type === "airport");
     if (filter === "earlyarrival") return r.issues.some(x => x.type === "earlyarrival");
     if (filter === "earlydeparture") return r.issues.some(x => x.type === "earlydeparture");
+    if (filter === "abstractunreg") return r.issues.some(x => x.type === "abstract_unreg");
+    if (filter === "typerule") return r.issues.some(x => x.type === "typerule");
     if (["ok","warn","error"].includes(filter)) return r.status === filter;
     return true;
   });
 
-  const counts = results ? { total:results.length, ok:results.filter(r=>r.status==="ok").length, flagged:results.filter(r=>r.status!=="ok").length, warn:results.filter(r=>r.status==="warn").length, error:results.filter(r=>r.status==="error").length, missing:results.filter(r=>r.issues.some(x=>x.type==="missing")).length, window:results.filter(r=>r.issues.some(x=>x.type==="window")).length, mismatch:results.filter(r=>r.issues.some(x=>x.type==="mismatch")).length, duplicate:results.filter(r=>r.issues.some(x=>x.type==="duplicate")).length, unregistered:results.filter(r=>r.issues.some(x=>x.type==="unregistered")).length, airport:results.filter(r=>r.issues.some(x=>x.type==="airport")).length, earlyarrival:results.filter(r=>r.issues.some(x=>x.type==="earlyarrival")).length, earlydeparture:results.filter(r=>r.issues.some(x=>x.type==="earlydeparture")).length, dietary:results.filter(r=>r.diet?.dietary||r.diet?.accessibility).length } : null;
+  const counts = results ? { total:results.length, ok:results.filter(r=>r.status==="ok").length, flagged:results.filter(r=>r.status!=="ok").length, warn:results.filter(r=>r.status==="warn").length, error:results.filter(r=>r.status==="error").length, missing:results.filter(r=>r.issues.some(x=>x.type==="missing")).length, window:results.filter(r=>r.issues.some(x=>x.type==="window")).length, mismatch:results.filter(r=>r.issues.some(x=>x.type==="mismatch")).length, duplicate:results.filter(r=>r.issues.some(x=>x.type==="duplicate")).length, unregistered:results.filter(r=>r.issues.some(x=>x.type==="unregistered")).length, airport:results.filter(r=>r.issues.some(x=>x.type==="airport")).length, earlyarrival:results.filter(r=>r.issues.some(x=>x.type==="earlyarrival")).length, earlydeparture:results.filter(r=>r.issues.some(x=>x.type==="earlydeparture")).length, abstractunreg:results.filter(r=>r.issues.some(x=>x.type==="abstract_unreg")).length, typerule:results.filter(r=>r.issues.some(x=>x.type==="typerule")).length, dietary:results.filter(r=>r.diet?.dietary||r.diet?.accessibility).length } : null;
 
   const hasCars = results?.some(r => r.car);
-  const paramsDirty = !!results && !!lastRunSig && lastRunSig !== JSON.stringify({ arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, lateArrivalCutoff, eventName });
+  const paramsDirty = !!results && !!lastRunSig && lastRunSig !== JSON.stringify({ arrivalStart, arrivalEnd, departureStart, departureEnd, preferredAirports, departureAirports, arrivalCutoff, departureCutoff, lateArrivalCutoff, typeRules, eventName });
   const hasDiet = SHOW_DIETARY && results?.some(r => r.diet);
   const hasHotelNames = results?.some(r => r.hotel?.hotel && r.hotel.hotel.trim());
   const uploadedCount = [registrationFile, flightFile, hotelFile, carFile, dietaryFile].filter(Boolean).length + [...extraHotels, ...extraFlights, ...extraCars, ...extraReg, ...extraDietary].filter(h=>h.file).length;
@@ -5643,6 +5801,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
                         setArrivalCutoff(s.arrivalCutoff||"");
                         setDepartureCutoff(s.departureCutoff||"");
                         setLateArrivalCutoff(s.lateArrivalCutoff ?? "22:30");
+                        setTypeRules(s.typeRules || []);
                         if (s.results && s.results.length) { setResults(rehydrateResults(s.results)); setActiveTab("grid"); setFilter("all"); setExpanded(null); setShowSetup(false); }
                         else { setResults(null); setSaveMsg("This project was saved before full data was stored — re-upload its files to view it."); setTimeout(()=>setSaveMsg(""), 5000); }
                         if (isMobile) setSidebarOpen(false);
@@ -5871,6 +6030,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
             arrivalCutoff={arrivalCutoff} setArrivalCutoff={setArrivalCutoff}
             departureCutoff={departureCutoff} setDepartureCutoff={setDepartureCutoff}
             lateArrivalCutoff={lateArrivalCutoff} setLateArrivalCutoff={setLateArrivalCutoff}
+            typeRules={typeRules} setTypeRules={setTypeRules}
             isReRun={!!results}
             contacts={contacts} setContacts={setContacts} setContactsOpen={setContactsOpen}
             registrationFile={registrationFile} setRegistrationFile={setRegistrationFile}
@@ -5884,6 +6044,7 @@ function GroupGrid({ user, onLogin, onLogout }) {
             extraDietary={extraDietary} setExtraDietary={setExtraDietary}
             carFile={carFile} setCarFile={setCarFile}
             dietaryFile={dietaryFile} setDietaryFile={setDietaryFile}
+            abstractFile={abstractFile} setAbstractFile={setAbstractFile}
             ready={ready} loading={loading} error={error} runCheck={runCheck} isMobile={isMobile}
           />
         ) : (
@@ -6079,6 +6240,8 @@ function GroupGrid({ user, onLogin, onLogout }) {
                 { k:"mismatch",     l:"Date mismatch",  v:counts.mismatch,     c:P.red },
                 { k:"duplicate",    l:"Duplicate",      v:counts.duplicate,    c:"#C97A0A" },
                 { k:"unregistered", l:"Unregistered",   v:counts.unregistered, c:P.grey600 },
+                { k:"abstractunreg", l:"Abstract, not reg.", v:counts.abstractunreg, c:P.purple },
+                { k:"typerule",      l:"Wrong arrival day", v:counts.typerule,     c:P.periwinkleD },
               ].filter(card => ["all","ok","issues"].includes(card.k) || card.v > 0).map(({ k, l, v, c }) => {
                 const on = filter === k;
                 return (
