@@ -98,6 +98,20 @@ This becomes relevant once the "sync sessions to Supabase DB" TODO is acted on, 
 
 **Recommendation:** keep parsing client-side as it already is, and sync only the parsed JSON through the API — never raw file bytes. If raw files ever need to be persisted (e.g. audit trail), upload them directly to object storage (Supabase Storage / S3) via a signed URL issued by an API route, so bytes flow browser → storage directly and bypass the serverless function body entirely.
 
+## Staging environment (Vercel branch + Supabase project + Stripe test mode)
+
+The same `/api` functions serve both environments; only the env vars they read differ. No separate codebase or deployment mechanism is needed.
+
+**Vercel**
+- Assign a stable domain (e.g. `staging.groupgrid.app`, or the default `groupgrid-git-development-<team>.vercel.app` branch alias) to the `development` branch via Project Settings → Domains → Git branch. Every push redeploys that same URL.
+- Scope env vars by environment: live Supabase keys + live Stripe keys under **Production** (main branch only); staging Supabase keys + Stripe **test** keys under **Preview** (covers `development` and all other feature-branch preview deployments — check dashboard for "Custom Environments" support if you want `development` isolated from other preview branches specifically).
+
+**Supabase**
+- Separate Supabase project for staging: its own Postgres DB, its own Auth user pool (test signups stay out of production), its own anon/service-role keys. Apply the same Drizzle migrations to both projects to keep schemas in sync; use staging as the gate before promoting a migration to prod.
+
+**Stripe**
+- Use test mode, not a separate account: test-mode API keys (`sk_test_...`/`pk_test_...`), a second webhook endpoint registered in test mode pointed at the staging URL's `/api/stripe/webhook`, and Stripe's published test card numbers (`4242 4242 4242 4242`, etc.) for exercising checkout end-to-end with no real charges. Live and test mode data are fully isolated, so test subscriptions can never affect live access checks.
+
 ## Open questions to confirm with the client
 
 - Single subscription tier, or multiple plans/seats? Affects whether `priceId` alone is enough or a `products`/`plans` table is warranted.
