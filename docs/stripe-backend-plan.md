@@ -120,3 +120,4 @@ Revised from the original same-project plan: staging deploys to **our** Vercel a
 - Single subscription tier, or multiple plans/seats? Affects whether `priceId` alone is enough or a `products`/`plans` table is warranted.
 - Does the product need in-app billing history, or is Stripe's Customer Portal sufficient?
 - Any grandfathered/free-tier users to account for in the access-gating logic?
+- **What's the intent behind the HubSpot signup sync?** The original app fires a `fetch("/api/hubspot-upsert", ...)` on every signup with no backend behind it (currently commented out in `LoginPanel.jsx` — it was 405ing on every signup since deploying to staging surfaced it). Need to confirm with the client what this was meant to do (sync new accounts to a HubSpot list/CRM?) before building the real `/api/hubspot-upsert` function alongside the Stripe `/api` work.

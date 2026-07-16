@@ -45,16 +45,17 @@ export function LoginPanel({ onLogin, onClose }) {
       if (!sb) throw new Error("Auth not available. Please refresh and try again.");
       const { data, error: sbErr } = await sb.auth.signUp({
         email: email.trim(), password,
-        options: { data: { name: name.trim() } }
+        options: { data: { name: name.trim() }, emailRedirectTo: window.location.origin }
       });
       if (sbErr) throw sbErr;
-      // Sync the new signup to HubSpot via our serverless endpoint (token stays
-      // server-side). Fire-and-forget: never blocks or fails the signup.
-      fetch("/api/hubspot-upsert", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), name: name.trim() }),
-      }).catch(() => {});
+      // TODO: re-enable once the /api/hubspot-upsert backend function exists (see
+      // docs/stripe-backend-plan.md "Open questions" — needs client's HubSpot intent
+      // confirmed first). No /api route exists yet, so this was 405ing on every signup.
+      // fetch("/api/hubspot-upsert", {
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/json" },
+      //   body: JSON.stringify({ email: email.trim(), name: name.trim() }),
+      // }).catch(() => {});
       if (data.user && !data.session) {
         // Email confirmation required
         setSuccess("Check your inbox! We sent a confirmation link to " + email.trim() + ". Click it to activate your account.");
