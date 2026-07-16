@@ -3,6 +3,7 @@ name: Deploy Staging
 on:
   push:
     branches: [development]
+  workflow_dispatch: {} # manual "Run workflow" button — test from any branch without touching the push trigger
 
 jobs:
   deploy:
