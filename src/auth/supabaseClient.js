@@ -1,8 +1,9 @@
 // ── Supabase client ───────────────────────────────────────────────────────────
 // Loaded via CDN — no build step required.
 // Keys are safe to be public (publishable key + RLS enforces data isolation).
-const SUPABASE_URL = "https://ajabrqcbultkaszsycwh.supabase.co";
-const SUPABASE_KEY = "sb_publishable_yn6mJb93k85y5nrJJReQSA_M6iliVoD";
+// Set per environment: VITE_SUPABASE_URL / VITE_SUPABASE_KEY (publishable key only — never the secret key).
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY;
 
 let _supabase = null;
 export function getSupabase() {
