@@ -1,0 +1,44 @@
+import { pgTable, uuid, text, timestamp, boolean, jsonb, pgEnum } from "drizzle-orm/pg-core";
+
+export const subscriptionStatus = pgEnum("subscription_status", [
+  "trialing",
+  "active",
+  "past_due",
+  "canceled",
+  "unpaid",
+  "incomplete",
+  "incomplete_expired",
+  "paused",
+]);
+
+// One row per app user that has ever started checkout.
+// id = Supabase auth user id (uuid). Not a Drizzle-managed FK into
+// Supabase's `auth` schema — Drizzle doesn't migrate that schema, so this
+// is a logical reference only.
+export const customers = pgTable("customers", {
+  id: uuid("id").primaryKey(),
+  stripeCustomerId: text("stripe_customer_id").notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Single subscription tier for now (matches the current $250/mo pricing page,
+// one plan). Revisit if the client wants multiple tiers/seats later.
+export const subscriptions = pgTable("subscriptions", {
+  id: text("id").primaryKey(), // Stripe subscription id
+  customerId: uuid("customer_id").notNull().references(() => customers.id),
+  status: subscriptionStatus("status").notNull(),
+  priceId: text("price_id").notNull(),
+  currentPeriodEnd: timestamp("current_period_end").notNull(),
+  cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Idempotency log — Stripe can (and will) deliver the same webhook event
+// more than once. Check for an existing id before processing.
+export const webhookEvents = pgTable("webhook_events", {
+  id: text("id").primaryKey(), // Stripe event id
+  type: text("type").notNull(),
+  payload: jsonb("payload"),
+  processedAt: timestamp("processed_at").defaultNow().notNull(),
+});
