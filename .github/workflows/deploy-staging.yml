@@ -2,8 +2,10 @@ name: Deploy Staging
 
 on:
   push:
-    branches: [development]
-  workflow_dispatch: {} # manual "Run workflow" button — test from any branch without touching the push trigger
+    # TEMP: 3-setup-staging-vercel added only to test this pipeline before it merges to development.
+    # Remove it from this list once the test run succeeds — development should be the only trigger.
+    branches: [development, 3-setup-staging-vercel]
+  workflow_dispatch: {} # only usable once this trigger exists on the default branch (main) — not yet
 
 jobs:
   deploy:
