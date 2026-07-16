@@ -4,7 +4,7 @@ import { Users, Check, AlertTriangle, BarChart2, Circle, Calendar, AlertCircle, 
 import { P, font, fontDisplay } from "./theme";
 import { fmt, fmtTime, parseDate, rehydrateResults } from "./format";
 import { PAGE_PATHS, pathToPage, SHOW_DIETARY, APP_VERSION } from "./constants";
-import { BrandLogo, GridIcon, ClearedIcon, FlagIcon, CalendarIcon, PeopleIcon, CrossCheckIcon, SpreadsheetIcon } from "./icons";
+import { BrandLogo, GridIcon, ClearedIcon, FlagIcon, CalendarIcon, PeopleIcon, CrossCheckIcon, SpreadsheetIcon, PlaneIcon, HotelIcon, CarIcon } from "./icons";
 import { useIsMobile } from "./hooks";
 import { GlobalStyles } from "./GlobalStyles";
 import { parseFlightSheet, parseHotelSheetTagged, parseCarSheet, parseDietarySheet, parseRegistrationSheet, parseAbstractSheet } from "./parsing/parseSheets";
