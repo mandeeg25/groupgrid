@@ -98,16 +98,19 @@ This becomes relevant once the "sync sessions to Supabase DB" TODO is acted on, 
 
 **Recommendation:** keep parsing client-side as it already is, and sync only the parsed JSON through the API — never raw file bytes. If raw files ever need to be persisted (e.g. audit trail), upload them directly to object storage (Supabase Storage / S3) via a signed URL issued by an API route, so bytes flow browser → storage directly and bypass the serverless function body entirely.
 
-## Staging environment (Vercel branch + Supabase project + Stripe test mode)
+## Staging environment (separate Vercel account + GitHub Actions + Supabase project + Stripe test mode)
 
-The same `/api` functions serve both environments; only the env vars they read differ. No separate codebase or deployment mechanism is needed.
+Revised from the original same-project plan: staging deploys to **our** Vercel account, not the client's — the client's existing Vercel↔GitHub integration already auto-deploys `main` to their production project, so staging needed its own project entirely, driven by a GitHub Action rather than Vercel's git integration.
 
-**Vercel**
-- Assign a stable domain (e.g. `staging.groupgrid.app`, or the default `groupgrid-git-development-<team>.vercel.app` branch alias) to the `development` branch via Project Settings → Domains → Git branch. Every push redeploys that same URL.
-- Scope env vars by environment: live Supabase keys + live Stripe keys under **Production** (main branch only); staging Supabase keys + Stripe **test** keys under **Preview** (covers `development` and all other feature-branch preview deployments — check dashboard for "Custom Environments" support if you want `development` isolated from other preview branches specifically).
+**Vercel + GitHub Actions**
+- A separate Vercel project lives under our agency account (no Git connection — deploys are pushed via the Vercel CLI, not Vercel's own auto-deploy).
+- `.github/workflows/deploy-staging.yml` triggers on every push to `development`, runs `vercel pull` / `vercel build` / `vercel deploy --prebuilt --prod`, authenticated via repo secrets `VERCEL_TOKEN_STAGING`, `VERCEL_ORG_ID_STAGING`, `VERCEL_PROJECT_ID_STAGING`.
+- Since this project only ever represents staging, every deploy targets its own "Production" environment — no need to juggle Preview vs. Production semantics inside it the way we would in the client's shared project.
 
 **Supabase**
-- Separate Supabase project for staging: its own Postgres DB, its own Auth user pool (test signups stay out of production), its own anon/service-role keys. Apply the same Drizzle migrations to both projects to keep schemas in sync; use staging as the gate before promoting a migration to prod.
+- Separate Supabase project for staging (own Postgres DB, own Auth user pool, own publishable/secret keys) so test signups and test data never touch the client's production project.
+- Client-side config is now env-driven, not hardcoded: `src/auth/supabaseClient.js` reads `VITE_SUPABASE_URL` / `VITE_SUPABASE_KEY` (publishable key only — the client bundle must never see `SUPABASE_SECRET_KEY`). Set these in the staging Vercel project's dashboard env vars, and **also in the client's production Vercel project** — the old hardcoded fallback is gone, so production needs its own `VITE_SUPABASE_URL`/`VITE_SUPABASE_KEY` set explicitly or auth breaks on next deploy.
+- Apply the same Drizzle migrations to both projects to keep schemas in sync; use staging as the gate before promoting a migration to prod.
 
 **Stripe**
 - Use test mode, not a separate account: test-mode API keys (`sk_test_...`/`pk_test_...`), a second webhook endpoint registered in test mode pointed at the staging URL's `/api/stripe/webhook`, and Stripe's published test card numbers (`4242 4242 4242 4242`, etc.) for exercising checkout end-to-end with no real charges. Live and test mode data are fully isolated, so test subscriptions can never affect live access checks.
