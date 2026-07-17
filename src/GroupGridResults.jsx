@@ -912,7 +912,10 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
                 ? "There's an issue with your last payment. Please update your billing details to keep using GroupGrid."
                 : "Your account doesn't have an active subscription yet. Subscribe to start using GroupGrid."}
             </div>
-            <Btn onClick={() => setPage("pricing")} color={P.accent}>{subscription.status === "past_due" ? "Update billing" : "View plans"}</Btn>
+            <Btn onClick={subscription.status === "past_due" ? handleManageBilling : (() => setPage("pricing"))} disabled={billingLoading} color={P.accent}>
+              {subscription.status === "past_due" ? (billingLoading ? "Opening billing…" : "Update billing") : "View plans"}
+            </Btn>
+            {billingError && <div style={{ marginTop:"12px", fontSize:"15px", color:P.red, fontFamily:font }}>{billingError}</div>}
             <div style={{ marginTop:"18px" }}>
               <button onClick={onLogout} style={{ background:"transparent", border:"none", color:P.grey600, fontSize:"15px", fontFamily:font, cursor:"pointer", textDecoration:"underline" }}>Sign out</button>
             </div>
