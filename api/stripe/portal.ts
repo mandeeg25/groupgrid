@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { eq } from "drizzle-orm";
-import { db } from "../../db/client";
-import { customers } from "../../db/schema";
-import { getAuthedUser } from "../_lib/auth";
-import { stripe } from "../_lib/stripe";
+import { db } from "../../db/client.js";
+import { customers } from "../../db/schema.js";
+import { getAuthedUser } from "../_lib/auth.js";
+import { stripe } from "../_lib/stripe.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });

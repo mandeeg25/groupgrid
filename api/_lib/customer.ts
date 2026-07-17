@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
-import { db } from "../../db/client";
-import { customers } from "../../db/schema";
-import { stripe } from "./stripe";
+import { db } from "../../db/client.js";
+import { customers } from "../../db/schema.js";
+import { stripe } from "./stripe.js";
 
 // Looks up the Stripe customer for this Supabase user, creating both the
 // Stripe Customer object and the local `customers` row on first use.
