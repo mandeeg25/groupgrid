@@ -19,7 +19,7 @@ export const customers = pgTable("customers", {
   id: uuid("id").primaryKey(),
   stripeCustomerId: text("stripe_customer_id").notNull().unique(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 // Single subscription tier for now (matches the current $250/mo pricing page,
 // one plan). Revisit if the client wants multiple tiers/seats later.
@@ -32,7 +32,7 @@ export const subscriptions = pgTable("subscriptions", {
   cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 // Idempotency log — Stripe can (and will) deliver the same webhook event
 // more than once. Check for an existing id before processing.
@@ -41,4 +41,4 @@ export const webhookEvents = pgTable("webhook_events", {
   type: text("type").notNull(),
   payload: jsonb("payload"),
   processedAt: timestamp("processed_at").defaultNow().notNull(),
-});
+}).enableRLS();

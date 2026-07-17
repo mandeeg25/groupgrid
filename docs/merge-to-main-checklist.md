@@ -8,6 +8,12 @@
 - [ ] **Check the project's Framework Preset / Build & Development Settings.** The app was Create React App (output dir `build/`) and is now Vite (output dir `dist/`). If the client's Vercel project has these manually pinned rather than auto-detected, production will build the wrong thing (or fail) until this is corrected. Confirm framework preset reads "Vite" and output directory is `dist`.
 - [ ] **Confirm the Node.js version** set on the client's project meets Vite 6's minimum (Node 18+). CRA was more lenient; an old pinned Node version could silently break the build.
 
+## Blocking — needs client Supabase access
+
+- [ ] **Get the production Supabase project's `DATABASE_URL`** (transaction-mode pooler connection string, port 6543 — same format as staging's in `.env`) from the client, and run `npm run db:migrate` against it. This creates the `customers`/`subscriptions`/`webhook_events` tables **and** enables RLS on them in the same step — both migrations (`drizzle/0000_*.sql`, `drizzle/0001_*.sql`) already include the `ENABLE ROW LEVEL SECURITY` statements, so there's no separate manual RLS toggle needed as long as migrations are applied as-is. See `db/schema.ts` and the "Row-level security" discussion in this conversation for why RLS matters even though Drizzle's own connection bypasses it (Supabase auto-exposes every `public` table via its REST API using the publishable key — RLS with no policies blocks that path while leaving the direct Postgres connection untouched).
+- [ ] **Confirm Auth → URL Configuration (Site URL / Redirect URLs) on the production Supabase project** points at the client's actual production domain. This should already be correct since production auth predates our changes, but worth explicitly confirming rather than assuming — especially since `signUp()` now passes `emailRedirectTo: window.location.origin` explicitly.
+- [ ] **Spot-check that no other tables in the production project are exposed via the Data API** (Settings → Data API, or per-table RLS status) using the publishable key — the 3 new tables are covered by the migration above, but this is a good moment to confirm nothing pre-existing was left open.
+
 ## Code / build verification (can do now, no client access needed)
 
 - [ ] `npm run build` succeeds cleanly from a fresh clone (not just this working copy) — catches anything accidentally left out of git.
