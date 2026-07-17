@@ -29,6 +29,7 @@ import { PrivacyPage } from "./pages/PrivacyPage";
 import { TermsPage } from "./pages/TermsPage";
 import { extractPdfToWorkbook } from "./pdf/loadPdfJs";
 import { DEFAULT_TEMPLATES, fillTemplate, getApplicableTemplates } from "./templates";
+import { openBillingPortal } from "./stripeClient";
 
 export default function GroupGrid({ user, onLogin, onLogout }) {
   const isMobile = useIsMobile();
@@ -89,11 +90,23 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
   const [contactsOpen, setContactsOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingError, setBillingError] = useState("");
   // Auth gate: the app (cross-check tool) requires login. Marketing pages stay public.
   // If logged in, enter the app; otherwise open the login modal and stay on the current marketing page.
   function enterApp() {
     if (user) { setPage("app"); }
     else { setLoginOpen(true); }
+  }
+
+  async function handleManageBilling() {
+    setBillingError(""); setBillingLoading(true);
+    try {
+      await openBillingPortal();
+    } catch (err) {
+      setBillingError(err.message);
+      setBillingLoading(false);
+    }
   }
   // Safety guard: if a logged-out user ends up on the app view (e.g. after logout, or a stale state),
   // bounce them back to the public landing page and prompt login. The app requires authentication.
@@ -856,7 +869,7 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
         const nav = { onHome:() => setPage("landing"), onPricing:() => setPage("pricing"), onAbout:() => setPage("about"), onFaq:() => setPage("faq"), onContact:() => setPage("contact"), onPrivacy:() => setPage("privacy"), onTerms:() => setPage("terms"), onApp:enterApp, current:page };
         return (<>
       {(page === "landing" || (!user && page === "app")) && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><LandingPage onEnter={enterApp} onPricing={() => setPage("pricing")} onAbout={() => setPage("about")} onContact={() => setPage("contact")} onPrivacy={() => setPage("privacy")} onTerms={() => setPage("terms")} onFaq={() => setPage("faq")} /></div>}
-      {page === "pricing" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><PricingPage onBack={() => setPage("landing")} nav={nav} /></div>}
+      {page === "pricing" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><PricingPage onBack={() => setPage("landing")} nav={nav} user={user} /></div>}
       {page === "about"   && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><AboutPage   onBack={() => setPage("landing")} nav={nav} /></div>}
       {page === "faq"     && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><FAQPage     onBack={() => setPage("landing")} nav={nav} /></div>}
       {page === "contact" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><ContactPage onBack={() => setPage("landing")} nav={nav} /></div>}
@@ -1131,8 +1144,15 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
             )}
           </>}
 
-          {/* ── Contact support (signed-in users only) ── */}
+          {/* ── Manage billing + Contact support (signed-in users only) ── */}
           <div style={{ marginTop:"auto", paddingTop:"16px" }}>
+            <button onClick={handleManageBilling} disabled={billingLoading} style={{ width:"100%", display:"flex", alignItems:"center", gap:"8px", background:"transparent", border:`1px solid rgba(255,255,255,0.12)`, borderRadius:"9px", padding:"8px 10px", cursor:billingLoading?"wait":"pointer", fontFamily:font, transition:"all 0.15s", marginBottom:"6px" }}
+              onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.08)"}
+              onMouseLeave={e => e.currentTarget.style.background="transparent"}>
+              <FileSpreadsheet size={15} strokeWidth={1.8} color="rgba(255,255,255,0.55)" />
+              <span style={{ fontSize:"15px", fontWeight:700, color:"rgba(255,255,255,0.75)" }}>{billingLoading ? "Opening billing…" : "Manage billing"}</span>
+            </button>
+            {billingError && <div style={{ fontSize:"15px", color:"#FFB3AB", fontFamily:font, marginBottom:"6px" }}>{billingError}</div>}
             <button onClick={() => setSupportOpen(true)} style={{ width:"100%", display:"flex", alignItems:"center", gap:"8px", background:"transparent", border:`1px solid rgba(255,255,255,0.12)`, borderRadius:"9px", padding:"8px 10px", cursor:"pointer", fontFamily:font, transition:"all 0.15s" }}
               onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.08)"}
               onMouseLeave={e => e.currentTarget.style.background="transparent"}>
