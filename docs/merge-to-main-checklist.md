@@ -13,6 +13,7 @@
 - [ ] **Recreate the two Products/Prices (monthly $250, annual $2,000) in the client's live-mode Stripe account.** Price IDs are account-specific — the test-mode IDs used on staging won't exist there. Set the resulting live Price IDs as `STRIPE_PRICE_ID_MONTHLY`/`STRIPE_PRICE_ID_ANNUAL` in the production Vercel project.
 - [ ] **Set `STRIPE_SECRET_KEY` to the client's live-mode secret key (`sk_live_...`)** in the production Vercel project — never the test key.
 - [ ] **Register a live-mode webhook endpoint** in the client's Stripe dashboard, pointed at `https://<production-domain>/api/stripe/webhook`, subscribed to whatever events the webhook handler processes (checkout completed, subscription updated/deleted, invoice payment failed — see `docs/stripe-backend-plan.md`). Copy the resulting **signing secret** into `STRIPE_WEBHOOK_SECRET` in the production Vercel project. This is separate from the test-mode webhook already registered against staging — each mode has its own endpoint and its own signing secret.
+- [ ] **Configure the Customer Portal (Settings → Billing → Customer portal) on the client's live-mode Stripe account**, same as whatever we end up enabling on the test-mode portal (currently cancel-only; considering enabling plan switching — see the proration/downgrade-timing open question in `docs/stripe-backend-plan.md`). This configuration is per-mode like webhooks and API keys, so it does **not** carry over from test mode automatically — it has to be set up again on the live side.
 
 ## Blocking — needs client Supabase access
 
