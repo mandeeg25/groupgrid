@@ -29,7 +29,7 @@ import { PrivacyPage } from "./pages/PrivacyPage";
 import { TermsPage } from "./pages/TermsPage";
 import { extractPdfToWorkbook } from "./pdf/loadPdfJs";
 import { DEFAULT_TEMPLATES, fillTemplate, getApplicableTemplates } from "./templates";
-import { openBillingPortal } from "./stripeClient";
+import { openBillingPortal, checkSubscription } from "./stripeClient";
 
 export default function GroupGrid({ user, onLogin, onLogout }) {
   const isMobile = useIsMobile();
@@ -92,6 +92,19 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
   const [loginOpen, setLoginOpen] = useState(false);
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState("");
+  // undefined = not checked yet, { hasAccess, status } once checked.
+  const [subscription, setSubscription] = useState(undefined);
+
+  // Check subscription access once signed in. This is a UI-level gate only —
+  // the actual cross-check engine runs entirely client-side with no server
+  // enforcement, same as the rest of the app's architecture.
+  useEffect(() => {
+    if (!user) { setSubscription(undefined); return; }
+    let cancelled = false;
+    checkSubscription().then(result => { if (!cancelled) setSubscription(result); });
+    return () => { cancelled = true; };
+  }, [user]);
+
   // Auth gate: the app (cross-check tool) requires login. Marketing pages stay public.
   // If logged in, enter the app; otherwise open the login modal and stay on the current marketing page.
   function enterApp() {
@@ -878,8 +891,37 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
         </>);
       })()}
 
-      {/* App shell — only rendered for signed-in users. Logged-out visitors see marketing pages above. */}
-      {user && (<>
+      {/* Checking subscription access — brief, shows once right after sign-in */}
+      {user && subscription === undefined && (
+        <div style={{ minHeight:"100vh", background:P.navy, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:font }}>
+          <div style={{ textAlign:"center" }}>
+            <div style={{ width:40, height:40, border:`3px solid rgba(255,255,255,0.1)`, borderTop:`3px solid ${P.accent}`, borderRadius:"50%", animation:"spin 0.8s linear infinite", margin:"0 auto 16px" }} />
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+            <div style={{ color:"rgba(255,255,255,0.4)", fontSize:"15px" }}>Checking your account…</div>
+          </div>
+        </div>
+      )}
+
+      {/* Signed in, but no active subscription (and not comped) — subscribe gate */}
+      {user && subscription && !subscription.hasAccess && (
+        <div style={{ minHeight:"100vh", background:P.offWhite, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:font, padding:"24px" }}>
+          <div style={{ background:P.white, borderRadius:"16px", border:`1px solid ${P.grey100}`, padding:"40px 36px", maxWidth:"420px", textAlign:"center", boxShadow:"0 8px 40px rgba(12,30,63,0.1)" }}>
+            <div style={{ fontSize:"20px", fontWeight:700, color:P.navy, fontFamily:fontDisplay, marginBottom:"10px" }}>Subscription required</div>
+            <div style={{ fontSize:"16px", color:P.grey600, lineHeight:1.6, marginBottom:"24px" }}>
+              {subscription.status === "past_due"
+                ? "There's an issue with your last payment. Please update your billing details to keep using GroupGrid."
+                : "Your account doesn't have an active subscription yet. Subscribe to start using GroupGrid."}
+            </div>
+            <Btn onClick={() => setPage("pricing")} color={P.accent}>{subscription.status === "past_due" ? "Update billing" : "View plans"}</Btn>
+            <div style={{ marginTop:"18px" }}>
+              <button onClick={onLogout} style={{ background:"transparent", border:"none", color:P.grey600, fontSize:"15px", fontFamily:font, cursor:"pointer", textDecoration:"underline" }}>Sign out</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* App shell — only rendered for signed-in users with active access. Logged-out visitors see marketing pages above. */}
+      {user && subscription?.hasAccess && (<>
       {/* Header */}
       <div style={{ background:P.navy, padding:`0 ${isMobile ? "14px" : "32px"}`, display:"flex", alignItems:"center", justifyContent:"space-between", height:"52px", boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
         <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
