@@ -1,10 +1,10 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import type Stripe from "stripe";
-import { stripe } from "../_lib/stripe";
-import { getRawBody } from "../_lib/rawBody";
-import { syncSubscriptionFromStripe } from "../_lib/subscriptions";
-import { db } from "../../db/client";
-import { webhookEvents } from "../../db/schema";
+import { stripe } from "../_lib/stripe.js";
+import { getRawBody } from "../_lib/rawBody.js";
+import { syncSubscriptionFromStripe } from "../_lib/subscriptions.js";
+import { db } from "../../db/client.js";
+import { webhookEvents } from "../../db/schema.js";
 
 // Disables Vercel's automatic JSON body parsing — Stripe signs the exact raw
 // bytes, so constructEvent() needs the untouched body, not a re-parsed object.

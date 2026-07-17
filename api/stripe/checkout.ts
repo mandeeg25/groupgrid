@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getAuthedUser } from "../_lib/auth";
-import { stripe } from "../_lib/stripe";
-import { getOrCreateStripeCustomer } from "../_lib/customer";
+import { getAuthedUser } from "../_lib/auth.js";
+import { stripe } from "../_lib/stripe.js";
+import { getOrCreateStripeCustomer } from "../_lib/customer.js";
 
 const PRICE_IDS: Record<string, string | undefined> = {
   monthly: process.env.STRIPE_PRICE_ID_MONTHLY,

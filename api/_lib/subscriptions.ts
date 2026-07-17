@@ -1,7 +1,7 @@
 import type Stripe from "stripe";
 import { eq } from "drizzle-orm";
-import { db } from "../../db/client";
-import { customers, subscriptions } from "../../db/schema";
+import { db } from "../../db/client.js";
+import { customers, subscriptions } from "../../db/schema.js";
 
 // Upserts our local `subscriptions` row to match Stripe's current state,
 // called whenever a webhook tells us something changed (created, updated,
