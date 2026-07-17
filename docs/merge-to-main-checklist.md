@@ -8,6 +8,12 @@
 - [ ] **Check the project's Framework Preset / Build & Development Settings.** The app was Create React App (output dir `build/`) and is now Vite (output dir `dist/`). If the client's Vercel project has these manually pinned rather than auto-detected, production will build the wrong thing (or fail) until this is corrected. Confirm framework preset reads "Vite" and output directory is `dist`.
 - [ ] **Confirm the Node.js version** set on the client's project meets Vite 6's minimum (Node 18+). CRA was more lenient; an old pinned Node version could silently break the build.
 
+## Blocking — needs client Stripe access
+
+- [ ] **Recreate the two Products/Prices (monthly $250, annual $2,000) in the client's live-mode Stripe account.** Price IDs are account-specific — the test-mode IDs used on staging won't exist there. Set the resulting live Price IDs as `STRIPE_PRICE_ID_MONTHLY`/`STRIPE_PRICE_ID_ANNUAL` in the production Vercel project.
+- [ ] **Set `STRIPE_SECRET_KEY` to the client's live-mode secret key (`sk_live_...`)** in the production Vercel project — never the test key.
+- [ ] **Register a live-mode webhook endpoint** in the client's Stripe dashboard, pointed at `https://<production-domain>/api/stripe/webhook`, subscribed to whatever events the webhook handler processes (checkout completed, subscription updated/deleted, invoice payment failed — see `docs/stripe-backend-plan.md`). Copy the resulting **signing secret** into `STRIPE_WEBHOOK_SECRET` in the production Vercel project. This is separate from the test-mode webhook already registered against staging — each mode has its own endpoint and its own signing secret.
+
 ## Blocking — needs client Supabase access
 
 - [ ] **Get the production Supabase project's `DATABASE_URL`** (transaction-mode pooler connection string, port 6543 — same format as staging's in `.env`) from the client, and run `npm run db:migrate` against it. This creates the `customers`/`subscriptions`/`webhook_events` tables **and** enables RLS on them in the same step — both migrations (`drizzle/0000_*.sql`, `drizzle/0001_*.sql`) already include the `ENABLE ROW LEVEL SECURITY` statements, so there's no separate manual RLS toggle needed as long as migrations are applied as-is. See `db/schema.ts` and the "Row-level security" discussion in this conversation for why RLS matters even though Drizzle's own connection bypasses it (Supabase auto-exposes every `public` table via its REST API using the publishable key — RLS with no policies blocks that path while leaving the direct Postgres connection untouched).
