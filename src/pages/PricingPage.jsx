@@ -2,15 +2,27 @@ import { useState } from "react";
 import { Check, Lock, X, ShieldCheck } from "lucide-react";
 import { P, font, fontDisplay } from "../theme";
 import { MarketingNav } from "./PageShell";
+import { startCheckout } from "../stripeClient";
 
 // ── Pricing Page ──────────────────────────────────────────────────────────────
-export function PricingPage({ onBack, nav }) {
+export function PricingPage({ onBack, nav, user }) {
   const [billing, setBilling] = useState("monthly");
   const annual = billing === "annual";
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
 
-  // Replace these href values with your actual Stripe payment links
-  const STRIPE_MONTHLY = "https://buy.stripe.com/monthly_link_placeholder";
-  const STRIPE_ANNUAL  = "https://buy.stripe.com/annual_link_placeholder";
+  async function handleGetStarted() {
+    // Not signed in yet — same login gate as the rest of the app. Once signed
+    // in, they land in the app and can come back to Pricing to subscribe.
+    if (!user) { nav?.onApp?.(); return; }
+    setCheckoutError(""); setCheckoutLoading(true);
+    try {
+      await startCheckout(billing);
+    } catch (err) {
+      setCheckoutError(err.message);
+      setCheckoutLoading(false);
+    }
+  }
 
   return (
     <div style={{ minHeight:"100vh", background:P.offWhite, fontFamily:font }}>
@@ -76,10 +88,13 @@ export function PricingPage({ onBack, nav }) {
               </div>
             </div>
 
-            <button onClick={nav?.onApp}
-              style={{ display:"block", width:"100%", background:P.accent, border:"none", borderRadius:"12px", padding:"15px", fontSize:"16px", fontWeight:800, fontFamily:font, color:P.white, cursor:"pointer", textAlign:"center", textDecoration:"none", boxShadow:"0 4px 16px rgba(0,201,177,0.35)", letterSpacing:"-0.01em", boxSizing:"border-box" }}>
-              Get started →
+            <button onClick={handleGetStarted} disabled={checkoutLoading}
+              style={{ display:"block", width:"100%", background:checkoutLoading?P.grey200:P.accent, border:"none", borderRadius:"12px", padding:"15px", fontSize:"16px", fontWeight:800, fontFamily:font, color:P.white, cursor:checkoutLoading?"wait":"pointer", textAlign:"center", textDecoration:"none", boxShadow:checkoutLoading?"none":"0 4px 16px rgba(0,201,177,0.35)", letterSpacing:"-0.01em", boxSizing:"border-box" }}>
+              {checkoutLoading ? "Redirecting to checkout…" : "Get started →"}
             </button>
+            {checkoutError && (
+              <div style={{ marginTop:"10px", fontSize:"15px", color:P.red, fontFamily:font, textAlign:"center" }}>{checkoutError}</div>
+            )}
           </div>
 
           {/* Feature list */}
