@@ -42,3 +42,13 @@ export const webhookEvents = pgTable("webhook_events", {
   payload: jsonb("payload"),
   processedAt: timestamp("processed_at").defaultNow().notNull(),
 }).enableRLS();
+
+// Manual access override — bypasses the Stripe subscription check entirely.
+// Starting use case: the client's own account (her app, shouldn't need to pay
+// herself), but kept generic for any other special-cased account later
+// (support/QA, etc). Added via a one-off SQL insert, not through any UI.
+export const compedUsers = pgTable("comped_users", {
+  id: uuid("id").primaryKey(), // Supabase auth user id
+  note: text("note"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}).enableRLS();
