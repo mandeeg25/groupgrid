@@ -22,6 +22,10 @@
     "typescript": "^5.9.3",
     "vite": "^6.0.7"
   },
+  "overrides": {
+    "js-yaml": "^4.3.0",
+    "smol-toml": "^1.7.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
