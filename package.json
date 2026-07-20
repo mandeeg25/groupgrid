@@ -11,7 +11,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "stripe": "^22.3.2",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.tgz"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",
@@ -21,6 +21,10 @@
     "drizzle-kit": "^0.31.10",
     "typescript": "^5.9.3",
     "vite": "^6.0.7"
+  },
+  "overrides": {
+    "js-yaml": "^4.3.0",
+    "smol-toml": "^1.7.0"
   },
   "scripts": {
     "dev": "vite",

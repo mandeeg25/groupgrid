@@ -591,7 +591,7 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
   }
 
   function generateShareableReport() {
-    const evName = eventName || "Event";
+    const evName = esc(eventName || "Event");
     const dateStr = new Date().toLocaleDateString("en-US", { month:"long", day:"numeric", year:"numeric", hour:"2-digit", minute:"2-digit" });
     const flagged = results.filter(r => r.status !== "ok");
     const aligned = results.filter(r => r.status === "ok");
@@ -607,6 +607,15 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
     };
 
     // ── helpers ──
+    // Report fields (names, notes, hotel/airport text, contact info) come from
+    // uploaded spreadsheets and free-text inputs, so they're untrusted — escape
+    // before embedding in the HTML string, since this becomes a downloadable
+    // standalone .html file with no sandboxing once saved to disk.
+    function esc(val) {
+      return String(val === null || val === undefined ? "" : val).replace(/[&<>"']/g, function(c) {
+        return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c];
+      });
+    }
     function sBadge(status) {
       if (status === "ok")   return '<span style="background:#E3F7F0;color:#0D9E6E;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;">Aligned</span>';
       if (status === "warn") return '<span style="background:#FEF2DC;color:#C97A0A;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;">1 Issue</span>';
@@ -618,7 +627,7 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
       const days = Math.abs(val), word = days === 1 ? "day" : "days", dir = val > 0 ? "late" : "early";
       return '<span style="color:' + (days <= 1 ? "#C97A0A" : "#C0392B") + ';font-weight:600;">' + days + " " + word + " " + dir + "</span>";
     }
-    function sCell(val) { return val || "—"; }
+    function sCell(val) { return val ? esc(val) : "—"; }
     function missingCell() { return '<span style="color:#C0392B;font-weight:600;">Missing</span>'; }
 
     // ── guest rows ──
@@ -632,22 +641,22 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
       } else {
         for (var ii = 0; ii < activeIssues.length; ii++) {
           var ic = activeIssues[ii].type === "missing" ? "#C97A0A" : activeIssues[ii].type === "window" ? "#6B3FA0" : "#C0392B";
-          issueHtml += '<div style="color:' + ic + ';font-size:12px;margin:1px 0;">&bull; ' + activeIssues[ii].text + "</div>";
+          issueHtml += '<div style="color:' + ic + ';font-size:12px;margin:1px 0;">&bull; ' + esc(activeIssues[ii].text) + "</div>";
         }
       }
       var noteCell = r.note
-        ? '<td style="padding:10px 12px;font-size:12px;color:#4A5568;font-style:italic;">' + r.note + "</td>"
+        ? '<td style="padding:10px 12px;font-size:12px;color:#4A5568;font-style:italic;">' + esc(r.note) + "</td>"
         : '<td style="padding:10px 12px;color:#B8C0D8;">—</td>';
       guestRows += '<tr style="border-bottom:1px solid #DDE2EF;' + (r.status === "error" ? "background:#FDECEC;" : "") + '">'
-        + '<td style="padding:10px 12px;font-weight:600;white-space:nowrap;">' + r.displayName + "</td>"
+        + '<td style="padding:10px 12px;font-weight:600;white-space:nowrap;">' + esc(r.displayName) + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;color:#4A5568;">' + sCell(r.email) + "</td>"
         + '<td style="padding:10px 12px;">' + sBadge(r.status) + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;">' + (r.flight ? fmt(r.flight.flightArrival) + (r.flight.arrivalTime ? '<div style="font-size:11px;color:#7E8BA8;">' + fmtTime(r.flight.arrivalTime, timeFormat) + '</div>' : "") : missingCell()) + "</td>"
-        + '<td style="padding:10px 12px;font-size:13px;color:#4A5568;font-weight:600;">' + ((r.flight && (r.flight.arrivalAirport||r.flight.airport)) ? (r.flight.arrivalAirport||r.flight.airport).toUpperCase() : "—") + "</td>"
+        + '<td style="padding:10px 12px;font-size:13px;color:#4A5568;font-weight:600;">' + ((r.flight && (r.flight.arrivalAirport||r.flight.airport)) ? esc((r.flight.arrivalAirport||r.flight.airport).toUpperCase()) : "—") + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;">' + (r.hotel ? fmt(r.hotel.checkIn) : missingCell()) + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;">' + sDelta(r.details && r.details.arrDiff) + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;">' + (r.flight ? fmt(r.flight.flightDeparture) + (r.flight.departureTime ? '<div style="font-size:11px;color:#7E8BA8;">' + fmtTime(r.flight.departureTime, timeFormat) + '</div>' : "") : missingCell()) + "</td>"
-        + '<td style="padding:10px 12px;font-size:13px;color:#4A5568;font-weight:600;">' + ((r.flight && (r.flight.departureAirport||r.flight.airport)) ? (r.flight.departureAirport||r.flight.airport).toUpperCase() : "—") + "</td>"
+        + '<td style="padding:10px 12px;font-size:13px;color:#4A5568;font-weight:600;">' + ((r.flight && (r.flight.departureAirport||r.flight.airport)) ? esc((r.flight.departureAirport||r.flight.airport).toUpperCase()) : "—") + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;">' + (r.hotel ? fmt(r.hotel.checkOut) : missingCell()) + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;">' + sDelta(r.details && r.details.depDiff) + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;">' + issueHtml + "</td>"
@@ -661,7 +670,7 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
     for (var di = 0; di < dietGuests.length; di++) {
       var dr = dietGuests[di];
       dietRows += '<tr style="border-bottom:1px solid #DDE2EF;">'
-        + '<td style="padding:10px 12px;font-weight:600;">' + dr.displayName + "</td>"
+        + '<td style="padding:10px 12px;font-weight:600;">' + esc(dr.displayName) + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;">' + sCell(dr.diet.dietary) + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;">' + sCell(dr.diet.accessibility) + "</td>"
         + '<td style="padding:10px 12px;font-size:13px;color:#4A5568;font-style:italic;">' + sCell(dr.diet.specialNotes) + "</td>"
@@ -701,18 +710,18 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
       var hotelDiv = contacts.hotel.email
         ? '<div style="background:#F0F2F7;border-radius:8px;padding:14px 16px;">'
           + '<div style="font-size:11px;font-weight:600;color:#7E8BA8;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Hotel Contact</div>'
-          + (contacts.hotel.name ? '<div style="font-weight:600;margin-bottom:2px;">' + contacts.hotel.name + "</div>" : "")
-          + (contacts.hotel.property ? '<div style="font-size:13px;color:#4A5568;">' + contacts.hotel.property + "</div>" : "")
-          + (contacts.hotel.email ? '<div style="font-size:13px;color:#4C62C4;margin-top:4px;">' + contacts.hotel.email + "</div>" : "")
-          + (contacts.hotel.phone ? '<div style="font-size:13px;color:#4A5568;">' + contacts.hotel.phone + "</div>" : "")
+          + (contacts.hotel.name ? '<div style="font-weight:600;margin-bottom:2px;">' + esc(contacts.hotel.name) + "</div>" : "")
+          + (contacts.hotel.property ? '<div style="font-size:13px;color:#4A5568;">' + esc(contacts.hotel.property) + "</div>" : "")
+          + (contacts.hotel.email ? '<div style="font-size:13px;color:#4C62C4;margin-top:4px;">' + esc(contacts.hotel.email) + "</div>" : "")
+          + (contacts.hotel.phone ? '<div style="font-size:13px;color:#4A5568;">' + esc(contacts.hotel.phone) + "</div>" : "")
           + "</div>" : "";
       var travelDiv = contacts.travel.email
         ? '<div style="background:#F0F2F7;border-radius:8px;padding:14px 16px;">'
           + '<div style="font-size:11px;font-weight:600;color:#7E8BA8;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Travel Agency</div>'
-          + (contacts.travel.name ? '<div style="font-weight:600;margin-bottom:2px;">' + contacts.travel.name + "</div>" : "")
-          + (contacts.travel.agency ? '<div style="font-size:13px;color:#4A5568;">' + contacts.travel.agency + "</div>" : "")
-          + (contacts.travel.email ? '<div style="font-size:13px;color:#4C62C4;margin-top:4px;">' + contacts.travel.email + "</div>" : "")
-          + (contacts.travel.phone ? '<div style="font-size:13px;color:#4A5568;">' + contacts.travel.phone + "</div>" : "")
+          + (contacts.travel.name ? '<div style="font-weight:600;margin-bottom:2px;">' + esc(contacts.travel.name) + "</div>" : "")
+          + (contacts.travel.agency ? '<div style="font-size:13px;color:#4A5568;">' + esc(contacts.travel.agency) + "</div>" : "")
+          + (contacts.travel.email ? '<div style="font-size:13px;color:#4C62C4;margin-top:4px;">' + esc(contacts.travel.email) + "</div>" : "")
+          + (contacts.travel.phone ? '<div style="font-size:13px;color:#4A5568;">' + esc(contacts.travel.phone) + "</div>" : "")
           + "</div>" : "";
       contactsBlock = '<div style="background:white;border:1px solid #DDE2EF;border-radius:10px;padding:20px 24px;margin-bottom:24px;"><div style="font-size:15px;font-weight:700;margin-bottom:14px;color:#0C1E3F;">Event Contacts</div><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">' + hotelDiv + travelDiv + "</div></div>";
     }
@@ -736,7 +745,7 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
       ? '<div style="font-size:13px;color:rgba(255,255,255,0.5);margin-top:4px;">Travel window: ' + arrivalStart + " – " + (departureEnd || arrivalEnd) + "</div>"
       : "";
     var plannerLine = contacts.plannerName
-      ? '<div style="font-size:13px;color:rgba(255,255,255,0.6);margin-top:2px;">Prepared by ' + contacts.plannerName + "</div>"
+      ? '<div style="font-size:13px;color:rgba(255,255,255,0.6);margin-top:2px;">Prepared by ' + esc(contacts.plannerName) + "</div>"
       : "";
 
     // ── assemble final HTML ──
