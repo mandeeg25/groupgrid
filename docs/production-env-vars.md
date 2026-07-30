@@ -27,3 +27,5 @@ Bundled into the browser build at build time — set the same way in Vercel's en
 ## Not needed
 
 `.env.example` also lists `SUPABASE_SECRET_KEY`, but nothing in the current code reads it — it's reserved for a future case where a backend function needs to bypass RLS. Leave it unset in production unless/until something actually consumes it; setting it now is just a live credential sitting around unused.
+
+Great work!
