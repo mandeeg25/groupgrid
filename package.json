@@ -31,6 +31,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "db:check": "node scripts/check-remote-schema.mjs"
   }
 }
