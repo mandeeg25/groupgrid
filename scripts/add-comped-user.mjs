@@ -2,6 +2,8 @@
  * Grant a user complimentary access — inserts into comped_users, which
  * getSubscriptionAccess() checks before ever looking at Stripe. Bypasses the
  * subscription check entirely; no Stripe customer/subscription is created.
+ * 
+ * `npm run db:comp -- --email=her@client.com --note="site owner"`
  *
  * The user must already have a Supabase Auth account (signed up through the
  * app at least once) — this looks their id up by email against auth.users
