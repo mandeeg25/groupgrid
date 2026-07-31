@@ -32,6 +32,7 @@
     "preview": "vite preview",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:check": "node scripts/check-remote-schema.mjs"
+    "db:check": "node scripts/check-remote-schema.mjs",
+    "db:comp": "node scripts/add-comped-user.mjs"
   }
 }
