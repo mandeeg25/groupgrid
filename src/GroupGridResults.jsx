@@ -1870,8 +1870,8 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
       </div>{/* end main content */}
       </div>{/* end sidebar+main flex */}
 
-      {/* ── Mobile bottom nav — only shown when results are loaded ── */}
-      {results && (
+      {/* ── Mobile bottom nav — only on mobile, and only when results are loaded ── */}
+      {results && isMobile && (
         <div className="gg-bottom-nav"
           style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:150, background:P.navy, borderTop:`1px solid rgba(255,255,255,0.1)`, padding:"8px 0 max(8px, env(safe-area-inset-bottom))", display:"flex", alignItems:"center", justifyContent:"space-around" }}>
           {[
