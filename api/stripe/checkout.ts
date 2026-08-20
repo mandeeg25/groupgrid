@@ -39,6 +39,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       customer: stripeCustomerId,
       line_items: [{ price: priceId, quantity: 1 }],
       allow_promotion_codes: true,
+      // Only collect a card when there's actually money due now. A 100%-off
+      // promotion code (e.g. a comped owner/tester) brings the total to $0, so
+      // Stripe should let them subscribe without entering a card.
+      payment_method_collection: "if_required",
       success_url: `${origin}/?checkout=success`,
       cancel_url: `${origin}/?checkout=cancelled`,
     });
