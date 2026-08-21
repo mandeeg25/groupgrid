@@ -467,7 +467,7 @@ export function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd
                         {isCustomized && <span style={{ background:P.periwinkle+"22", color:P.periwinkleD, fontSize:"12px", fontWeight:500, padding:"1px 7px", borderRadius:"20px", flexShrink:0 }}>Edited</span>}
                         {tmpl.isCustom && <span style={{ background:P.periwinkleD+"18", color:P.periwinkleD, fontSize:"12px", fontWeight:500, padding:"1px 7px", borderRadius:"20px", flexShrink:0 }}>Custom</span>}
                       </div>
-                      <div style={{ fontSize:"15px", color:P.navyLight, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{tmpl.description}</div>
+                      <div style={{ fontSize:"15px", color:P.navyLight, lineHeight:1.35 }}>{tmpl.description}</div>
                     </div>
                   </div>
                   {/* Subject preview */}
