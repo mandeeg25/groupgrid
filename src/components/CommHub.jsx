@@ -350,7 +350,7 @@ export function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd
             </div>
             <div style={{ fontSize:"16px", color:P.grey600, fontFamily:font, lineHeight:1.6, marginBottom:"16px" }}>
               {flaggedWithEmail.length > 0
-                ? "GroupGrid drafted a personalized email for each flagged guest, explaining exactly what's missing or mismatched. Review them, then send."
+                ? "GroupGrid drafted a personalized email for each flagged guest, explaining exactly what's missing or mismatched. Review each email — or edit them in bulk to save time — and use the provided data tags to pre-fill each guest's information, then send."
                 : "When a cross-check turns up flagged guests with an email on file, you'll be able to review and send personalized messages here."}
             </div>
             <div style={{ display:"flex", gap:"10px", marginBottom:"18px", flexWrap:"wrap" }}>
@@ -457,7 +457,7 @@ export function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd
               const applicable = (results||[]).filter(r => r.email && (getApplicableTemplates(r).includes(tmpl.id) || getCustomApplicable(r, tmpl)));
               const isCustomized = !tmpl.isCustom && JSON.stringify(tmpl) !== JSON.stringify(DEFAULT_TEMPLATES[tmpl.id]);
               return (
-                <div key={tmpl.id} className="gg-comms-row" style={{ display:"grid", gridTemplateColumns:"minmax(0,1.5fr) minmax(0,1.6fr) auto auto", alignItems:"center", gap:"16px", padding:"11px 16px", borderTop: ti===0 ? "none" : `1px solid ${P.grey100}` }}>
+                <div key={tmpl.id} className="gg-comms-row" style={{ display:"grid", gridTemplateColumns:"minmax(0,1.5fr) minmax(0,1.6fr) 170px 160px", alignItems:"center", gap:"16px", padding:"11px 16px", borderTop: ti===0 ? "none" : `1px solid ${P.grey100}` }}>
                   {/* Template name + description */}
                   <div style={{ display:"flex", alignItems:"center", gap:"10px", minWidth:0 }}>
                     <div style={{ width:32, height:32, borderRadius:"9px", background:tmpl.color+"18", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><TemplateIcon tmpl={tmpl} size={18} /></div>
