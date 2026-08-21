@@ -63,11 +63,14 @@ export function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, reg
         issues.push({ type:"unregistered", text:"Booked travel but not on registration list" });
       } else {
         // Person IS registered — check what they requested vs. what got booked
-        if (wantsFlight(reg) && !flight) {
+        // Only flag a missing flight/hotel when that list was actually uploaded —
+        // otherwise every registered guest would be flagged just because the
+        // planner hasn't provided that list yet.
+        if (hasFlights && wantsFlight(reg) && !flight) {
           const saidNo = NEGATIVE.includes((reg.flightRequest || "").toLowerCase().trim());
           issues.push({ type:"missing", text: saidNo ? "Marked 'no flight' but no reason given" : "Registered but no flight booked" });
         }
-        if (wantsHotel(reg) && !hotel) {
+        if (hasHotels && wantsHotel(reg) && !hotel) {
           const saidNo = NEGATIVE.includes((reg.hotelRequest || "").toLowerCase().trim());
           issues.push({ type:"missing", text: saidNo ? "Marked 'no hotel' but no reason given" : "Registered but no hotel booked" });
         }
