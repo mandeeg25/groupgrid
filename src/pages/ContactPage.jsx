@@ -1,22 +1,8 @@
-import { useState } from "react";
-import { Mail, AlertTriangle, CreditCard, Users, Copy, Check } from "lucide-react";
+import { Mail, AlertTriangle, CreditCard, Users } from "lucide-react";
 import { P, font, fontDisplay } from "../theme";
 import { PageShell } from "./PageShell";
 
 export function ContactPage({ onBack, nav }) {
-  const [copied, setCopied] = useState("");
-  const copyEmail = (email) => {
-    const done = () => { setCopied(email); setTimeout(() => setCopied(c => (c === email ? "" : c)), 1800); };
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(email).then(done).catch(() => {
-        // Fallback: open the visitor's mail app if the clipboard is blocked.
-        window.location.href = `mailto:${email}`;
-      });
-    } else {
-      window.location.href = `mailto:${email}`;
-    }
-  };
-
   const departments = [
     { Icon: AlertTriangle, label: "Support",      desc: "Trouble with an upload, a flag that looks wrong, or an event-day issue.", email: "support@groupgrid.io" },
     { Icon: CreditCard,    label: "Billing",      desc: "Plans, invoices, receipts, and payment questions.",                        email: "billing@groupgrid.io" },
@@ -29,46 +15,36 @@ export function ContactPage({ onBack, nav }) {
       <div style={{ marginBottom:"36px" }}>
         <div style={{ fontSize:"13px", fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", color:P.accentD, fontFamily:font, marginBottom:"14px" }}>Contact</div>
         <h1 style={{ fontSize:"clamp(30px,5vw,44px)", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 14px", letterSpacing:"-0.03em", lineHeight:1.1 }}>Let's talk.</h1>
-        <p style={{ fontSize:"18px", color:P.grey600, fontFamily:font, lineHeight:1.6, margin:0, maxWidth:"520px" }}>Questions, feedback, or a hand getting started — reach the right team below and a real person will get back to you. Click any address to copy it.</p>
+        <p style={{ fontSize:"18px", color:P.grey600, fontFamily:font, lineHeight:1.6, margin:0, maxWidth:"520px" }}>Questions, feedback, or a hand getting started — email the right team below and a real person will get back to you.</p>
       </div>
 
       {/* ── Primary contact ── */}
-      <button onClick={() => copyEmail("hello@groupgrid.io")}
-        style={{ display:"flex", width:"100%", textAlign:"left", border:"none", cursor:"pointer", background:P.navy, borderRadius:"16px", padding:"28px 30px", alignItems:"center", justifyContent:"space-between", gap:"22px", flexWrap:"wrap", marginBottom:"16px", fontFamily:font }}>
-        <div style={{ maxWidth:"460px" }}>
+      <div style={{ background:P.navy, borderRadius:"16px", padding:"28px 30px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:"22px", flexWrap:"wrap", marginBottom:"16px" }}>
+        <div style={{ maxWidth:"440px" }}>
           <div style={{ fontSize:"20px", fontWeight:700, color:P.white, fontFamily:fontDisplay, marginBottom:"6px", letterSpacing:"-0.01em" }}>Talk to us</div>
           <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.72)", fontFamily:font, lineHeight:1.6 }}>General questions, a quick walkthrough, or anything sales-related. This is the fastest way to reach us.</div>
         </div>
-        <div style={{ display:"inline-flex", alignItems:"center", gap:"10px", background:P.accent, color:P.white, borderRadius:"11px", padding:"13px 22px", fontSize:"15px", fontWeight:700, fontFamily:font, whiteSpace:"nowrap", flexShrink:0, boxShadow:"0 4px 18px rgba(0,201,177,0.3)" }}>
-          {copied === "hello@groupgrid.io"
-            ? <><Check size={17} strokeWidth={2.4} /> Copied!</>
-            : <><Mail size={17} strokeWidth={2} /> hello@groupgrid.io</>}
+        <div style={{ display:"inline-flex", alignItems:"center", gap:"10px", background:"rgba(255,255,255,0.10)", border:"1px solid rgba(255,255,255,0.18)", color:P.white, borderRadius:"11px", padding:"12px 20px", fontSize:"16px", fontWeight:700, fontFamily:font, whiteSpace:"nowrap", flexShrink:0, userSelect:"all" }}>
+          <Mail size={17} strokeWidth={2} color={P.accent} /> hello@groupgrid.io
         </div>
-      </button>
+      </div>
 
       {/* ── Department directory ── */}
       <div style={{ fontSize:"12px", fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:P.grey600, fontFamily:font, margin:"26px 0 10px", paddingLeft:"2px" }}>Reach a specific team</div>
       <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"16px", overflow:"hidden", marginBottom:"32px" }}>
-        {departments.map(({ Icon, label, desc, email }, i) => {
-          const isCopied = copied === email;
-          return (
-            <button key={label} onClick={() => copyEmail(email)}
-              style={{ display:"flex", width:"100%", textAlign:"left", border:"none", background:"transparent", cursor:"pointer", alignItems:"center", gap:"16px", padding:"18px 22px", borderTop: i===0 ? "none" : `1px solid ${P.grey100}`, fontFamily:font }}>
-              <div style={{ width:42, height:42, borderRadius:"11px", background:P.grey50, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                <Icon size={19} strokeWidth={1.8} color={P.navy} />
-              </div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:"16px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"2px" }}>{label}</div>
-                <div style={{ fontSize:"14px", color:P.grey600, fontFamily:font, lineHeight:1.5 }}>{desc}</div>
-              </div>
-              <div style={{ display:"flex", alignItems:"center", gap:"6px", color:isCopied ? P.accentD : P.grey600, fontSize:"14px", fontWeight:600, fontFamily:font, flexShrink:0, whiteSpace:"nowrap" }}>
-                {isCopied
-                  ? <><Check size={15} strokeWidth={2.4} color={P.accentD} /> Copied!</>
-                  : <><span className="gg-contact-email">{email}</span> <Copy size={15} strokeWidth={1.8} /></>}
-              </div>
-            </button>
-          );
-        })}
+        {departments.map(({ Icon, label, desc, email }, i) => (
+          <div key={label}
+            style={{ display:"flex", alignItems:"center", gap:"16px", padding:"18px 22px", borderTop: i===0 ? "none" : `1px solid ${P.grey100}` }}>
+            <div style={{ width:42, height:42, borderRadius:"11px", background:P.grey50, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+              <Icon size={19} strokeWidth={1.8} color={P.navy} />
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:"16px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"2px" }}>{label}</div>
+              <div style={{ fontSize:"14px", color:P.grey600, fontFamily:font, lineHeight:1.5 }}>{desc}</div>
+            </div>
+            <div style={{ fontSize:"15px", fontWeight:600, color:P.accentD, fontFamily:font, flexShrink:0, whiteSpace:"nowrap", userSelect:"all" }}>{email}</div>
+          </div>
+        ))}
       </div>
 
       {/* ── Response time note ── */}
