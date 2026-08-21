@@ -6,7 +6,6 @@ import {
   BrandLogo, SpreadsheetIcon, PlaneIcon, HotelIcon, MagnifierIcon, CrossCheckIcon,
   UploadIcon, CalendarIcon, CarIcon, PeopleIcon, FlagIcon, AlertIcon, ClearedIcon,
 } from "../icons";
-import { EarlyAccessForm } from "./EarlyAccessForm";
 
 // ── Landing Page ──────────────────────────────────────────────────────────────
 export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy, onTerms, onFaq }) {
@@ -559,16 +558,16 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
           </div>
         );
       })()}
-      {/* ── Early access ── */}
+      {/* ── Contact ── */}
       <div style={{ background:P.offWhite, padding:"72px 40px", display:"flex", justifyContent:"center" }}>
         <div style={{ width:"100%", maxWidth:"960px", display:"flex", gap:"48px", alignItems:"center", flexWrap:"wrap", justifyContent:"center" }}>
           <div style={{ flex:"1 1 320px", minWidth:"280px" }}>
-            <div style={{ fontSize:"16px", fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:P.accentD, fontFamily:font, marginBottom:"12px" }}>Early access</div>
-            <h2 style={{ fontSize:"clamp(28px,4vw,40px)", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 14px", letterSpacing:"-0.03em", lineHeight:1.15 }}>Be first to run a cleaner event</h2>
-            <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.6, margin:0, maxWidth:"420px" }}>Not ready to upload your files yet? Join the early access list and we'll reach out when your spot opens, with a quick guide to load your first event.</p>
+            <div style={{ fontSize:"16px", fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:P.accentD, fontFamily:font, marginBottom:"12px" }}>Contact us</div>
+            <h2 style={{ fontSize:"clamp(28px,4vw,40px)", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 14px", letterSpacing:"-0.03em", lineHeight:1.15 }}>Questions? We're here to help.</h2>
+            <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.6, margin:0, maxWidth:"420px" }}>Have a question about GroupGrid, need a hand getting started, or want to share feedback? Get in touch and we'll get back to you within 1–2 business days.</p>
           </div>
           <div style={{ flex:"0 1 440px", minWidth:"300px", width:"100%", display:"flex", justifyContent:"center" }}>
-            <EarlyAccessForm />
+            <button onClick={onContact} style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:P.accent, color:P.white, border:"none", borderRadius:"12px", padding:"16px 34px", fontSize:"17px", fontWeight:700, fontFamily:font, cursor:"pointer", boxShadow:"0 4px 20px rgba(0,201,177,0.35)" }}>Contact us →</button>
           </div>
         </div>
       </div>
