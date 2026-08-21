@@ -1405,7 +1405,7 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
               {/* Custom report builder */}
               <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"20px 22px", boxShadow:"0 1px 2px rgba(12,30,63,0.04)" }}>
                 <div style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Custom report</div>
-                <div style={{ fontSize:"14px", color:P.grey600, fontFamily:font, lineHeight:1.5, marginBottom:"18px" }}>Pick who it's for and choose the fields — includes all {results.length} attendees with just the columns you select.</div>
+                <div style={{ fontSize:"14px", color:P.grey600, fontFamily:font, lineHeight:1.5, marginBottom:"18px" }}>Select who it's for and choose the fields — includes all {results.length} attendees with just the columns you select.</div>
 
                 <div style={{ fontSize:"12px", fontWeight:700, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"8px" }}>Who is it for?</div>
                 <div style={{ display:"flex", gap:"8px", flexWrap:"wrap", marginBottom:"18px" }}>
@@ -1418,7 +1418,7 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
                   <div style={{ fontSize:"12px", fontWeight:700, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em" }}>Columns</div>
                   {reportFields.size > 0 && <button onClick={() => setReportFields(new Set())} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"13px", fontWeight:600, fontFamily:font, cursor:"pointer" }}>Clear all</button>}
                 </div>
-                <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font, lineHeight:1.5, marginBottom:"10px" }}>Open a category and check the fields you want, or pick a preset above to start.</div>
+                <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font, lineHeight:1.5, marginBottom:"10px" }}>Select a category and check the fields you want, or select a preset above to start, then customize.</div>
                 <div style={{ display:"flex", flexWrap:"wrap", gap:"8px", marginBottom:"4px" }}>
                   {["Attendee","Status","Flight","Hotel","Car"].map(group => (
                     <ReportFieldDropdown key={group} group={group}
@@ -1430,11 +1430,6 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:"14px", flexWrap:"wrap", marginTop:"18px", paddingTop:"16px", borderTop:`1px solid ${P.grey100}` }}>
                   <span style={{ fontSize:"14px", color:P.grey600, fontFamily:font }}>{reportFields.size} field{reportFields.size===1?"":"s"} selected · all {results.length} attendees</span>
                   <button onClick={exportCustomReport} disabled={!reportFields.size} style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:reportFields.size?P.accent:P.grey100, color:reportFields.size?P.white:P.grey600, border:"none", borderRadius:"10px", padding:"10px 18px", fontSize:"14px", fontWeight:800, fontFamily:font, cursor:reportFields.size?"pointer":"not-allowed", boxShadow:reportFields.size?"0 2px 10px rgba(0,201,177,0.3)":"none" }}>Export custom report</button>
-                </div>
-
-                <div style={{ display:"flex", gap:"8px", alignItems:"flex-start", marginTop:"14px", background:P.grey50, borderRadius:"9px", padding:"10px 12px" }}>
-                  <span style={{ flexShrink:0, marginTop:"1px" }}><Mail size={14} strokeWidth={1.8} color={P.grey600} /></span>
-                  <span style={{ fontSize:"13px", color:P.grey600, fontFamily:font, lineHeight:1.5 }}>Sending a report straight to your vendor contact is coming once your email is connected. For now, download the file here and attach it to your message.</span>
                 </div>
               </div>
             </div>
