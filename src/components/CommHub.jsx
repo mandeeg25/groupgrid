@@ -450,41 +450,43 @@ export function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd
             Object.values(templates).forEach(t => { const c = TEMPLATE_CATEGORY[t.id] || "Custom"; (byCat[c] = byCat[c] || []).push(t); });
             const cats = CATEGORY_ORDER.filter(c => byCat[c]?.length).concat(Object.keys(byCat).filter(c => !CATEGORY_ORDER.includes(c)));
             return cats.map(cat => (
-            <div key={cat} style={{ marginBottom:"22px" }}>
-              <div style={{ fontSize:"15px", fontWeight:800, color:P.navyLight, textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 10px" }}>{cat}</div>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px" }}>
-                {byCat[cat].map(tmpl => {
+            <div key={cat} style={{ marginBottom:"18px" }}>
+              <div style={{ fontSize:"15px", fontWeight:800, color:P.navyLight, textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 8px" }}>{cat}</div>
+              <div className="gg-comms-table" style={{ background:P.white, borderRadius:"10px", border:`1px solid ${P.grey100}`, overflow:"hidden" }}>
+                {byCat[cat].map((tmpl, ti) => {
               const applicable = (results||[]).filter(r => r.email && (getApplicableTemplates(r).includes(tmpl.id) || getCustomApplicable(r, tmpl)));
               const isCustomized = !tmpl.isCustom && JSON.stringify(tmpl) !== JSON.stringify(DEFAULT_TEMPLATES[tmpl.id]);
               return (
-                <div key={tmpl.id} style={{ background:P.white, borderRadius:"10px", border:`1px solid ${P.grey100}`, padding:"16px 20px" }}>
-                  <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:"10px" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
-                      <div style={{ width:36, height:36, borderRadius:"10px", background:tmpl.color+"18", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><TemplateIcon tmpl={tmpl} size={20} /></div>
-                      <div>
-                        <div style={{ fontSize:"15px", fontWeight:600, color:P.navy }}>{tmpl.label}</div>
-                        <div style={{ fontSize:"15px", color:P.navyLight, marginTop:"2px" }}>{tmpl.description}</div>
+                <div key={tmpl.id} className="gg-comms-row" style={{ display:"grid", gridTemplateColumns:"minmax(0,1.5fr) minmax(0,1.6fr) auto auto", alignItems:"center", gap:"16px", padding:"11px 16px", borderTop: ti===0 ? "none" : `1px solid ${P.grey100}` }}>
+                  {/* Template name + description */}
+                  <div style={{ display:"flex", alignItems:"center", gap:"10px", minWidth:0 }}>
+                    <div style={{ width:32, height:32, borderRadius:"9px", background:tmpl.color+"18", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><TemplateIcon tmpl={tmpl} size={18} /></div>
+                    <div style={{ minWidth:0 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
+                        <span style={{ fontSize:"15px", fontWeight:600, color:P.navy, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{tmpl.label}</span>
+                        {isCustomized && <span style={{ background:P.periwinkle+"22", color:P.periwinkleD, fontSize:"12px", fontWeight:500, padding:"1px 7px", borderRadius:"20px", flexShrink:0 }}>Edited</span>}
+                        {tmpl.isCustom && <span style={{ background:P.periwinkleD+"18", color:P.periwinkleD, fontSize:"12px", fontWeight:500, padding:"1px 7px", borderRadius:"20px", flexShrink:0 }}>Custom</span>}
                       </div>
+                      <div style={{ fontSize:"15px", color:P.navyLight, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{tmpl.description}</div>
                     </div>
-                    {isCustomized && <span style={{ background:P.periwinkle+"22", color:P.periwinkleD, fontSize:"15px", fontWeight:500, padding:"2px 8px", borderRadius:"20px", flexShrink:0, marginLeft:"8px" }}>Edited</span>}
-                    {tmpl.isCustom && <span style={{ background:P.periwinkleD+"18", color:P.periwinkleD, fontSize:"15px", fontWeight:500, padding:"2px 8px", borderRadius:"20px", flexShrink:0, marginLeft:"4px" }}>Custom</span>}
                   </div>
-                  <div style={{ background:P.offWhite, borderRadius:"8px", padding:"10px 12px", marginBottom:"12px" }}>
-                    <div style={{ fontSize:"15px", fontWeight:500, color:P.grey600, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"4px" }}>Subject preview</div>
-                    <div style={{ fontSize:"15px", color:P.navy, fontWeight:600 }}>{tmpl.subject.replace(/\{\{[^}]+\}\}/g, "…")}</div>
+                  {/* Subject preview */}
+                  <div className="gg-comms-subject" style={{ display:"flex", alignItems:"baseline", gap:"7px", minWidth:0 }}>
+                    <span style={{ fontSize:"11px", fontWeight:600, color:P.grey600, textTransform:"uppercase", letterSpacing:"0.05em", flexShrink:0 }}>Subject</span>
+                    <span style={{ fontSize:"15px", color:P.navy, fontWeight:500, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", minWidth:0 }}>{tmpl.subject.replace(/\{\{[^}]+\}\}/g, "…")}</span>
                   </div>
-                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
-                      {applicable.length > 0
-                        ? <span style={{ background:tmpl.color+"18", color:tmpl.color, fontSize:"15px", fontWeight:500, padding:"3px 10px", borderRadius:"20px" }}>Applies to {applicable.length} guest{applicable.length!==1?"s":""}</span>
-                        : <span style={{ background:P.grey50, color:P.navyLight, fontSize:"15px", fontWeight:500, padding:"3px 10px", borderRadius:"20px" }}>No guests currently</span>}
-                    </div>
-                    <div style={{ display:"flex", gap:"6px" }}>
-                      {tmpl.isCustom && (
-                        <Btn onClick={() => { if (window.confirm(`Delete "${tmpl.label}"?`)) deleteTemplate(tmpl.id); }} outline small color={P.red}>Delete <Trash2 size={12} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></Btn>
-                      )}
-                      <Btn onClick={() => startEdit(tmpl.id)} outline small color={P.periwinkleD}>Edit <Pencil size={12} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></Btn>
-                    </div>
+                  {/* Recipients */}
+                  <div style={{ justifySelf:"start", whiteSpace:"nowrap" }}>
+                    {applicable.length > 0
+                      ? <span style={{ background:tmpl.color+"18", color:tmpl.color, fontSize:"15px", fontWeight:500, padding:"3px 10px", borderRadius:"20px" }}>Applies to {applicable.length} guest{applicable.length!==1?"s":""}</span>
+                      : <span style={{ background:P.grey50, color:P.navyLight, fontSize:"15px", fontWeight:500, padding:"3px 10px", borderRadius:"20px" }}>No guests currently</span>}
+                  </div>
+                  {/* Actions */}
+                  <div style={{ display:"flex", gap:"6px", justifySelf:"end" }}>
+                    {tmpl.isCustom && (
+                      <Btn onClick={() => { if (window.confirm(`Delete "${tmpl.label}"?`)) deleteTemplate(tmpl.id); }} outline small color={P.red}>Delete <Trash2 size={12} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></Btn>
+                    )}
+                    <Btn onClick={() => startEdit(tmpl.id)} outline small color={P.periwinkleD}>Edit <Pencil size={12} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/></Btn>
                   </div>
                 </div>
               );

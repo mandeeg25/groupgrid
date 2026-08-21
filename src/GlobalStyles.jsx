@@ -46,6 +46,8 @@ const MOBILE_CSS = `
     .gg-contacts-grid { grid-template-columns: 1fr !important; }
     .gg-bottom-nav { display: flex !important; }
     .gg-table-row-height td { height: 52px !important; }
+    .gg-comms-row { grid-template-columns: 1fr !important; gap: 6px !important; }
+    .gg-comms-row > div { justify-self: start !important; }
   }
   .gg-sidebar-overlay { display: none; }
   .gg-bottom-nav { display: none; }
