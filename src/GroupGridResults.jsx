@@ -991,7 +991,7 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
 
         {/* ── Left Sidebar / Mobile Drawer ── */}
         <div className={`gg-sidebar${isMobile && sidebarOpen ? " open" : ""}`}
-          style={{ width:224, flexShrink:0, background:P.navy, borderRight:`1px solid rgba(255,255,255,0.07)`, display:"flex", flexDirection:"column", padding:"20px 14px", overflowY:"auto", position: isMobile ? "fixed" : "relative", left: isMobile ? 0 : undefined, top: isMobile ? "52px" : 0, height: isMobile ? "calc(100vh - 52px)" : "auto", minHeight: isMobile ? undefined : `calc(100vh - 52px)`, alignSelf:"stretch", zIndex: isMobile ? 250 : "auto", transform: isMobile ? (sidebarOpen ? "translateX(0)" : "translateX(-100%)") : "none", transition: isMobile ? "transform 0.25s ease" : "none", boxShadow: isMobile && sidebarOpen ? "4px 0 24px rgba(0,0,0,0.35)" : "none" }}>
+          style={{ width:260, flexShrink:0, background:P.navy, borderRight:`1px solid rgba(255,255,255,0.07)`, display:"flex", flexDirection:"column", padding:"20px 14px", overflowY:"auto", position: isMobile ? "fixed" : "relative", left: isMobile ? 0 : undefined, top: isMobile ? "52px" : 0, height: isMobile ? "calc(100vh - 52px)" : "auto", minHeight: isMobile ? undefined : `calc(100vh - 52px)`, alignSelf:"stretch", zIndex: isMobile ? 250 : "auto", transform: isMobile ? (sidebarOpen ? "translateX(0)" : "translateX(-100%)") : "none", transition: isMobile ? "transform 0.25s ease" : "none", boxShadow: isMobile && sidebarOpen ? "4px 0 24px rgba(0,0,0,0.35)" : "none" }}>
 
           {/* Mobile drawer close */}
           {isMobile && (
@@ -1037,7 +1037,7 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
                   <div style={{ width:7, height:7, borderRadius:"50%", background:P.navy }} />
                 </div>
                 <div style={{ minWidth:0, flex:1 }}>
-                  <div style={{ fontSize:"15px", fontWeight:800, color:P.white, fontFamily:font, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{projectName || eventName || "Unsaved Project"}</div>
+                  <div title={projectName || eventName || "Unsaved Project"} style={{ fontSize:"15px", fontWeight:800, color:P.white, fontFamily:font, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{projectName || eventName || "Unsaved Project"}</div>
                   <div style={{ fontSize:"15px", color:P.accent, fontFamily:font }}>{results ? `${results.length} guests · ${results.filter(r=>r.status!=="ok").length} flags` : "Active"}</div>
                 </div>
                 <span style={{ fontSize:"15px", background:P.accent, color:P.navy, padding:"2px 6px", borderRadius:"20px", fontFamily:font, fontWeight:800, flexShrink:0 }}>Active</span>
@@ -1073,7 +1073,7 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
                         {(s.name||"?").charAt(0).toUpperCase()}
                       </div>
                       <div style={{ minWidth:0, flex:1 }}>
-                        <div style={{ fontSize:"15px", fontWeight:800, color:P.white, fontFamily:font, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.name}</div>
+                        <div title={s.name} style={{ fontSize:"15px", fontWeight:800, color:P.white, fontFamily:font, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.name}</div>
                         <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.4)", fontFamily:font }}>{s.guestCount} guests · {s.issueCount} flags</div>
                       </div>
                       {results && <button onClick={e => { e.stopPropagation(); setCompareSession(s); setShowDiff(true); setActiveTab("grid"); }} style={{ background:"rgba(255,255,255,0.12)", border:`1px solid rgba(255,255,255,0.2)`, borderRadius:"5px", padding:"2px 7px", fontSize:"15px", color:P.white, fontWeight:700, fontFamily:font, cursor:"pointer", marginRight:"4px" }}>↔ Diff</button>}
