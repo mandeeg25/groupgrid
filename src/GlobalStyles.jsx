@@ -49,6 +49,7 @@ const MOBILE_CSS = `
     .gg-comms-row { grid-template-columns: 1fr !important; gap: 6px !important; }
     .gg-comms-row > div { justify-self: start !important; }
     .gg-report-quick { grid-template-columns: 1fr !important; }
+    .gg-contact-email { display: none !important; }
   }
   .gg-sidebar-overlay { display: none; }
   .gg-bottom-nav { display: none; }
