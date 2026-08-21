@@ -1382,43 +1382,43 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
                 );
               })()}
           {activeTab === "reports" && (
-            <div style={{ maxWidth:"860px" }}>
+            <div style={{ maxWidth:"820px" }}>
               <h2 style={{ fontSize:"20px", fontWeight:700, color:P.navy, fontFamily:fontDisplay, letterSpacing:"-0.02em", margin:"0 0 4px" }}>Reporting</h2>
-              <p style={{ fontSize:"18px", color:P.grey600, fontFamily:font, margin:"0 0 20px", lineHeight:1.5 }}>Export a clean onsite itinerary, the full cross-check report, or build a custom report for a specific vendor.</p>
+              <p style={{ fontSize:"15px", color:P.grey600, fontFamily:font, margin:"0 0 18px", lineHeight:1.5 }}>Export a ready-to-use onsite itinerary, the full cross-check report, or build a custom report for a specific vendor.</p>
 
-              <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"20px 22px", marginBottom:"16px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)" }}>
-                <div style={{ display:"flex", alignItems:"flex-start", gap:"12px", marginBottom:"14px" }}>
-                  <div style={{ width:40, height:40, borderRadius:"10px", background:P.navy, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><PeopleIcon size={20} line="rgba(255,255,255,0.95)" accent={P.accent} /></div>
-                  <div style={{ flex:1 }}>
-                    <div style={{ fontSize:"16px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"2px" }}>Onsite master itinerary</div>
-                    <div style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.5 }}>Every attendee A to Z by last name, with their full flight, hotel, and car details on one row. Built to print or use onsite.</div>
-                  </div>
+              {/* Two one-click exports, balanced side by side */}
+              <div className="gg-report-quick" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px", marginBottom:"14px" }}>
+                <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", boxShadow:"0 1px 2px rgba(12,30,63,0.04)", display:"flex", flexDirection:"column" }}>
+                  <div style={{ width:38, height:38, borderRadius:"10px", background:P.navy, display:"flex", alignItems:"center", justifyContent:"center", marginBottom:"12px" }}><PeopleIcon size={19} line="rgba(255,255,255,0.95)" accent={P.accent} /></div>
+                  <div style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Onsite master itinerary</div>
+                  <div style={{ fontSize:"14px", color:P.grey600, fontFamily:font, lineHeight:1.5, marginBottom:"16px", flex:1 }}>Every attendee A–Z by last name, with full flight, hotel, and car details on one row. Built to print or use onsite.</div>
+                  <button onClick={exportOnsiteList} style={{ alignSelf:"flex-start", display:"inline-flex", alignItems:"center", gap:"8px", background:P.accent, color:P.white, border:"none", borderRadius:"10px", padding:"10px 18px", fontSize:"14px", fontWeight:800, fontFamily:font, cursor:"pointer", boxShadow:"0 2px 10px rgba(0,201,177,0.3)" }}>Download (Excel)</button>
                 </div>
-                <button onClick={exportOnsiteList} style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:P.accent, color:P.white, border:"none", borderRadius:"10px", padding:"11px 20px", fontSize:"15px", fontWeight:800, fontFamily:font, cursor:"pointer", boxShadow:"0 2px 12px rgba(0,201,177,0.35)" }}>Download onsite itinerary (Excel)</button>
+                <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"18px 20px", boxShadow:"0 1px 2px rgba(12,30,63,0.04)", display:"flex", flexDirection:"column" }}>
+                  <div style={{ width:38, height:38, borderRadius:"10px", background:P.periwinkleD, display:"flex", alignItems:"center", justifyContent:"center", marginBottom:"12px" }}><SpreadsheetIcon size={19} line="rgba(255,255,255,0.95)" accent={P.accent} /></div>
+                  <div style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Full cross-check report</div>
+                  <div style={{ fontSize:"14px", color:P.grey600, fontFamily:font, lineHeight:1.5, marginBottom:"16px", flex:1 }}>Every attendee and every field, including flagged issues and any resolution notes.</div>
+                  <button onClick={exportSelected} style={{ alignSelf:"flex-start", display:"inline-flex", alignItems:"center", gap:"8px", background:"transparent", color:P.navy, border:`1.5px solid ${P.grey200}`, borderRadius:"10px", padding:"9px 16px", fontSize:"14px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>Export full report</button>
+                </div>
               </div>
 
-              <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"20px 22px", marginBottom:"16px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)" }}>
-                <div style={{ fontSize:"16px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"2px" }}>Full cross-check report</div>
-                <div style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.5, marginBottom:"14px" }}>Every attendee and every field, including flagged issues and any resolution notes.</div>
-                <button onClick={exportSelected} style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:"transparent", color:P.navy, border:`1.5px solid ${P.grey200}`, borderRadius:"10px", padding:"10px 18px", fontSize:"15px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>Export full report</button>
-              </div>
+              {/* Custom report builder */}
+              <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"20px 22px", boxShadow:"0 1px 2px rgba(12,30,63,0.04)" }}>
+                <div style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Custom report</div>
+                <div style={{ fontSize:"14px", color:P.grey600, fontFamily:font, lineHeight:1.5, marginBottom:"18px" }}>Select who it's for and choose the fields — includes all {results.length} attendees with just the columns you select.</div>
 
-              <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"20px 22px", marginBottom:"16px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)" }}>
-                <div style={{ fontSize:"16px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"2px" }}>Custom report</div>
-                <div style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.5, marginBottom:"16px" }}>Pick who it's for and choose the fields. The report includes all {results.length} attendees with just the columns you select.</div>
-
-                <div style={{ fontSize:"16px", fontWeight:700, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"8px" }}>Who is it for?</div>
+                <div style={{ fontSize:"12px", fontWeight:700, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"8px" }}>Who is it for?</div>
                 <div style={{ display:"flex", gap:"8px", flexWrap:"wrap", marginBottom:"18px" }}>
                   {[["general","Everything"],["hotel","Hotel"],["car","Car transfer"],["travel","Travel agency"]].map(([t,label]) => (
-                    <button key={t} onClick={() => applyReportTarget(t)} style={{ background:reportTarget===t?P.accent+"18":P.grey50, border:`1.5px solid ${reportTarget===t?P.accent:P.grey100}`, borderRadius:"9px", padding:"7px 14px", fontSize:"17px", fontWeight:700, color:reportTarget===t?P.accentD:P.grey600, fontFamily:font, cursor:"pointer" }}>{label}</button>
+                    <button key={t} onClick={() => applyReportTarget(t)} style={{ background:reportTarget===t?P.accent+"18":P.grey50, border:`1.5px solid ${reportTarget===t?P.accent:P.grey100}`, borderRadius:"9px", padding:"7px 14px", fontSize:"14px", fontWeight:700, color:reportTarget===t?P.accentD:P.grey600, fontFamily:font, cursor:"pointer" }}>{label}</button>
                   ))}
                 </div>
 
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"8px" }}>
-                  <div style={{ fontSize:"16px", fontWeight:700, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em" }}>Columns</div>
-                  {reportFields.size > 0 && <button onClick={() => setReportFields(new Set())} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"15px", fontWeight:600, fontFamily:font, cursor:"pointer" }}>Clear all</button>}
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"6px" }}>
+                  <div style={{ fontSize:"12px", fontWeight:700, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em" }}>Columns</div>
+                  {reportFields.size > 0 && <button onClick={() => setReportFields(new Set())} style={{ background:"transparent", border:"none", color:P.periwinkleD, fontSize:"13px", fontWeight:600, fontFamily:font, cursor:"pointer" }}>Clear all</button>}
                 </div>
-                <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, lineHeight:1.5, marginBottom:"10px" }}>Open a category and check the fields you want. Pick a preset above to start, then fine-tune.</div>
+                <div style={{ fontSize:"13px", color:P.grey600, fontFamily:font, lineHeight:1.5, marginBottom:"10px" }}>Select a category and check the fields you want, or select a preset above to start, then customize.</div>
                 <div style={{ display:"flex", flexWrap:"wrap", gap:"8px", marginBottom:"4px" }}>
                   {["Attendee","Status","Flight","Hotel","Car"].map(group => (
                     <ReportFieldDropdown key={group} group={group}
@@ -1428,13 +1428,8 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
                 </div>
 
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:"14px", flexWrap:"wrap", marginTop:"18px", paddingTop:"16px", borderTop:`1px solid ${P.grey100}` }}>
-                  <span style={{ fontSize:"17px", color:P.grey600, fontFamily:font }}>{reportFields.size} field{reportFields.size===1?"":"s"} selected · all {results.length} attendees</span>
-                  <button onClick={exportCustomReport} disabled={!reportFields.size} style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:reportFields.size?P.accent:P.grey100, color:reportFields.size?P.white:P.grey600, border:"none", borderRadius:"10px", padding:"11px 20px", fontSize:"18px", fontWeight:800, fontFamily:font, cursor:reportFields.size?"pointer":"not-allowed", boxShadow:reportFields.size?"0 2px 12px rgba(0,201,177,0.35)":"none" }}>Export custom report</button>
-                </div>
-
-                <div style={{ display:"flex", gap:"8px", alignItems:"flex-start", marginTop:"14px", background:P.grey50, borderRadius:"9px", padding:"10px 12px" }}>
-                  <span style={{ flexShrink:0, marginTop:"1px" }}><Mail size={14} strokeWidth={1.8} color={P.grey600} /></span>
-                  <span style={{ fontSize:"16px", color:P.grey600, fontFamily:font, lineHeight:1.5 }}>Sending a report straight to your vendor contact from the app is coming once your email is connected. For now, download the file here and attach it to your message.</span>
+                  <span style={{ fontSize:"14px", color:P.grey600, fontFamily:font }}>{reportFields.size} field{reportFields.size===1?"":"s"} selected · all {results.length} attendees</span>
+                  <button onClick={exportCustomReport} disabled={!reportFields.size} style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:reportFields.size?P.accent:P.grey100, color:reportFields.size?P.white:P.grey600, border:"none", borderRadius:"10px", padding:"10px 18px", fontSize:"14px", fontWeight:800, fontFamily:font, cursor:reportFields.size?"pointer":"not-allowed", boxShadow:reportFields.size?"0 2px 10px rgba(0,201,177,0.3)":"none" }}>Export custom report</button>
                 </div>
               </div>
             </div>
