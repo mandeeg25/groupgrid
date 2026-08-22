@@ -39,6 +39,7 @@ article h3{font-family:'Poppins',sans-serif;font-weight:600;font-size:19px;color
 article ul{font-size:18px;color:var(--grey);line-height:1.75;padding-left:22px;margin:0 0 18px;}
 article li{margin-bottom:8px;}
 article strong{color:var(--navy);font-weight:700;}
+article code{font-family:'SFMono-Regular',Consolas,'Liberation Mono',monospace;font-size:14px;background:#EEF1F8;color:var(--navy);padding:2px 6px;border-radius:5px;word-break:break-word;}
 
 /* CTA */
 .cta-box{background:var(--navy);border-radius:16px;padding:34px;margin:52px 0 0;text-align:center;}
