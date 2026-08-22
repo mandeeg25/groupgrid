@@ -45,6 +45,7 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
           <div className="gg-landing-navlinks" style={{ display:"flex", alignItems:"center", gap:"28px" }}>
             <button onClick={onAbout} style={{ background:"none", border:"none", fontSize:"15px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>About</button>
             <button onClick={onFaq} style={{ background:"none", border:"none", fontSize:"15px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>FAQ</button>
+            <button onClick={() => { window.location.href = "/blog/"; }} style={{ background:"none", border:"none", fontSize:"15px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>Blog</button>
             <button onClick={onPricing} style={{ background:"none", border:"none", fontSize:"15px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>Pricing</button>
           </div>
           <button onClick={onEnter} style={{ background:P.accent, border:"none", borderRadius:"8px", padding:"8px 18px", fontSize:"15px", fontWeight:700, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 2px 12px rgba(0,201,177,0.35)", whiteSpace:"nowrap", flexShrink:0 }}>Open App →</button>
@@ -608,6 +609,7 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
             ["Pricing", onPricing],
             ["About", onAbout],
             ["FAQ", onFaq],
+            ["Blog", () => { window.location.href = "/blog/"; }],
             ["Contact", onContact],
             ["Privacy Policy", onPrivacy],
             ["Terms of Service", onTerms],

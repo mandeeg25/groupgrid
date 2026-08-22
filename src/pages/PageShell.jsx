@@ -34,6 +34,7 @@ export function MarketingNav({ nav }) {
     { key:"pricing", label:"Pricing", go: nav?.onPricing },
     { key:"about",   label:"About",   go: nav?.onAbout },
     { key:"faq",     label:"FAQ",     go: nav?.onFaq },
+    { key:"blog",    label:"Blog",    go: () => { window.location.href = "/blog/"; } },
     { key:"contact", label:"Contact", go: nav?.onContact },
   ];
   return (
