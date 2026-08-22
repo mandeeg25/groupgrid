@@ -1,21 +1,28 @@
 :root{
-  --navy:#0C1E3F; --navy-light:#1A2E52; --ink:#22314f; --grey:#4A5568;
+  --navy:#0C1E3F; --navy-light:#1A2E52; --ink:#0C1E3F; --grey:#4A5568;
   --grey-light:#7E8BA8; --line:#DDE2EF; --bg:#F0F2F7; --white:#fff;
   --accent:#00C9B1; --accentD:#00A896;
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
-body{font-family:'Manrope',system-ui,-apple-system,sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;-webkit-font-smoothing:antialiased;}
+body{font-family:'IBM Plex Sans',system-ui,-apple-system,sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;-webkit-font-smoothing:antialiased;}
 a{color:var(--accentD);text-decoration:none;}
 a:hover{text-decoration:underline;}
 
-/* Nav */
-.nav{position:sticky;top:0;z-index:10;background:var(--navy);display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:58px;box-shadow:0 1px 0 rgba(255,255,255,.06);}
-.nav .brand{display:flex;align-items:center;gap:9px;color:#fff;font-family:'Poppins',sans-serif;font-weight:700;font-size:18px;}
+/* Header — matches the app's navy nav + brand lockup */
+.nav{position:sticky;top:0;z-index:10;background:var(--navy);display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:64px;box-shadow:0 1px 0 rgba(255,255,255,.06);}
+.nav .brand{display:flex;align-items:center;gap:11px;}
 .nav .brand:hover{text-decoration:none;}
-.nav .brand img{border-radius:6px;}
-.nav .cta{background:var(--accent);color:#fff;font-weight:700;font-size:14px;padding:9px 16px;border-radius:8px;}
+.nav .brand img{width:34px;height:34px;display:block;}
+.nav .brand .wm{font-family:'Poppins',sans-serif;font-weight:600;font-size:22px;letter-spacing:-.01em;line-height:1;}
+.nav .brand .wm .g1{color:#fff;}
+.nav .brand .wm .g2{color:var(--accent);}
+.nav .links{display:flex;align-items:center;gap:24px;}
+.nav .links a{color:rgba(255,255,255,.6);font-weight:600;font-size:15px;}
+.nav .links a:hover{color:#fff;text-decoration:none;}
+.nav .cta{background:var(--accent);color:#fff;font-weight:700;font-size:15px;padding:9px 18px;border-radius:8px;box-shadow:0 2px 12px rgba(0,201,177,.35);}
 .nav .cta:hover{text-decoration:none;background:var(--accentD);}
+@media(max-width:640px){.nav{padding:0 18px;} .nav .links a:not(.cta){display:none;} .nav .brand .wm{font-size:19px;}}
 
 /* Layout */
 .wrap{max-width:760px;margin:0 auto;padding:56px 24px 72px;}
@@ -40,14 +47,16 @@ article strong{color:var(--navy);font-weight:700;}
 .cta-box a{display:inline-block;background:var(--accent);color:#fff;font-weight:700;padding:13px 28px;border-radius:11px;}
 .cta-box a:hover{text-decoration:none;background:var(--accentD);}
 
-/* Post list (index) */
-.post-list{margin-top:40px;}
-.post-card{display:block;background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px 26px;margin-bottom:16px;}
-.post-card:hover{text-decoration:none;box-shadow:0 10px 30px -20px rgba(12,30,63,.45);}
+/* Post list — clickable title tiles */
+.post-list{margin-top:40px;display:grid;gap:16px;}
+.post-card{display:block;background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px 26px;transition:box-shadow .15s,transform .15s,border-color .15s;}
+.post-card:hover{text-decoration:none;box-shadow:0 14px 34px -22px rgba(12,30,63,.5);transform:translateY(-2px);border-color:#C7D0E6;}
 .post-card .cat{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accentD);}
 .post-card h2{font-family:'Poppins',sans-serif;font-size:22px;color:var(--navy);margin:8px 0 6px;letter-spacing:-.01em;}
 .post-card p{font-size:16px;color:var(--grey);margin:0;line-height:1.6;}
-.post-card .date{font-size:13px;color:var(--grey-light);margin-top:12px;}
+.post-card .row{display:flex;align-items:center;justify-content:space-between;margin-top:14px;}
+.post-card .date{font-size:13px;color:var(--grey-light);}
+.post-card .read{font-size:14px;font-weight:700;color:var(--accentD);}
 
 /* Footer */
 .foot{max-width:760px;margin:0 auto;padding:28px 24px 60px;font-size:14px;color:var(--grey-light);border-top:1px solid var(--line);}
