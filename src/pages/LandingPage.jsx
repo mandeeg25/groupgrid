@@ -269,23 +269,102 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
         </div>
       </div>
 
-      {/* ── Use cases ── */}
-      <div style={{ background:P.white, padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
-        <div style={{ maxWidth:"1000px", margin:"0 auto", textAlign:"center" }}>
-          <div style={{ fontSize:"15px", fontWeight:800, color:P.navy, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>WHO IT'S FOR</div>
-          <h2 style={{ fontSize:"clamp(28px, 4.5vw, 42px)", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 12px", letterSpacing:"-0.035em", lineHeight:1.1 }}>
-            Built for event planners<br/><span style={{ color:P.accent }}>running events of any size</span>
-          </h2>
-          <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, maxWidth:"520px", margin:"0 auto 40px" }}>
-            Anywhere you need to make sure attendees arrive on time, have a confirmed room, and won't be stranded at the wrong airport.
-          </p>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:"10px", justifyContent:"center", marginBottom:"48px" }}>
-            {eventTypes.map(tag => (
-              <span key={tag} style={{ background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"20px", padding:"8px 18px", fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, boxShadow:"0 1px 4px rgba(15,29,53,0.06)" }}>{tag}</span>
-            ))}
+      {/* ── Who we serve (tabbed) ── */}
+      {(() => {
+        const [aud, setAud] = React.useState(0);
+        const audiences = [
+          {
+            label:"Event & Meeting Planners",
+            title:"Every attendee's travel, reconciled before arrival day",
+            intro:"You're juggling registration, flights, hotels, and transfers across hundreds of people. GroupGrid makes sure all four line up — automatically.",
+            points:[
+              "Cross-check your registration list against flight, hotel, and car files in one upload — no more row-by-row VLOOKUPs.",
+              "Catch the costly gaps early: registered but unbooked, booked but never registered, and dates that don't match.",
+              "Draft vendor emails and export a clean report so your hotel and travel agency work from the same truth.",
+            ],
+          },
+          {
+            label:"Corporate Travel Managers",
+            title:"Keep group travel on policy and on budget",
+            intro:"Group travel is where policy quietly breaks down. GroupGrid gives you one view to enforce it and control spend.",
+            points:[
+              "Spot out-of-policy bookings — wrong dates, wrong airport, nights outside the block — before they become change fees.",
+              "Reconcile every traveler against the approved list to catch duplicates, ghosts, and no-shows while refunds are still possible.",
+              "Keep a clear record of what was flagged, fixed, and confirmed for every program.",
+            ],
+          },
+          {
+            label:"Executive Assistants",
+            title:"Nothing slips for the people who can't be stranded",
+            intro:"When you're responsible for the C-suite's travel, the details have to be right. GroupGrid double-checks the whole journey end to end.",
+            points:[
+              "Confirm each executive's flight, hotel, and transfer actually connect — no landing after check-in, no missing room.",
+              "Keep a VIP watch list and verify the details that matter twice, without living in spreadsheets.",
+              "Resolve issues with a two-line email weeks out instead of a scramble the night before.",
+            ],
+          },
+          {
+            label:"Sales & Revenue Ops",
+            title:"Get hundreds of reps on the ground, on time",
+            intro:"Sales kickoffs and field events pack a lot of people into a tight arrival window. GroupGrid keeps the whole roster straight.",
+            points:[
+              "Cross-check the entire roster in minutes so no rep shows up without a room or a flight.",
+              "Flag last-minute registrations, drops, and swaps each week as the list keeps moving.",
+              "Hand your events team and travel agency one clean, current list instead of five conflicting exports.",
+            ],
+          },
+        ];
+        const a = audiences[aud];
+        return (
+          <div style={{ background:P.offWhite, padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
+            <div style={{ maxWidth:"1000px", margin:"0 auto", textAlign:"center" }}>
+              <div style={{ fontSize:"15px", fontWeight:800, color:P.periwinkleD, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>WHO WE SERVE</div>
+              <h2 style={{ fontSize:"clamp(28px, 4.5vw, 42px)", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 12px", letterSpacing:"-0.035em", lineHeight:1.1 }}>
+                Built for everyone who <span style={{ color:P.accent }}>moves the group</span>
+              </h2>
+              <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, maxWidth:"560px", margin:"0 auto 36px" }}>
+                Whatever your role in getting people there, GroupGrid makes sure every traveler is accounted for.
+              </p>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:"10px", justifyContent:"center", marginBottom:"28px" }}>
+                {audiences.map((x, i) => (
+                  <button key={x.label} onClick={() => setAud(i)} style={{
+                    cursor:"pointer", fontFamily:font, fontSize:"15px", fontWeight:700, padding:"11px 20px", borderRadius:"999px",
+                    border:`1.5px solid ${i === aud ? P.navy : P.grey100}`,
+                    background:i === aud ? P.navy : P.white,
+                    color:i === aud ? P.white : P.navy,
+                    boxShadow:i === aud ? "0 4px 14px rgba(12,30,63,0.18)" : "0 1px 4px rgba(15,29,53,0.06)",
+                    transition:"all .15s",
+                  }}>{x.label}</button>
+                ))}
+              </div>
+              <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"18px", padding:"36px 34px", maxWidth:"820px", margin:"0 auto", textAlign:"left", boxShadow:"0 18px 44px -30px rgba(12,30,63,0.5)" }}>
+                <h3 style={{ fontFamily:fontDisplay, fontSize:"clamp(19px,2.4vw,23px)", fontWeight:700, color:P.navy, margin:"0 0 10px", letterSpacing:"-0.02em", lineHeight:1.25 }}>{a.title}</h3>
+                <p style={{ fontFamily:font, fontSize:"16px", color:P.grey600, lineHeight:1.65, margin:"0 0 22px" }}>{a.intro}</p>
+                <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
+                  {a.points.map((pt, i) => (
+                    <div key={i} style={{ display:"flex", gap:"12px", alignItems:"flex-start" }}>
+                      <span style={{ flex:"0 0 auto", width:"24px", height:"24px", borderRadius:"50%", background:P.accentLight, display:"flex", alignItems:"center", justifyContent:"center", marginTop:"1px" }}>
+                        <Check size={14} color={P.accentD} strokeWidth={3} />
+                      </span>
+                      <span style={{ fontFamily:font, fontSize:"16px", color:P.navy, lineHeight:1.6 }}>{pt}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div style={{ marginTop:"44px" }}>
+                <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, maxWidth:"580px", margin:"0 auto 22px" }}>
+                  Anywhere you need attendees to arrive on time, with a confirmed room, at the right airport &mdash; across events of every size.
+                </p>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:"10px", justifyContent:"center" }}>
+                  {eventTypes.map(tag => (
+                    <span key={tag} style={{ background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"20px", padding:"8px 18px", fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, boxShadow:"0 1px 4px rgba(15,29,53,0.06)" }}>{tag}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* ── Value band (testimonials to be added once real) ── */}
       <div style={{ background:`linear-gradient(160deg, ${P.navy} 0%, ${P.navyLight} 100%)`, padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
