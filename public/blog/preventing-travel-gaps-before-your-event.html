@@ -4,13 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>The event travel playbook: prevent costly gaps before check-in — GroupGrid</title>
-  <meta name="description" content="A hands-on event travel playbook: 12 plays across registration, cross-checking, and monitoring to prevent costly booking mistakes — set date parameters early, fence the block, cross-check the four lists, beat the two-week cost cliff, and watch VIPs. Works with or without GroupGrid." />
+  <meta name="description" content="A hands-on event travel playbook: 12 plays across registration, cross-checking, and monitoring to prevent costly booking mistakes. Set date parameters early, fence the block, cross-check the four lists, beat the two-week cost cliff, and watch VIPs. Works with or without GroupGrid." />
   <meta name="keywords" content="event travel playbook, travel booking cross-check, cross-checking, registration reconciliation, hotel room block, group travel, flag travel issues, VIP travel, sales kickoff" />
   <link rel="canonical" href="https://groupgrid.io/blog/preventing-travel-gaps-before-your-event.html" />
   <meta name="robots" content="index, follow" />
   <meta property="og:site_name" content="GroupGrid" />
   <meta property="og:title" content="The event travel playbook: prevent costly gaps before check-in" />
-  <meta property="og:description" content="12 plays across registration, cross-checking, and monitoring to prevent costly event-travel mistakes — with or without GroupGrid." />
+  <meta property="og:description" content="12 plays across registration, cross-checking, and monitoring to prevent costly event-travel mistakes, with or without GroupGrid." />
   <meta property="og:type" content="article" />
   <meta property="og:url" content="https://groupgrid.io/blog/preventing-travel-gaps-before-your-event.html" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -43,58 +43,58 @@
     <div class="meta">August 2026 &middot; 8 min read</div>
 
     <article>
-      <p class="lead">Like a coach&rsquo;s playbook, this is a set of <em>plays</em> &mdash; specific moves that win specific situations. Run them in order, from the day registration opens to the moment your VIP lands, and the travel mistakes that blow up at check-in mostly stop happening. Every play works in a plain spreadsheet; GroupGrid just runs the cross-check ones for you in one upload.</p>
+      <p class="lead">Like a coach&rsquo;s playbook, this is a set of <em>plays</em>: specific moves that win specific situations. Run them in order, from the day registration opens to the moment your VIP lands, and the travel mistakes that blow up at check-in mostly stop happening. Every play works in a plain spreadsheet. GroupGrid just runs the cross-check ones for you in one upload.</p>
 
       <p>And they matter: in a <a href="https://www.corporatetraveler.us/en-us/resources/insights/top-9-mistakes-businesses-make-when-booking-travel" target="_blank" rel="noopener">Corporate Traveler survey of 255 business decision-makers</a>, <strong>55% admitted to costly in-house travel-booking mistakes</strong>. The plays below are how you land on the right side of that number.</p>
 
-      <h2>Quarter 1 &mdash; Set the rules before registration opens</h2>
+      <h2>Quarter 1: Set the rules before registration opens</h2>
       <p>The cheapest problems to fix are the ones you prevent. Decide the guardrails first.</p>
-      <h3>Play 1: Set travel parameters early &mdash; and publish them</h3>
-      <p>Lock your <strong>approved arrival/departure window</strong>, <strong>preferred airport(s)</strong>, and <strong>hotel block dates</strong> before registration goes live, then put them right in the registration form <em>and</em> the FAQ. When people see the window up front, far fewer bookings ever land outside it &mdash; prevention beats correction every time.</p>
+      <h3>Play 1: Set travel parameters early, then publish them</h3>
+      <p>Lock your <strong>approved arrival/departure window</strong>, <strong>preferred airport(s)</strong>, and <strong>hotel block dates</strong> before registration goes live, then put them right in the registration form <em>and</em> the FAQ. When people see the window up front, far fewer bookings ever land outside it. Prevention beats correction every time.</p>
       <h3>Play 2: Fence the dates in the booking flow</h3>
       <p>Limit the selectable check-in/check-out to your block dates so no one accidentally tacks on extra nights, and give a clear, named path to <em>request</em> an exception (who approves it, by when). One fence saves a dozen &ldquo;why am I being charged for Sunday?&rdquo; emails.</p>
 
-      <h2>Quarter 2 &mdash; Capture clean data during registration</h2>
+      <h2>Quarter 2: Capture clean data during registration</h2>
       <h3>Play 3: Ask for exactly what you&rsquo;ll cross-check later</h3>
-      <p>Collect full legal name (as it appears on travel ID), <strong>email</strong> (your matching key &mdash; more on that below), arrival and departure dates, and simple checkboxes for &ldquo;need travel booked?&rdquo; and &ldquo;requesting nights outside the block?&rdquo; Clean inputs now mean fewer mismatches to chase later.</p>
+      <p>Collect full legal name (as it appears on travel ID), <strong>email</strong> (your matching key, more on that below), arrival and departure dates, and simple checkboxes for &ldquo;need travel booked?&rdquo; and &ldquo;requesting nights outside the block?&rdquo; Clean inputs now mean fewer mismatches to chase later.</p>
 
-      <h2>Quarter 3 &mdash; Cross-check: make the four lists agree</h2>
-      <p>Registration, flight manifest, hotel roster, car transfers. Four files that never talk to each other &mdash; until you make them. First, two setup habits: put all four in one workbook, and <strong>match on email, not name</strong> (names get misspelled and reordered; email is unique and stable).</p>
+      <h2>Quarter 3: Cross-check so the four lists agree</h2>
+      <p>Registration, flight manifest, hotel roster, car transfers. Four files that never talk to each other, until you make them. First, two setup habits: put all four in one workbook, and <strong>match on email, not name</strong> (names get misspelled and reordered; email is unique and stable).</p>
       <h3>Play 4: Registered, but nothing booked</h3>
-      <p>On the registration tab, look each person up in the manifest and roster by email:<br /><code>=IF(ISNA(XLOOKUP(email, Flights!Email, Flights!Email)), "&#9873; No flight", "ok")</code><br />Filter to the flags &mdash; that&rsquo;s your call sheet of people who need a booking.</p>
+      <p>On the registration tab, look each person up in the manifest and roster by email:<br /><code>=IF(ISNA(XLOOKUP(email, Flights!Email, Flights!Email)), "&#9873; No flight", "ok")</code><br />Filter to the flags. That&rsquo;s your call sheet of people who need a booking.</p>
       <h3>Play 5: Booked, but never registered</h3>
-      <p>Run the lookup the other direction. A flight or room with no matching registration is a drop, a duplicate, or a ghost &mdash; confirm it or release it while a refund is still possible.</p>
+      <p>Run the lookup the other direction. A flight or room with no matching registration is a drop, a duplicate, or a ghost. Confirm it or release it while a refund is still possible.</p>
       <h3>Play 6: Dates that don&rsquo;t line up</h3>
-      <p>Put arrival next to check-in and let math notice: <code>=hotel_checkin - flight_arrival</code>. Anything that isn&rsquo;t <code>0</code> (or your expected offset) is a mismatch &mdash; a flight landing after check-in, a departure before check-out, a transfer on the wrong day. Add <strong>conditional formatting</strong> to turn non-zero red.</p>
+      <p>Put arrival next to check-in and let math notice: <code>=hotel_checkin - flight_arrival</code>. Anything that isn&rsquo;t <code>0</code> (or your expected offset) is a mismatch: a flight landing after check-in, a departure before check-out, or a transfer on the wrong day. Add <strong>conditional formatting</strong> to turn non-zero red.</p>
       <h3>Play 7: Wrong airport or outside the window</h3>
       <p>Filter the arrival-airport column to anything that isn&rsquo;t your event airport, and filter dates to anything outside your window. Two filters, two short lists to confirm.</p>
-      <p><em>With GroupGrid:</em> Plays 4&ndash;7 run automatically the moment you upload the four files &mdash; every gap flagged, with the exact mismatch.</p>
+      <p><em>With GroupGrid:</em> Plays 4&ndash;7 run automatically the moment you upload the four files, with every gap flagged and the exact mismatch shown.</p>
 
-      <h2>Quarter 4 &mdash; Monitor the moving parts</h2>
+      <h2>Quarter 4: Monitor the moving parts</h2>
       <h3>Play 8: Beat the two-week cost cliff</h3>
-      <p>Airfare and hotel rates climb sharply in the last couple of weeks. Run your first full cross-check at <strong>T&#8209;6 to T&#8209;4 weeks</strong>, while the block is open and fares are sane &mdash; that&rsquo;s where the real money is saved.</p>
+      <p>Airfare and hotel rates climb sharply in the last couple of weeks. Run your first full cross-check at <strong>T&#8209;6 to T&#8209;4 weeks</strong>, while the block is open and fares are sane. That&rsquo;s where the real money is saved.</p>
       <h3>Play 9: Watch the last-minute changes</h3>
       <p>Re-run the cross-check weekly, and again at <strong>T&#8209;1 week</strong>, to catch late registrations, drops, and swaps before they reach the front desk.</p>
       <h3>Play 10: Confirm extension options in advance</h3>
       <p>Ask the hotel <em>now</em> how a guest books nights outside the block, what the rate is, and the cutoff. Then an early-arrival or late-departure request is a two-minute answer instead of an arrival-day scramble.</p>
       <h3>Play 11: Release no-shows and drops fast</h3>
-      <p>Cancellations that stay on the block quietly burn budget. Clear them promptly to recover rooms and money &mdash; and to free space for the waitlist.</p>
+      <p>Cancellations that stay on the block quietly burn budget. Clear them promptly to recover rooms and money, and to free space for the waitlist.</p>
       <h3>Play 12: Put your VIPs on a watch list</h3>
-      <p>Flag your VIPs and hand-verify their whole journey end to end &mdash; flight, transfer timing, room, checkout &mdash; so their arrival goes smoothly. The one guest you can&rsquo;t afford to strand is the one to check twice.</p>
+      <p>Flag your VIPs and hand-verify their whole journey end to end (flight, transfer timing, room, checkout) so their arrival goes smoothly. The one guest you can&rsquo;t afford to strand is the one to check twice.</p>
 
-      <h2>Game day &mdash; win the last mile</h2>
+      <h2>Game day: win the last mile</h2>
       <p>The flights and rooms can be flawless and the event can still start badly if the last mile falls apart. Three plays for the days that count.</p>
       <h3>Play 13: Own the last mile</h3>
-      <p>Getting from the airport or station to the venue is where careful plans quietly unravel. Pre-book airport transfers and shuttles instead of leaving guests to a rideshare app &mdash; and plan a staggered <em>departure</em> wave, because everyone hailing a car the minute a session ends means surge pricing and no cars. Cross-check your transfer file against arrival times so no one lands to no ride.</p>
+      <p>Getting from the airport or station to the venue is where careful plans quietly unravel. Pre-book airport transfers and shuttles instead of leaving guests to a rideshare app, and plan a staggered <em>departure</em> wave too, because everyone hailing a car the minute a session ends means surge pricing and no cars. Cross-check your transfer file against arrival times so no one lands to no ride.</p>
       <h3>Play 14: Always have a Plan B</h3>
-      <p>Weather, traffic, a delayed inbound, a no-show vehicle &mdash; something will move. Build buffer time between landing and the first obligation, keep an alternate route and a little standby capacity, and know who to call. Hope is not a contingency plan.</p>
+      <p>Weather, traffic, a delayed inbound, a no-show vehicle: something will move. Build buffer time between landing and the first obligation, keep an alternate route and a little standby capacity, and know who to call. Hope is not a contingency plan.</p>
       <h3>Play 15: One source of truth on the day</h3>
-      <p>When a gate changes or a shuttle shifts, the update has to reach everyone at once. Name an on-site point person and keep a single, current itinerary (one channel, one link) so travelers aren&rsquo;t chasing a dozen email threads. Segment it, too &mdash; VIPs, crew, and general attendees often need different instructions.</p>
+      <p>When a gate changes or a shuttle shifts, the update has to reach everyone at once. Name an on-site point person and keep a single, current itinerary (one channel, one link) so travelers aren&rsquo;t chasing a dozen email threads. Segment it, too, since VIPs, crew, and general attendees often need different instructions.</p>
 
       <h2>Coach&rsquo;s tips</h2>
       <ul>
-        <li><strong>Confirm, don&rsquo;t assume.</strong> A flag is a two-line email, not a verdict: &ldquo;We don&rsquo;t see a hotel for you yet &mdash; can you confirm?&rdquo;</li>
-        <li><strong>De-dupe first.</strong> The same name twice will haunt every lookup &mdash; sort by email and clear duplicates before you start.</li>
+        <li><strong>Confirm, don&rsquo;t assume.</strong> A flag is a two-line email, not a verdict: &ldquo;We don&rsquo;t see a hotel for you yet. Can you confirm?&rdquo;</li>
+        <li><strong>De-dupe first.</strong> The same name twice will haunt every lookup, so sort by email and clear duplicates before you start.</li>
         <li><strong>Keep the flags, not just the fixes.</strong> A running &ldquo;needs attention&rdquo; list is your status report and your paper trail.</li>
       </ul>
 
@@ -102,7 +102,7 @@
 
       <div class="cta-box">
         <h3>Run the cross-check plays in one upload</h3>
-        <p>GroupGrid takes your registration, flight, hotel, and car files and flags every gap &mdash; missing bookings, mismatched dates, wrong airports &mdash; so you can spend your time on Plays 1, 2, and 12 instead of spreadsheets.</p>
+        <p>GroupGrid takes your registration, flight, hotel, and car files and flags every gap (missing bookings, mismatched dates, wrong airports) so you can spend your time on Plays 1, 2, and 12 instead of spreadsheets.</p>
         <a href="https://groupgrid.io/">Try GroupGrid &rarr;</a>
       </div>
     </article>

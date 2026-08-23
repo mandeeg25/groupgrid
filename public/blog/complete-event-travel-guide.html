@@ -54,13 +54,13 @@
     <div class="meta">August 2026 &middot; 15 min read &middot; Free guide</div>
 
     <article>
-      <p class="lead">Every event lives or dies on a simple question: is everyone actually going to be there, in the right place, at the right time? Answering it means making four lists that never talk to each other &mdash; registration, flights, hotels, and transfers &mdash; agree. This guide is the complete method for doing that: why the lists drift apart, how to cross-check them, when to run the checks, and what to watch for. Every step works in a plain spreadsheet; GroupGrid just runs the tedious parts for you.</p>
+      <p class="lead">Every event lives or dies on a simple question: is everyone actually going to be there, in the right place, at the right time? Answering it means getting four lists that never talk to each other (registration, flights, hotels, and transfers) to agree. This guide is the whole method for doing that: why the lists drift apart, how to cross-check them, when to run the checks, and what to watch for. Every step works in a plain spreadsheet, and GroupGrid just runs the tedious parts for you.</p>
 
       <div class="toc">
         <h2>What's inside</h2>
         <ol>
           <li><a href="#why">Why event travel reconciliation matters</a></li>
-          <li><a href="#four">The four lists &mdash; and why they disagree</a></li>
+          <li><a href="#four">The four lists, and why they disagree</a></li>
           <li><a href="#method">The cross-check method</a></li>
           <li><a href="#timeline">The pre-event timeline</a></li>
           <li><a href="#redflags">Red flags to watch</a></li>
@@ -71,32 +71,32 @@
 
       <div class="chapmark">Chapter 1</div>
       <h2 id="why">Why event travel reconciliation matters</h2>
-      <p>The mistakes rarely look expensive in the moment. A room booked for the wrong night. A flight that lands after check-in. A name that doesn&rsquo;t match. Individually small &mdash; but multiplied across an event, they quietly become the biggest line item nobody planned for.</p>
-      <p>And they&rsquo;re common. In a <a href="https://www.corporatetraveler.us/en-us/resources/insights/top-9-mistakes-businesses-make-when-booking-travel" target="_blank" rel="noopener">Corporate Traveler survey of 255 business decision-makers</a>, <strong>55% admitted to costly travel-booking mistakes</strong> made in-house &mdash; going over budget, booking too late, or choosing the wrong services. Coordinating one trip, the odds are manageable. Coordinating a hundred attendees across separate registration, flight, hotel, and car files, they compound. Reconciliation is how you get ahead of that number instead of paying for it.</p>
+      <p>The mistakes rarely look expensive in the moment. A room booked for the wrong night. A flight that lands after check-in. A name that doesn&rsquo;t match. Small enough on their own, but multiplied across an event they quietly turn into the biggest line item nobody planned for.</p>
+      <p>And they&rsquo;re common. In a <a href="https://www.corporatetraveler.us/en-us/resources/insights/top-9-mistakes-businesses-make-when-booking-travel" target="_blank" rel="noopener">Corporate Traveler survey of 255 business decision-makers</a>, <strong>55% admitted to costly travel-booking mistakes</strong> made in-house: going over budget, booking too late, or choosing the wrong services. Coordinating one trip, the odds are manageable. Coordinating a hundred attendees across separate registration, flight, hotel, and car files, they compound. Reconciliation is how you get ahead of that number instead of paying for it.</p>
 
       <div class="chapmark">Chapter 2</div>
-      <h2 id="four">The four lists &mdash; and why they disagree</h2>
+      <h2 id="four">The four lists, and why they disagree</h2>
       <p>The truth about any group trip is spread across files that were never designed to line up:</p>
       <ul>
-        <li><strong>Registration</strong> &mdash; who said they&rsquo;re coming, their dates, and their requests.</li>
-        <li><strong>Flight manifest</strong> &mdash; who&rsquo;s actually ticketed, in a different format with different spelling.</li>
-        <li><strong>Hotel rooming list</strong> &mdash; who has a room, for which nights.</li>
-        <li><strong>Ground transfers</strong> &mdash; who has a car, and when.</li>
+        <li><strong>Registration:</strong> who said they&rsquo;re coming, their dates, and their requests.</li>
+        <li><strong>Flight manifest:</strong> who&rsquo;s actually ticketed, usually in a different format with different spelling.</li>
+        <li><strong>Hotel rooming list:</strong> who has a room, and for which nights.</li>
+        <li><strong>Ground transfers:</strong> who has a car, and when.</li>
       </ul>
-      <p>They disagree because they&rsquo;re maintained by different people, at different times, in different systems. The eye can&rsquo;t reliably hold four lists in its head, and the one thing you need to notice &mdash; an <em>absence</em>, a mismatch, a duplicate &mdash; is exactly what scanning rows tends to skip. Two setup habits fix most of it: put all four in one workbook, and <strong>match on email, not name</strong> (names get misspelled and reordered; email is unique and stable).</p>
+      <p>They disagree because they&rsquo;re maintained by different people, at different times, in different systems. The eye can&rsquo;t reliably hold four lists in its head, and the one thing you need to notice (an <em>absence</em>, a mismatch, a duplicate) is exactly what scanning rows tends to skip. Two setup habits fix most of it: put all four in one workbook, and <strong>match on email, not name</strong> (names get misspelled and reordered; email is unique and stable).</p>
 
       <div class="chapmark">Chapter 3</div>
       <h2 id="method">The cross-check method</h2>
       <p>Cross-checking means comparing the lists against each other and letting the mismatches surface, instead of reading each one on its own. Four questions catch the overwhelming majority of costly problems.</p>
       <h3>1. Registered, but nothing booked</h3>
-      <p>On the registration tab, look each person up in the manifest and roster by email:<br /><code>=IF(ISNA(XLOOKUP(email, Flights!Email, Flights!Email)), "&#9873; No flight", "ok")</code><br />Filter to the flags &mdash; that&rsquo;s your call sheet of people who still need a booking.</p>
+      <p>On the registration tab, look each person up in the manifest and roster by email:<br /><code>=IF(ISNA(XLOOKUP(email, Flights!Email, Flights!Email)), "&#9873; No flight", "ok")</code><br />Filter to the flags, and that&rsquo;s your call sheet of people who still need a booking.</p>
       <h3>2. Booked, but never registered</h3>
-      <p>Run the lookup the other direction. A flight or room with no matching registration is a drop, a duplicate, or a ghost &mdash; confirm it or release it while a refund is still possible.</p>
+      <p>Run the lookup the other direction. A flight or room with no matching registration is a drop, a duplicate, or a ghost. Confirm it or release it while a refund is still possible.</p>
       <h3>3. Dates that don&rsquo;t line up</h3>
-      <p>Put arrival next to check-in and let math notice: <code>=hotel_checkin - flight_arrival</code>. Anything that isn&rsquo;t <code>0</code> (or your expected offset) is a mismatch &mdash; a flight landing after check-in, a departure before check-out, a transfer on the wrong day. Conditional formatting turns the exceptions red.</p>
+      <p>Put arrival next to check-in and let math notice: <code>=hotel_checkin - flight_arrival</code>. Anything that isn&rsquo;t <code>0</code> (or your expected offset) is a mismatch: a flight landing after check-in, a departure before check-out, a transfer on the wrong day. Conditional formatting turns the exceptions red.</p>
       <h3>4. Wrong airport or outside the window</h3>
       <p>Filter the arrival-airport column to anything that isn&rsquo;t your event airport, and dates to anything outside your approved window. Two filters, two short lists to confirm.</p>
-      <p><em>With GroupGrid,</em> all four questions answer themselves the moment you upload the files &mdash; every gap flagged, with the exact mismatch. For the deeper version of this, see <a href="/blog/travel-booking-detective-case-closed.html">Case closed: playing detective with your travel data</a>.</p>
+      <p><em>With GroupGrid,</em> all four questions answer themselves the moment you upload the files, with every gap flagged and the exact mismatch shown. For the deeper version of this, see <a href="/blog/travel-booking-detective-case-closed.html">Case closed: playing detective with your travel data</a>.</p>
 
       <div class="chapmark">Chapter 4</div>
       <h2 id="timeline">The pre-event timeline</h2>
@@ -112,17 +112,17 @@
       <h2 id="redflags">Red flags to watch</h2>
       <p>Once you&rsquo;re cross-checking regularly, the same warning signs come up again and again:</p>
       <ul>
-        <li><strong>A registrant with no flight and no room</strong> a few weeks out &mdash; the classic &ldquo;I thought that was booked&rdquo;.</li>
-        <li><strong>Two rooms or two flights for one person</strong> &mdash; a duplicate quietly burning budget.</li>
-        <li><strong>Arrival after check-in, or departure before check-out</strong> &mdash; a guest who technically has both bookings but can&rsquo;t actually use them.</li>
-        <li><strong>Nights outside the block, or the wrong airport</strong> &mdash; usually an honest self-booking mistake, cheap to fix early.</li>
-        <li><strong>A name on the manifest that isn&rsquo;t on the registration</strong> &mdash; a drop that never got released.</li>
+        <li><strong>A registrant with no flight and no room</strong> a few weeks out. That&rsquo;s the classic &ldquo;I thought that was booked&rdquo;.</li>
+        <li><strong>Two rooms or two flights for one person</strong>, a duplicate quietly burning budget.</li>
+        <li><strong>Arrival after check-in, or departure before check-out.</strong> The guest technically has both bookings but can&rsquo;t actually use them.</li>
+        <li><strong>Nights outside the block, or the wrong airport</strong>, usually an honest self-booking mistake that&rsquo;s cheap to fix early.</li>
+        <li><strong>A name on the manifest that isn&rsquo;t on the registration</strong>, a drop that never got released.</li>
       </ul>
       <p>More on each in <a href="/blog/red-flags-in-event-travel-bookings.html">Red flags in event travel bookings</a>.</p>
 
       <div class="chapmark">Chapter 6</div>
       <h2 id="vips">VIPs and the last mile</h2>
-      <p>Some travelers you simply cannot afford to strand. Keep a short <strong>VIP watch list</strong> &mdash; executives, speakers, key customers &mdash; and hand-verify their whole journey end to end: flight, transfer timing, room, checkout. The one guest you can&rsquo;t afford to strand is the one to check twice.</p>
+      <p>Some travelers you simply cannot afford to strand. Keep a short <strong>VIP watch list</strong> (executives, speakers, key customers) and hand-verify their whole journey end to end: flight, transfer timing, room, checkout. The guest you can least afford to lose is exactly the one to check twice.</p>
       <p>And remember the last mile. The flights and rooms can be flawless and the event can still start badly if getting from the airport to the venue falls apart. Pre-book transfers instead of leaving guests to a rideshare app, cross-check the transfer file against arrival times so no one lands to no ride, and keep a little buffer and a Plan B for the inevitable delay.</p>
 
       <div class="chapmark">Chapter 7</div>
@@ -133,14 +133,14 @@
         <li>Put registration, flights, hotel, and transfers in one workbook; de-dupe by email first.</li>
         <li>Run the four cross-check questions: unbooked, unregistered, mismatched dates, wrong place.</li>
         <li>Reconcile at T&#8209;6/&#8209;4 weeks, weekly, and T&#8209;1 week.</li>
-        <li>Keep a running &ldquo;needs attention&rdquo; list &mdash; it&rsquo;s your status report and your paper trail.</li>
+        <li>Keep a running &ldquo;needs attention&rdquo; list. It doubles as your status report and your paper trail.</li>
         <li>Hand-verify every VIP end to end, and confirm the last mile.</li>
       </ul>
-      <p>Do it once and it feels like admin. Do it every event and it&rsquo;s the difference between a budget that holds and one that quietly bleeds &mdash; and an arrival day that runs itself.</p>
+      <p>Do it once and it feels like admin. Do it every event and it&rsquo;s the difference between a budget that holds and one that quietly bleeds, with an arrival day that runs itself.</p>
 
       <div class="cta-box">
         <h3>Run the whole cross-check in one upload</h3>
-        <p>GroupGrid takes your registration, flight, hotel, and car files and flags every gap &mdash; missing bookings, mismatched dates, wrong airports &mdash; so you can spend your time on the guests, not the spreadsheet.</p>
+        <p>GroupGrid takes your registration, flight, hotel, and car files and flags every gap (missing bookings, mismatched dates, wrong airports) so you can spend your time on the guests, not the spreadsheet.</p>
         <a href="https://groupgrid.io/">Try GroupGrid &rarr;</a>
       </div>
     </article>
