@@ -39,7 +39,7 @@ export function PricingPage({ onBack, nav, user }) {
           Simple pricing.<br/><span style={{ color:P.accent }}>No surprises.</span>
         </h1>
         <p style={{ fontSize:"17px", color:"rgba(255,255,255,0.55)", fontFamily:font, margin:"0 0 32px", lineHeight:1.6 }}>
-          One plan. All features. One simple price.
+          Less than the cost of a single travel mistake.<br/>Catch one gap and GroupGrid has paid for itself.
         </p>
         {/* Billing toggle */}
         <div style={{ display:"inline-flex", background:"rgba(255,255,255,0.08)", borderRadius:"12px", padding:"4px", gap:"4px" }}>
@@ -78,6 +78,24 @@ export function PricingPage({ onBack, nav, user }) {
               </div>
             )}
             <div style={{ fontSize:"17px", color:P.grey600, fontFamily:font, marginBottom:"16px" }}>1 user · unlimited events · all features</div>
+
+            {/* ROI math — one caught mistake pays for GroupGrid */}
+            <div style={{ background:P.navy, borderRadius:"12px", padding:"16px 18px", marginBottom:"16px" }}>
+              <div style={{ fontSize:"13px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"11px" }}>One mistake pays for it</div>
+              {[
+                ["A room booked for the wrong night", "~$285"],
+                ["A last-minute flight change fee", "$200+"],
+                ["A stranded VIP or a missed session", "far more"],
+              ].map(([label, cost]) => (
+                <div key={label} style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", gap:"12px", marginBottom:"7px" }}>
+                  <span style={{ fontSize:"15px", color:"rgba(255,255,255,0.8)", fontFamily:font }}>{label}</span>
+                  <span style={{ fontSize:"15px", fontWeight:700, color:P.white, fontFamily:font, whiteSpace:"nowrap" }}>{cost}</span>
+                </div>
+              ))}
+              <div style={{ borderTop:"1px solid rgba(255,255,255,0.14)", marginTop:"10px", paddingTop:"11px", fontSize:"15px", color:"rgba(255,255,255,0.92)", fontFamily:font, lineHeight:1.55 }}>
+                GroupGrid is <strong style={{ color:P.accent }}>{annual ? "$167" : "$250"}/mo</strong>. Catch <strong>one</strong> gap and it&rsquo;s already paid for &mdash; every event after that is money saved.
+              </div>
+            </div>
 
             {/* Access callout */}
             <div style={{ background:P.accentLight, border:`1.5px solid ${P.accent}44`, borderRadius:"10px", padding:"12px 16px", marginBottom:"16px", display:"flex", alignItems:"center", gap:"10px" }}>
