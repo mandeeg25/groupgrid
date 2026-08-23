@@ -24,7 +24,7 @@ export function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd
   const [showTemplateConfig, setShowTemplateConfig] = useState(false); // collapse template/config UI by default
 
   const plannerName = contacts?.plannerName || "The Planning Team";
-  const extra = { eventName, plannerName, arrivalStart, arrivalEnd, departureStart, departureEnd, hotelName: contacts?.hotel?.name, travelName: contacts?.travel?.name, carName: contacts?.car?.name };
+  const extra = { eventName, plannerName, arrivalStart, arrivalEnd, departureStart, departureEnd, hotelName: contacts?.hotel?.name, travelName: contacts?.travel?.name, carName: contacts?.car?.name, cateringName: contacts?.catering?.name };
 
   function saveNewTemplate(tmpl) {
     setTemplates(prev => ({ ...prev, [tmpl.id]: tmpl }));
@@ -63,10 +63,11 @@ export function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd
     const vendorEmail = audience === "hotel" ? contacts?.hotel?.email
                       : audience === "travel" ? contacts?.travel?.email
                       : audience === "car" ? contacts?.car?.email
+                      : audience === "catering" ? contacts?.catering?.email
                       : "";
     const vendorBody = VENDOR_BODY_OVERRIDE[templateId] || VENDOR_BODY[audience];
     if (audience !== "guest" && vendorEmail && vendorBody) {
-      const tag = audience === "hotel" ? "Hotel" : audience === "travel" ? "Flight" : "Transfer";
+      const tag = audience === "hotel" ? "Hotel" : audience === "travel" ? "Flight" : audience === "catering" ? "Dietary & Access" : "Transfer";
       const subject = templateId === "arrives_late"
         ? `${(extra.eventName && extra.eventName !== "our event") ? extra.eventName + " " : ""}[Late Arrival] Please hold the room for ${record.displayName || record.firstName || ""}`
         : `${(extra.eventName && extra.eventName !== "our event") ? extra.eventName + " " : ""}[${tag}] — Guest Review: ${record.displayName || record.firstName || ""}`;
@@ -119,6 +120,19 @@ export function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd
         q.push({ id: `${record.key}-generic`, record, templateId: null, audience: "guest", subject, body, to: record.email, status: "pending" });
       }
     });
+    // Dietary & accessibility — one message per guest with needs on file. Routes to the caterer/venue
+    // contact if set, otherwise confirms directly with the guest. Independent of travel flags.
+    if (templates.dietary_needs) {
+      (results || []).forEach(record => {
+        const d = record.diet;
+        if (!d || !(d.dietary || d.accessibility || d.specialNotes)) return;
+        const r = resolveRouting("dietary_needs", templates.dietary_needs, record);
+        const id = `${record.key}-dietary_needs`;
+        if (r.to && !q.some(item => item.id === id)) {
+          q.push({ id, record, templateId: "dietary_needs", audience: r.audience, subject: r.subject, body: r.body, to: r.to, status: "pending" });
+        }
+      });
+    }
     setQueue(q);
     setReviewIdx(0);
     setActiveView("queue");

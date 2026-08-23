@@ -12,6 +12,7 @@ export function ContactsModal({ contacts, onSave, onClose }) {
     { key:"hotel", label:"Hotel Contact", color:P.navy, fields:[{f:"name",ph:"Contact name"},{f:"email",ph:"hotel@property.com"},{f:"phone",ph:"+1 (212) 555-0100"},{f:"property",ph:"Property / hotel name"}] },
     { key:"travel", label:"Travel Agency Contact", color:P.periwinkleD, fields:[{f:"name",ph:"Contact name"},{f:"email",ph:"agent@travelco.com"},{f:"phone",ph:"+1 (212) 555-0200"},{f:"agency",ph:"Agency name"}] },
     { key:"car", label:"Car / Transfer Contact", color:P.accentD, fields:[{f:"name",ph:"Contact name"},{f:"email",ph:"transfers@vendor.com"},{f:"phone",ph:"+1 (212) 555-0300"},{f:"vendor",ph:"Transfer vendor name"}] },
+    { key:"catering", label:"Catering / Venue Contact", color:P.teal, fields:[{f:"name",ph:"Contact name"},{f:"email",ph:"catering@venue.com"},{f:"phone",ph:"+1 (212) 555-0400"},{f:"venue",ph:"Venue / caterer name"}] },
   ];  return (
     <div style={{ position:"fixed", inset:0, background:"rgba(27,42,74,0.55)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:"20px" }}>
       <div className="gg-modal" style={{ background:P.white, borderRadius:"22px", width:"100%", maxWidth:"620px", maxHeight:"90vh", overflow:"auto", boxShadow:"0 20px 60px rgba(27,42,74,0.3)" }}>

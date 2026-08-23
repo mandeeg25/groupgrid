@@ -300,6 +300,28 @@ Warmly,
 {{plannerName}}
 {{eventName}} Planning Team`,
   },
+  dietary_needs: {
+    id: "dietary_needs",
+    label: "Dietary & Access Needs",
+    icon: "🥗",
+    color: P.teal,
+    description: "Guest has dietary or accessibility needs on file — confirm with them or share with catering",
+    subject: "{{eventName}} [Dietary & Access]: Could you confirm your requirements?",
+    body: `Hi {{guestName}},
+
+We want to make sure {{eventName}} works for you. Here is what we have on file for your dietary and accessibility needs:
+
+──────────────────────
+Dietary: {{dietary}}
+Accessibility: {{accessibility}}
+──────────────────────
+
+What we need: reply to confirm this is correct, or tell us what to update.
+
+Warmly,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  },
 };
 export function fillTemplate(template, record, extra = {}) {
   const map = {
@@ -352,6 +374,10 @@ export function fillTemplate(template, record, extra = {}) {
     "{{hotelContact}}": extra.hotelName || "Hotel Team",
     "{{travelContact}}": extra.travelName || "Travel Team",
     "{{carContact}}": extra.carName || "Transfer Team",
+    "{{cateringContact}}": extra.cateringName || "Catering Team",
+    "{{dietary}}": record.diet?.dietary || record.reg?.dietaryRequest || "—",
+    "{{accessibility}}": record.diet?.accessibility || "—",
+    "{{specialNotes}}": record.diet?.specialNotes || "—",
     "{{guestEmailParen}}": record.email ? ` (${record.email})` : "",
     "{{flightInTail}}": record.flight?.flightIn ? ` — Flight ${record.flight.flightIn}` : "",
     "{{flightOutTail}}": record.flight?.flightOut ? ` — Flight ${record.flight.flightOut}` : "",
@@ -410,6 +436,7 @@ export const TEMPLATE_AUDIENCE = {
   needs_registration: "guest",
   abstract_reminder: "guest",
   general_confirmation: "guest",
+  dietary_needs:      "catering",
 };
 // Group the comms by what they are about, so hotel/flight/car messages sit together.
 export const TEMPLATE_CATEGORY = {
@@ -425,8 +452,9 @@ export const TEMPLATE_CATEGORY = {
   needs_registration: "Registration & Confirmation",
   abstract_reminder: "Registration & Confirmation",
   general_confirmation: "Registration & Confirmation",
+  dietary_needs: "Dietary & Access",
 };
-export const CATEGORY_ORDER = ["Hotel", "Flight", "Car Transfer", "Registration & Confirmation", "Custom"];
+export const CATEGORY_ORDER = ["Hotel", "Flight", "Car Transfer", "Registration & Confirmation", "Dietary & Access", "Custom"];
 // Brand icon for each template (single-line GroupGrid icon set).
 export const TEMPLATE_ICON_KEY = {
   arrives_early:      "hotel",
@@ -503,6 +531,22 @@ Issue: {{issueSummary}}
 ──────────────────────
 
 Could you confirm the transfer times are correct, or let us know if they need adjusting? Thank you.
+
+Warm regards,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  catering: `Dear {{cateringContact}},
+
+I am sharing a dietary and accessibility requirement for {{guestFullName}}{{guestEmailParen}}, a confirmed guest for {{eventName}}:
+
+──────────────────────
+Guest: {{guestFullName}}
+Dietary: {{dietary}}
+Accessibility: {{accessibility}}
+Notes: {{specialNotes}}
+──────────────────────
+
+Please confirm you can accommodate these needs, and let us know if you have any questions. Thank you.
 
 Warm regards,
 {{plannerName}}
