@@ -11,4 +11,4 @@ export function pathToPage(pathname) {
 // Feature flag: hide the Dietary/Access feature from the UI for now while focusing on
 // registration, flights, hotels, and cars. The parsing/engine code stays intact —
 // flip this to true to bring the dietary upload, column, and detail back everywhere.
-export const SHOW_DIETARY = false;
+export const SHOW_DIETARY = true;
