@@ -1009,9 +1009,10 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"8px", paddingLeft:"4px" }}>
               <span style={{ fontSize:"16px", fontWeight:700, color:P.white, letterSpacing:"0.03em", textTransform:"uppercase" }}>Projects</span>
               {(user || savedSessions.length > 0) && (
-                <span style={{ fontSize:"15px", color: user ? P.accent : "rgba(255,255,255,0.35)", fontWeight:600 }}>{user ? `Synced` : "Local only"}</span>
+                <span style={{ fontSize:"15px", color:"rgba(255,255,255,0.4)", fontWeight:600 }}>This device</span>
               )}
             </div>
+            <div style={{ fontSize:"13px", color:"rgba(255,255,255,0.4)", fontFamily:font, lineHeight:1.5, margin:"-2px 4px 12px" }}>Projects are saved in this browser. Clearing your browser data or cache will remove them.</div>
 
             {/* New project button */}
             <button onClick={() => {
@@ -1608,7 +1609,7 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
                 </button>
               )}
               <div style={{ marginLeft:"auto", display:"flex", gap:"6px", alignItems:"center", flexShrink:0 }}>
-                <button onClick={saveSession}
+                <button onClick={saveSession} title="Projects are saved in this browser — clearing your browser data will remove them."
                   style={{ display:"flex", alignItems:"center", gap:"5px", background:P.navy, border:"none", borderRadius:"7px", padding:"5px 14px", fontSize:"15px", fontWeight:700, fontFamily:font, color:P.white, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 }}>
                   <Save size={13} strokeWidth={1.8} style={{verticalAlign:"-2px"}}/> Save Project
                 </button>
