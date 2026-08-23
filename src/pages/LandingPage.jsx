@@ -314,6 +314,7 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
             ],
           },
         ];
+        const audPaths = ["/who-we-serve/event-planners","/who-we-serve/corporate-travel-managers","/who-we-serve/executive-assistants","/who-we-serve/sales-revenue-ops"];
         const a = audiences[aud];
         return (
           <div style={{ background:P.offWhite, padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
@@ -350,6 +351,7 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
                     </div>
                   ))}
                 </div>
+                <button onClick={() => { window.location.href = audPaths[aud]; }} style={{ marginTop:"22px", background:"none", border:"none", color:P.accentD, fontFamily:font, fontSize:"15px", fontWeight:700, cursor:"pointer", padding:0 }}>Learn more about {a.label} &rarr;</button>
               </div>
               <div style={{ marginTop:"44px" }}>
                 <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, maxWidth:"580px", margin:"0 auto 22px" }}>
@@ -690,6 +692,10 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
             ["FAQ", onFaq],
             ["Resources", () => { window.location.href = "/blog/"; }],
             ["Contact", onContact],
+            ["For event planners", () => { window.location.href = "/who-we-serve/event-planners"; }],
+            ["For travel managers", () => { window.location.href = "/who-we-serve/corporate-travel-managers"; }],
+            ["For executive assistants", () => { window.location.href = "/who-we-serve/executive-assistants"; }],
+            ["For sales & RevOps", () => { window.location.href = "/who-we-serve/sales-revenue-ops"; }],
             ["Privacy Policy", onPrivacy],
             ["Terms of Service", onTerms],
           ].map(([label, fn]) => (

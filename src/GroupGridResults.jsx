@@ -25,6 +25,7 @@ import { PricingPage } from "./pages/PricingPage";
 import { AboutPage } from "./pages/AboutPage";
 import { FAQPage } from "./pages/FAQPage";
 import { ContactPage } from "./pages/ContactPage";
+import { AudiencePage } from "./pages/AudiencePage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { TermsPage } from "./pages/TermsPage";
 import { extractPdfToWorkbook } from "./pdf/loadPdfJs";
@@ -897,6 +898,7 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
       {page === "contact" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><ContactPage onBack={() => setPage("landing")} nav={nav} /></div>}
       {page === "privacy" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><PrivacyPage onBack={() => setPage("landing")} nav={nav} /></div>}
       {page === "terms"   && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><TermsPage   onBack={() => setPage("landing")} nav={nav} /></div>}
+      {["whoPlanners","whoTravelManagers","whoAssistants","whoSalesOps"].includes(page) && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><AudiencePage which={page} onBack={() => setPage("landing")} nav={nav} /></div>}
         </>);
       })()}
 
