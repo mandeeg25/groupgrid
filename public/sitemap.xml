@@ -1,8 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://groupgrid.io/</loc>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
-  </url>
+  <url><loc>https://groupgrid.io/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://groupgrid.io/pricing</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://groupgrid.io/about</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://groupgrid.io/faq</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://groupgrid.io/contact</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://groupgrid.io/blog/</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://groupgrid.io/blog/preventing-travel-gaps-before-your-event.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://groupgrid.io/blog/hidden-cost-of-booking-event-travel-in-house.html</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://groupgrid.io/blog/pre-event-travel-audit-checklist.html</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://groupgrid.io/blog/red-flags-in-event-travel-bookings.html</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://groupgrid.io/blog/travel-booking-detective-case-closed.html</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://groupgrid.io/blog/corporate-travel-cross-checking.html</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://groupgrid.io/blog/sales-kickoff-travel-planning.html</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
 </urlset>
