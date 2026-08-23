@@ -87,7 +87,7 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
   const TABLE_EXPANDED_HEIGHT = 320;
   const TABLE_VISIBLE_ROWS = 16; // rows visible at once (~600px container)
   const [savedSessions, setSavedSessions] = useState([]);
-  const [contacts, setContacts] = useState({ hotel:{name:"",email:"",phone:"",property:""}, travel:{name:"",email:"",phone:"",agency:""}, car:{name:"",email:"",phone:"",vendor:""}, hotels:[], plannerName:"" });
+  const [contacts, setContacts] = useState({ hotel:{name:"",email:"",phone:"",property:""}, travel:{name:"",email:"",phone:"",agency:""}, car:{name:"",email:"",phone:"",vendor:""}, catering:{name:"",email:"",phone:"",venue:""}, hotels:[], plannerName:"" });
   const [contactsOpen, setContactsOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
