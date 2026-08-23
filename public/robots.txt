@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://groupgrid.io/sitemap.xml
+Sitemap: https://www.groupgrid.io/sitemap.xml
