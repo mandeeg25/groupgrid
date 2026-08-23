@@ -56,6 +56,7 @@ article code{font-family:'SFMono-Regular',Consolas,'Liberation Mono',monospace;f
 .card{display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;transition:box-shadow .15s,transform .15s;}
 .card:hover{text-decoration:none;box-shadow:0 18px 44px -26px rgba(12,30,63,.55);transform:translateY(-3px);}
 .card .thumb{aspect-ratio:16/9;background:linear-gradient(135deg,#0C1E3F,#0A7B7A);position:relative;overflow:hidden;}
+.card .thumb::before{content:"";position:absolute;inset:0;background:url("/blog/img/card-motif.svg") center/cover no-repeat;}
 .card .thumb::after{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.16) 1.5px,transparent 1.5px);background-size:20px 20px;}
 .card .thumb .cat{position:absolute;left:16px;bottom:14px;z-index:1;background:var(--accent);color:#fff;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:5px 12px;border-radius:20px;}
 .card .body{padding:20px 22px 22px;display:flex;flex-direction:column;flex:1;}
