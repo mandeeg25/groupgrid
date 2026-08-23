@@ -318,7 +318,7 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
         return (
           <div style={{ background:P.offWhite, padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
             <div style={{ maxWidth:"1000px", margin:"0 auto", textAlign:"center" }}>
-              <div style={{ fontSize:"15px", fontWeight:800, color:P.periwinkleD, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>WHO WE SERVE</div>
+              <div style={{ fontSize:"15px", fontWeight:800, color:P.periwinkleD, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>WHO IT'S BUILT FOR</div>
               <h2 style={{ fontSize:"clamp(28px, 4.5vw, 42px)", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 12px", letterSpacing:"-0.035em", lineHeight:1.1 }}>
                 Built for everyone who <span style={{ color:P.accent }}>moves the group</span>
               </h2>
