@@ -30,7 +30,7 @@ import { PrivacyPage } from "./pages/PrivacyPage";
 import { TermsPage } from "./pages/TermsPage";
 import { extractPdfToWorkbook } from "./pdf/loadPdfJs";
 import { DEFAULT_TEMPLATES, fillTemplate, getApplicableTemplates } from "./templates";
-import { openBillingPortal, checkSubscription } from "./stripeClient";
+import { openBillingPortal, checkSubscription, startCheckout } from "./stripeClient";
 
 export default function GroupGrid({ user, onLogin, onLogout }) {
   const isMobile = useIsMobile();
@@ -91,6 +91,7 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
   const [contactsOpen, setContactsOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [pendingCheckout, setPendingCheckout] = useState(null); // billing period to check out immediately after sign-in
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState("");
   // undefined = not checked yet, { hasAccess, status } once checked.
@@ -857,7 +858,7 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
       {emailModal && <EmailModal record={emailModal} eventName={eventName} contacts={contacts} onClose={() => setEmailModal(null)} />}
       {loginOpen && (
         <div style={{ position:"fixed", inset:0, zIndex:4000, display:"flex", alignItems:"center", justifyContent:"flex-end" }}>
-          <div onClick={() => setLoginOpen(false)} style={{ position:"absolute", inset:0, background:"rgba(27,42,74,0.5)", backdropFilter:"blur(4px)" }} />
+          <div onClick={() => { setLoginOpen(false); setPendingCheckout(null); }} style={{ position:"absolute", inset:0, background:"rgba(27,42,74,0.5)", backdropFilter:"blur(4px)" }} />
           <div style={{ position:"relative", zIndex:1, width:"100%", maxWidth:"420px", height:"100%", background:P.navy, boxShadow:"-20px 0 60px rgba(0,0,0,0.4)", display:"flex", flexDirection:"column", overflowY:"auto" }}>
             <LoginPanel onLogin={u => {
                 // Migrate anonymous sessions to the newly signed-in account
@@ -878,8 +879,10 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
                 } catch(e) {}
                 onLogin(u);
                 setLoginOpen(false);
-                setPage("app");
-              }} onClose={() => setLoginOpen(false)} />
+                // If they came here to subscribe, go straight to Stripe checkout — no app detour.
+                if (pendingCheckout) { const b = pendingCheckout; setPendingCheckout(null); startCheckout(b).catch(() => {}); }
+                else { setPage("app"); }
+              }} onClose={() => { setLoginOpen(false); setPendingCheckout(null); }} />
           </div>
         </div>
       )}
@@ -889,7 +892,8 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
 
       {/* ── Page overlays ── */}
       {(() => {
-        const nav = { onHome:() => setPage("landing"), onPricing:() => setPage("pricing"), onAbout:() => setPage("about"), onFaq:() => setPage("faq"), onContact:() => setPage("contact"), onPrivacy:() => setPage("privacy"), onTerms:() => setPage("terms"), onApp:enterApp, current:page };
+        const nav = { onHome:() => setPage("landing"), onPricing:() => setPage("pricing"), onAbout:() => setPage("about"), onFaq:() => setPage("faq"), onContact:() => setPage("contact"), onPrivacy:() => setPage("privacy"), onTerms:() => setPage("terms"), onApp:enterApp, current:page,
+          onSubscribe:(billing) => { const b = billing || "monthly"; if (user) { startCheckout(b).catch(() => {}); } else { setPendingCheckout(b); setLoginOpen(true); } } };
         return (<>
       {(page === "landing" || (!user && page === "app")) && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><LandingPage onEnter={enterApp} onPricing={() => setPage("pricing")} onAbout={() => setPage("about")} onContact={() => setPage("contact")} onPrivacy={() => setPage("privacy")} onTerms={() => setPage("terms")} onFaq={() => setPage("faq")} /></div>}
       {page === "pricing" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><PricingPage onBack={() => setPage("landing")} nav={nav} user={user} /></div>}

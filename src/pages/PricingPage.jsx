@@ -14,7 +14,8 @@ export function PricingPage({ onBack, nav, user }) {
   async function handleGetStarted() {
     // Not signed in yet — same login gate as the rest of the app. Once signed
     // in, they land in the app and can come back to Pricing to subscribe.
-    if (!user) { nav?.onApp?.(); return; }
+    // Not signed in — open sign-up, then go straight to Stripe checkout (no app detour).
+    if (!user) { nav?.onSubscribe?.(billing); return; }
     setCheckoutError(""); setCheckoutLoading(true);
     try {
       await startCheckout(billing);
