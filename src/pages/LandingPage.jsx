@@ -269,24 +269,6 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
         </div>
       </div>
 
-      {/* ── Use cases ── */}
-      <div style={{ background:P.white, padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
-        <div style={{ maxWidth:"1000px", margin:"0 auto", textAlign:"center" }}>
-          <div style={{ fontSize:"15px", fontWeight:800, color:P.navy, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>WHO IT'S FOR</div>
-          <h2 style={{ fontSize:"clamp(28px, 4.5vw, 42px)", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 12px", letterSpacing:"-0.035em", lineHeight:1.1 }}>
-            Built for event planners<br/><span style={{ color:P.accent }}>running events of any size</span>
-          </h2>
-          <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, maxWidth:"520px", margin:"0 auto 40px" }}>
-            Anywhere you need to make sure attendees arrive on time, have a confirmed room, and won't be stranded at the wrong airport.
-          </p>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:"10px", justifyContent:"center", marginBottom:"48px" }}>
-            {eventTypes.map(tag => (
-              <span key={tag} style={{ background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"20px", padding:"8px 18px", fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, boxShadow:"0 1px 4px rgba(15,29,53,0.06)" }}>{tag}</span>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* ── Who we serve (tabbed) ── */}
       {(() => {
         const [aud, setAud] = React.useState(0);
@@ -366,6 +348,16 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
                       </span>
                       <span style={{ fontFamily:font, fontSize:"16px", color:P.navy, lineHeight:1.6 }}>{pt}</span>
                     </div>
+                  ))}
+                </div>
+              </div>
+              <div style={{ marginTop:"44px" }}>
+                <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, maxWidth:"580px", margin:"0 auto 22px" }}>
+                  Anywhere you need attendees to arrive on time, with a confirmed room, at the right airport &mdash; across events of every size.
+                </p>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:"10px", justifyContent:"center" }}>
+                  {eventTypes.map(tag => (
+                    <span key={tag} style={{ background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"20px", padding:"8px 18px", fontSize:"15px", fontWeight:600, color:P.navy, fontFamily:font, boxShadow:"0 1px 4px rgba(15,29,53,0.06)" }}>{tag}</span>
                   ))}
                 </div>
               </div>
