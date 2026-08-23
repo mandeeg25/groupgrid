@@ -675,7 +675,7 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
               View pricing
             </button>
           </div>
-          <p style={{ fontSize:"15px", color:"rgba(255,255,255,0.25)", fontFamily:font, marginTop:"20px" }}>Full access · $250/mo · Cancel any time</p>
+          <p style={{ fontSize:"15px", color:"rgba(255,255,255,0.5)", fontFamily:font, marginTop:"20px" }}><span style={{ color:P.accent, fontWeight:700 }}>$250/mo — less than one wrong hotel night.</span> Full access · cancel anytime.</p>
         </div>
       </div>
 
