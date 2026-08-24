@@ -1,7 +1,7 @@
 import React from "react";
 import { Check, X, ShieldCheck, Salad } from "lucide-react";
 import { P, font, fontDisplay } from "../theme";
-import { SHOW_DIETARY, APP_VERSION } from "../constants";
+import { SHOW_DIETARY } from "../constants";
 import {
   BrandLogo, SpreadsheetIcon, PlaneIcon, HotelIcon, MagnifierIcon, CrossCheckIcon,
   UploadIcon, CalendarIcon, CarIcon, PeopleIcon, FlagIcon, AlertIcon, ClearedIcon,
@@ -682,7 +682,7 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
       {/* ── Footer ── */}
       <div style={{ background:P.navy, padding:"28px 40px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:"16px" }}>
         <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
-          <span style={{ fontSize:"15px", color:"rgba(255,255,255,0.3)", fontFamily:font }}>Built for event professionals · © 2026 · <span style={{ color:"rgba(255,255,255,0.5)" }}>{APP_VERSION}</span></span>
+          <span style={{ fontSize:"15px", color:"rgba(255,255,255,0.3)", fontFamily:font }}>Built for event professionals · © 2026 GroupGrid</span>
         </div>
         <div style={{ display:"flex", gap:"18px", alignItems:"center", flexWrap:"wrap" }}>
           <a href="https://www.linkedin.com/company/groupgrid/" target="_blank" rel="noopener noreferrer" aria-label="Follow GroupGrid on LinkedIn" title="Follow us on LinkedIn" style={{ color:"rgba(255,255,255,0.55)", display:"flex", alignItems:"center", transition:"color .15s" }} onMouseEnter={e=>e.currentTarget.style.color=P.accent} onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,0.55)"}>
