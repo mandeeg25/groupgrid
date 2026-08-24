@@ -1,8 +1,10 @@
-/* GroupGrid analytics consent + GA4 loader.
-   Loads Google Analytics (G-B9FWR9LYXX) only after the visitor accepts.
-   Vercel Web Analytics is cookieless and runs separately, regardless of this choice. */
+/* GroupGrid analytics consent loader.
+   Loads Google Analytics (G-B9FWR9LYXX) and the LinkedIn Insight Tag (9901908)
+   only after the visitor accepts. Vercel Web Analytics is cookieless and runs
+   separately, regardless of this choice. */
 (function () {
   var GA_ID = "G-B9FWR9LYXX";
+  var LI_ID = "9901908"; // LinkedIn Insight Tag partner id
   var KEY = "gg_analytics_consent";
 
   function loadGA() {
@@ -18,11 +20,29 @@
     window.gtag("config", GA_ID);
   }
 
+  function loadLI() {
+    if (window.__ggLILoaded) return;
+    window.__ggLILoaded = true;
+    window._linkedin_partner_id = LI_ID;
+    window._linkedin_data_partner_ids = window._linkedin_data_partner_ids || [];
+    window._linkedin_data_partner_ids.push(LI_ID);
+    (function (l) {
+      if (!l) { window.lintrk = function (a, b) { window.lintrk.q.push([a, b]); }; window.lintrk.q = []; }
+      var s = document.getElementsByTagName("script")[0];
+      var b = document.createElement("script");
+      b.type = "text/javascript"; b.async = true;
+      b.src = "https://snap.licdn.com/li.lms-analytics/insight.min.js";
+      s.parentNode.insertBefore(b, s);
+    })(window.lintrk);
+  }
+
+  function loadAll() { loadGA(); loadLI(); }
+
   function read() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }
   function save(v) { try { localStorage.setItem(KEY, v); } catch (e) {} }
 
   var choice = read();
-  if (choice === "granted") { loadGA(); return; }
+  if (choice === "granted") { loadAll(); return; }
   if (choice === "denied") { return; }
 
   function build() {
@@ -56,7 +76,7 @@
     document.body.appendChild(bar);
 
     bar.querySelector(".yes").addEventListener("click", function () {
-      save("granted"); loadGA(); bar.remove();
+      save("granted"); loadAll(); bar.remove();
     });
     bar.querySelector(".no").addEventListener("click", function () {
       save("denied"); bar.remove();
