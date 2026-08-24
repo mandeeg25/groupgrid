@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Why I created GroupGrid — GroupGrid</title>
+  <meta name="description" content="The story behind GroupGrid, plus an overview of what it does and who it is for. GroupGrid is the cross-check layer between your event systems: it checks registration against flights, hotels, and transfers so the whole event lines up before anyone travels." />
+  <meta name="keywords" content="GroupGrid, event travel software, travel booking cross-checking, registration reconciliation, group travel, event planning tool, why we built GroupGrid" />
+  <link rel="canonical" href="https://groupgrid.io/blog/why-i-created-groupgrid.html" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:site_name" content="GroupGrid" />
+  <meta property="og:title" content="Why I created GroupGrid" />
+  <meta property="og:description" content="The story behind GroupGrid, and an overview of what it does and who it is for." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://groupgrid.io/blog/why-i-created-groupgrid.html" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/blog/style.css" />
+  <script type="application/ld+json">
+  { "@context":"https://schema.org","@type":"BlogPosting","headline":"Why I created GroupGrid","description":"The story behind GroupGrid, and an overview of what it does and who it is for.","datePublished":"2026-08-24","dateModified":"2026-08-24","author":{"@type":"Organization","name":"GroupGrid"},"publisher":{"@type":"Organization","name":"GroupGrid","url":"https://groupgrid.io/"},"mainEntityOfPage":"https://groupgrid.io/blog/why-i-created-groupgrid.html" }
+  </script>
+</head>
+<body>
+  <nav class="nav">
+    <a class="brand" href="https://groupgrid.io/"><img src="/favicon.svg" alt="GroupGrid" /><span class="wm"><span class="g1">Group</span><span class="g2">Grid</span></span></a>
+    <div class="links">
+      <a href="https://groupgrid.io/">Home</a>
+      <a href="https://groupgrid.io/pricing">Pricing</a>
+      <a href="https://groupgrid.io/about">About</a>
+      <a href="https://groupgrid.io/faq">FAQ</a>
+      <a href="/blog/">Resources</a>
+      <a href="https://groupgrid.io/contact">Contact</a>
+      <a class="cta" href="https://groupgrid.io/">Open App &rarr;</a>
+    </div>
+  </nav>
+
+  <div class="wrap">
+    <a class="back" href="/blog/">&larr; All posts</a>
+    <div class="eyebrow">Founder Note</div>
+    <h1>Why I created GroupGrid</h1>
+    <div class="meta">August 2026 &middot; 6 min read</div>
+
+    <article>
+      <p class="lead">In my first job, I cross-checked event travel with a ruler and a stack of printed sheets. Years later I had outsourced it to vendors, and it still swallowed weeks. We would be reconciling rooming lists, shuttles, and flight bookings right up to the deadline, which is exactly when a mistake costs the most. I could not find software that solved it, so I built it.</p>
+
+      <h2>The problem never really changed</h2>
+      <p>Every event I ever ran came down to one nervous question in the final stretch: did everyone actually get booked? The answer lived in five places that never agreed. Registration in one export. The flight manifest in another. A rooming list from the hotel. A transfer schedule from the ground vendor. Each file looked fine on its own. The trouble hid in the space between them.</p>
+      <p>That is where the expensive surprises come from. A guest registered but with no flight on file. A hotel room reserved for someone who cancelled back in March. A VP whose plane lands the day after their room was held. None of it looks like a crisis in a spreadsheet. It looks like a crisis at the front desk, on arrival day, when there is nothing left to do but pay to fix it.</p>
+      <p>The ruler eventually became VLOOKUPs, and the printed sheets became a dozen browser tabs. The tools got better. The job did not. I was still reading four lists by eye, trying to notice the one thing the eye is worst at noticing: something that is missing.</p>
+
+      <h2>What GroupGrid actually is</h2>
+      <p>GroupGrid is the cross-check layer between your event systems. It is not another spreadsheet, and it is not a full event platform trying to replace the tools you already have. It sits between them and does the one job those tools never do for each other: it puts every attendee on a single grid and checks each record against the next.</p>
+      <p>You upload the lists you already keep. Registration is your source of truth, then you add the travel files: flight manifest, hotel roster, car transfers, and abstracts if you have them. Column names do not matter. GroupGrid matches everyone by email first, then by name, and shows you exactly what lines up and what does not.</p>
+      <p>The output is plain. Most of your list is fine, and GroupGrid says so and gets out of the way. What is left is the short list that needs a human: registered but not booked, booked but never registered, dates that do not agree, someone routed to the wrong airport. Each flag names the record and the gap, so you are not guessing. Check-in December 4, room booked December 5. That kind of specific.</p>
+
+      <h2>From days to minutes</h2>
+      <p>The whole point is speed, because speed is what makes a problem fixable. Catch a wrong date six weeks out and it is a two-line email. Catch it the night before and it is a change fee, a scramble, and a guest who remembers it. GroupGrid runs the check in the time it takes to upload the files, which means you can run it early, run it weekly, and run it again the week of, instead of saving it all for one long night at the end.</p>
+      <p>When you find something, you can act without leaving the app. Draft an email to the guest or the hotel, add a note, mark it resolved, and export a clean report for whoever needs it. The reconciliation stops being the thing you dread and becomes the thing you barely think about.</p>
+
+      <h2>Who it is for</h2>
+      <p>If you are responsible for getting a group of people to the same place at the same time, GroupGrid is built for you. In practice that has meant:</p>
+      <ul>
+        <li><strong>Event and meeting planners</strong> running conferences, user summits, and multi-day programs where arrivals spread across days and the room block has to hold.</li>
+        <li><strong>Corporate travel managers</strong> who need group travel to stay on policy and on budget, with a defensible record of what was flagged and fixed.</li>
+        <li><strong>Executive assistants</strong> managing C-suite travel, where one missing room or a flight that lands after check-in becomes a very visible problem.</li>
+        <li><strong>Sales and revenue teams</strong> getting hundreds of reps to a kickoff in one tight arrival window.</li>
+        <li><strong>Pharma and healthcare teams</strong> hosting HCPs, where a booking error also distorts the spend you have to report.</li>
+        <li><strong>Incentive and President&rsquo;s Club programs</strong>, where the trip is a reward and the logistics have to feel flawless.</li>
+      </ul>
+      <p>Different events, same underlying need. Somebody has to know that what is on the list actually happened.</p>
+
+      <h2>The promise I wanted for myself</h2>
+      <p>I built the tool I kept wishing someone would hand me. The promise is simple, and it is the one I could never quite give myself with a spreadsheet: did all 300 actually get booked? Now you will know, before anyone travels, while there is still time to fix the few that did not.</p>
+      <p>That is really all GroupGrid does. It makes the invisible visible, and it does it in minutes. If you have ever stared at four lists at midnight hoping you did not miss anything, I made this for you.</p>
+
+      <div class="cta-box">
+        <h3>See what needs your attention in minutes</h3>
+        <p>Upload your registration, flight, hotel, and car files. GroupGrid cross-checks all of them and hands you the short list that needs action, before your event, not at the gate.</p>
+        <a href="https://groupgrid.io/">Try GroupGrid &rarr;</a>
+      </div>
+    </article>
+  </div>
+
+  <div class="foot">&copy; 2026 GroupGrid &middot; <a href="https://groupgrid.io/">Home</a> &middot; <a href="https://groupgrid.io/pricing">Pricing</a> &middot; <a href="https://groupgrid.io/about">About</a> &middot; <a href="https://groupgrid.io/faq">FAQ</a> &middot; <a href="/blog/">Resources</a> &middot; <a href="https://groupgrid.io/contact">Contact</a> &middot; <a href="https://www.linkedin.com/company/groupgrid/" target="_blank" rel="noopener" aria-label="GroupGrid on LinkedIn" style="display:inline-flex;vertical-align:-3px;color:var(--accentD);"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.72V1.72C24 .77 23.2 0 22.22 0z"/></svg></a></div>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+  <script defer src="/analytics-consent.js"></script>
+</body>
+</html>
