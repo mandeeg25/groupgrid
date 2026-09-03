@@ -76,7 +76,7 @@ export function SetupScreen({
         style={{ order:3, display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"14px", padding:"15px 20px", marginBottom:"14px", cursor:"pointer", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 14px 30px -20px rgba(12,30,63,0.22)", boxSizing:"border-box" }}>
         <span style={{ display:"flex", alignItems:"center", gap:"10px" }}>
           <span style={{ display:"inline-flex", transform: optionalOpen ? "rotate(90deg)" : "none", transition:"transform 0.18s", color:P.grey600 }}><ChevronRight size={18} strokeWidth={2} /></span>
-          <span style={{ fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font }}>Step 3 · Optional details</span>
+          <span style={{ fontSize:"16px", fontWeight:600, color:P.navy, fontFamily:font }}>Step 3 · Travel Details</span>
           <span style={{ fontSize:"13px", fontWeight:400, color:P.grey600, fontFamily:font }}>· travel parameters and contacts</span>
         </span>
         <span style={{ fontSize:"13px", fontWeight:500, color: optionalCount ? P.accentD : P.grey600, fontFamily:font }}>{optionalCount ? `${optionalCount} added · ${optionalOpen ? "hide" : "edit"}` : (optionalOpen ? "hide" : "add — optional")}</span>
