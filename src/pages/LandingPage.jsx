@@ -637,7 +637,7 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
                                           <div style={{ fontSize:"15px", fontWeight:800, color:P.teal, fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em", display:"inline-flex", alignItems:"center", gap:"5px" }}><Salad size={13} strokeWidth={1.8} color={P.teal}/>Dietary &amp; Access</div>
                                           {g.diet ? <>
                                             {g.diet.dietary && <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Dietary: <strong style={{ color:P.navy }}>{g.diet.dietary}</strong></div>}
-                                            {g.diet.accessibility && <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font }}>Access: <strong style={{ color:P.navy }}>{g.diet.accessibility}</strong></div>}
+                                            {g.diet.accessibility && <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font }}>Accessibility: <strong style={{ color:P.navy }}>{g.diet.accessibility}</strong></div>}
                                           </> : <div style={{ fontSize:"15px", color:P.grey400, fontFamily:font, fontStyle:"italic" }}>No dietary info on file</div>}
                                         </div>
                                         )}
