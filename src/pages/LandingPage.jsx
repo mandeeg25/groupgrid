@@ -414,8 +414,12 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
         const statusBg    = s => s==="error" ? P.redLight : s==="warn" ? P.amberLight : P.greenLight;
         const statusLabel = s => s==="error" ? "Flag" : s==="warn" ? "Review" : "OK";
         // Shared column layout + per-column alignment so the header and every row line up cleanly.
-        const demoCols = "minmax(60px,0.8fr) minmax(74px,0.9fr) minmax(150px,1.7fr) 100px 78px 78px 66px";
-        const demoJustify = ["start","start","stretch","center","center","center","end"];
+        // Mirrors the product grid: identity, status, arrival side (airport, flight in, hotel in, delta),
+        // departure side (flight out, hotel out, airport), then dietary, flags, and note.
+        const demoHeaders = ["First","Last","Email","Status","Arr Airport","Flight In","Hotel In","Δ","Flight Out","Hotel Out","Dep Airport","Dietary","Flags","Note"];
+        const demoCols = "minmax(56px,0.7fr) minmax(66px,0.8fr) minmax(140px,1.4fr) 84px 78px 74px 74px 44px 74px 74px 78px 96px 60px 130px";
+        const demoJustify = ["start","start","stretch","center","center","center","center","center","center","center","center","center","center","start"];
+        const missIcon = <AlertIcon size={12} line={P.amber} accent={P.amber}/>;
 
         const fileInfo = [
           { label:"Registration List", color:"#00A896", Icon:PeopleIcon, sub:"event_registration.xlsx" },
@@ -550,11 +554,11 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
                         {/* Results table */}
                         {rowsVisible > 0 && (
                           <div className="gg-demo-table-scroll" style={{ overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
-                          <div style={{ border:`1px solid ${P.grey100}`, borderRadius:"12px", overflow:"hidden", animation:"ggIn 0.5s cubic-bezier(.2,.8,.2,1)", minWidth:"620px" }}>
+                          <div style={{ border:`1px solid ${P.grey100}`, borderRadius:"12px", overflow:"hidden", animation:"ggIn 0.5s cubic-bezier(.2,.8,.2,1)", minWidth:"1120px" }}>
                             {/* Table header */}
                             <div style={{ display:"grid", gridTemplateColumns:demoCols, background:P.grey50, padding:"10px 16px", gap:"12px" }}>
-                              {["First","Last","Email","Status","Arr.","Dep.","Δ Arr"].map((h,ci) => (
-                                <div key={h} style={{ fontSize:"13px", fontWeight:700, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", justifySelf:demoJustify[ci], whiteSpace:"nowrap" }}>{h}</div>
+                              {demoHeaders.map((h,ci) => (
+                                <div key={h} style={{ fontSize:"12px", fontWeight:700, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.04em", justifySelf:demoJustify[ci], whiteSpace:"nowrap" }}>{h}</div>
                               ))}
                             </div>
                             {/* Rows */}
@@ -568,9 +572,26 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
                                     <span style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font, justifySelf:"start" }}>{g.last}</span>
                                     <span style={{ fontSize:"15px", color:P.grey600, fontFamily:font, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", minWidth:0, maxWidth:"100%", justifySelf:"stretch" }}>{g.email}</span>
                                     <span style={{ fontSize:"14px", fontWeight:800, color:statusColor(g.status), background:statusBg(g.status), padding:"2px 10px 2px 8px", borderRadius:"20px", fontFamily:font, whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:"4px", justifySelf:"center" }}>{g.status==="error" ? <FlagIcon size={11} line={statusColor(g.status)} accent={statusColor(g.status)}/> : g.status==="warn" ? <AlertIcon size={11} line={statusColor(g.status)} accent={statusColor(g.status)}/> : <ClearedIcon size={11} line={statusColor(g.status)} accent={statusColor(g.status)}/>}{statusLabel(g.status)}</span>
-                                    <span style={{ fontSize:"15px", color:P.grey600, fontFamily:font, display:"inline-flex", alignItems:"center", justifySelf:"center" }}>{g.flight?.arr || <AlertIcon size={12} line={P.amber} accent={P.amber}/>}</span>
-                                    <span style={{ fontSize:"15px", color:P.grey600, fontFamily:font, display:"inline-flex", alignItems:"center", justifySelf:"center" }}>{g.flight?.dep || <AlertIcon size={12} line={P.amber} accent={P.amber}/>}</span>
-                                    <span style={{ fontSize:"15px", fontWeight:700, fontFamily:font, color:g.arrDiff==="0"?P.green:g.arrDiff==="—"?P.grey400:P.red, justifySelf:"end" }}>{g.arrDiff}</span>
+                                    {/* Arr Airport */}
+                                    <span style={{ fontSize:"14px", fontWeight:600, color:P.grey600, fontFamily:font, letterSpacing:"0.02em", display:"inline-flex", alignItems:"center", justifySelf:"center" }}>{g.flight ? "SFO" : missIcon}</span>
+                                    {/* Flight In */}
+                                    <span style={{ fontSize:"15px", color:g.flight?P.grey600:P.red, fontFamily:font, display:"inline-flex", alignItems:"center", justifySelf:"center", whiteSpace:"nowrap" }}>{g.flight?.arr || missIcon}</span>
+                                    {/* Hotel In */}
+                                    <span style={{ fontSize:"15px", color:g.hotel?P.grey600:P.red, fontFamily:font, display:"inline-flex", alignItems:"center", justifySelf:"center", whiteSpace:"nowrap" }}>{g.hotel?.in || missIcon}</span>
+                                    {/* Δ Arr */}
+                                    <span style={{ fontSize:"15px", fontWeight:700, fontFamily:font, color:g.arrDiff==="0"?P.green:g.arrDiff==="—"?P.grey400:P.red, justifySelf:"center" }}>{g.arrDiff}</span>
+                                    {/* Flight Out */}
+                                    <span style={{ fontSize:"15px", color:g.flight?P.grey600:P.red, fontFamily:font, display:"inline-flex", alignItems:"center", justifySelf:"center", whiteSpace:"nowrap" }}>{g.flight?.dep || missIcon}</span>
+                                    {/* Hotel Out */}
+                                    <span style={{ fontSize:"15px", color:g.hotel?P.grey600:P.red, fontFamily:font, display:"inline-flex", alignItems:"center", justifySelf:"center", whiteSpace:"nowrap" }}>{g.hotel?.out || missIcon}</span>
+                                    {/* Dep Airport */}
+                                    <span style={{ fontSize:"14px", fontWeight:600, color:P.grey600, fontFamily:font, letterSpacing:"0.02em", display:"inline-flex", alignItems:"center", justifySelf:"center" }}>{g.flight ? "SFO" : missIcon}</span>
+                                    {/* Dietary */}
+                                    <span style={{ justifySelf:"center", minWidth:0 }}>{g.diet?.dietary ? <span style={{ background:P.tealLight, color:P.teal, fontSize:"13px", fontWeight:700, padding:"2px 8px", borderRadius:"20px", fontFamily:font, whiteSpace:"nowrap" }}>{g.diet.dietary}</span> : <span style={{ color:P.grey400, fontSize:"15px" }}>—</span>}</span>
+                                    {/* Flags */}
+                                    <span style={{ justifySelf:"center", display:"inline-flex", alignItems:"center", gap:"4px" }}>{g.issues.length > 0 ? <><FlagIcon size={12} line={statusColor(g.status)} accent={statusColor(g.status)}/><span style={{ fontSize:"14px", fontWeight:800, color:statusColor(g.status), fontFamily:font }}>{g.issues.length}</span></> : <span style={{ color:P.grey400, fontSize:"15px" }}>—</span>}</span>
+                                    {/* Note */}
+                                    <span style={{ fontSize:"14px", color:P.navy, fontFamily:font, justifySelf:"start", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", minWidth:0, maxWidth:"100%" }}>{g.notes && g.notes.length > 0 ? <span title={g.notes[0].t}>📝 {g.notes[0].t}</span> : <span style={{ color:P.grey400 }}>—</span>}</span>
                                   </div>
                                   {/* Expanded detail */}
                                   {isExp && (
