@@ -67,7 +67,7 @@ export function CommHub({ results, eventName, contacts, arrivalStart, arrivalEnd
                       : "";
     const vendorBody = VENDOR_BODY_OVERRIDE[templateId] || VENDOR_BODY[audience];
     if (audience !== "guest" && vendorEmail && vendorBody) {
-      const tag = audience === "hotel" ? "Hotel" : audience === "travel" ? "Flight" : audience === "catering" ? "Dietary & Access" : "Transfer";
+      const tag = audience === "hotel" ? "Hotel" : audience === "travel" ? "Flight" : audience === "catering" ? "Dietary & Accessibility" : "Transfer";
       const subject = templateId === "arrives_late"
         ? `${(extra.eventName && extra.eventName !== "our event") ? extra.eventName + " " : ""}[Late Arrival] Please hold the room for ${record.displayName || record.firstName || ""}`
         : `${(extra.eventName && extra.eventName !== "our event") ? extra.eventName + " " : ""}[${tag}] — Guest Review: ${record.displayName || record.firstName || ""}`;

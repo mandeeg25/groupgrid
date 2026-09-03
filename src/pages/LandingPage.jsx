@@ -427,7 +427,7 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
           { label:"Hotel Roster",    color:"#C97A0A", Icon:HotelIcon, sub:"hotel_roster_marriott.xlsx" },
           { label:"Car Transfers",   color:"#6B3FA0", Icon:CarIcon, sub:"car_transfers_sfo.xlsx" },
           { label:"Abstract Submissions", color:"#4C62C4", Icon:SpreadsheetIcon, sub:"abstracts_speakers.xlsx" },
-          ...(SHOW_DIETARY?[{ label:"Dietary & Access",color:P.teal, Icon:Salad, sub:"dietary_requirements.xlsx" }]:[]),
+          ...(SHOW_DIETARY?[{ label:"Dietary & Accessibility",color:P.teal, Icon:Salad, sub:"dietary_requirements.xlsx" }]:[]),
         ];
 
         const runDemo = () => {
@@ -653,10 +653,10 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
                                             <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font }}>Location: {g.car.loc}</div>
                                           </> : <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font }}>No transfer booked</div>}
                                         </div>
-                                        {/* Dietary & Access card */}
+                                        {/* Dietary & Accessibility card */}
                                         {SHOW_DIETARY && (
                                         <div style={{ background:P.white, border:`1.5px solid ${g.diet?P.teal+"33":P.grey100}`, borderRadius:"10px", padding:"12px 14px" }}>
-                                          <div style={{ fontSize:"15px", fontWeight:800, color:P.teal, fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em", display:"inline-flex", alignItems:"center", gap:"5px" }}><Salad size={13} strokeWidth={1.8} color={P.teal}/>Dietary &amp; Access</div>
+                                          <div style={{ fontSize:"15px", fontWeight:800, color:P.teal, fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em", display:"inline-flex", alignItems:"center", gap:"5px" }}><Salad size={13} strokeWidth={1.8} color={P.teal}/>Dietary &amp; Accessibility</div>
                                           {g.diet ? <>
                                             {g.diet.dietary && <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Dietary: <strong style={{ color:P.navy }}>{g.diet.dietary}</strong></div>}
                                             {g.diet.accessibility && <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font }}>Accessibility: <strong style={{ color:P.navy }}>{g.diet.accessibility}</strong></div>}
