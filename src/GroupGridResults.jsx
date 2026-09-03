@@ -1482,7 +1482,7 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
                 ))}
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"8px", marginBottom:"20px" }}>
-                {[{label:"Missing Records",val:counts.missing,color:P.amber,icon:<Circle size={14} strokeWidth={1.8}/>},{label:"Date Mismatches",val:results.filter(r=>r.issues.some(x=>x.type==="mismatch")).length,color:P.red,icon:<AlertTriangle size={14} strokeWidth={1.8}/>},{label:"Outside Window",val:counts.window,color:P.purple,icon:<Calendar size={14} strokeWidth={1.8}/>},{label:"Duplicate Names",val:counts.duplicate,color:"#C97A0A",icon:<AlertCircle size={14} strokeWidth={1.8}/>},...(SHOW_DIETARY?[{label:"Dietary / Access",val:counts.dietary,color:P.teal,icon:<Salad size={14} strokeWidth={1.8}/>}]:[])].map(({label,val,color,icon}) => (
+                {[{label:"Missing Records",val:counts.missing,color:P.amber,icon:<Circle size={14} strokeWidth={1.8}/>},{label:"Date Mismatches",val:results.filter(r=>r.issues.some(x=>x.type==="mismatch")).length,color:P.red,icon:<AlertTriangle size={14} strokeWidth={1.8}/>},{label:"Outside Window",val:counts.window,color:P.purple,icon:<Calendar size={14} strokeWidth={1.8}/>},{label:"Duplicate Names",val:counts.duplicate,color:"#C97A0A",icon:<AlertCircle size={14} strokeWidth={1.8}/>},...(SHOW_DIETARY?[{label:"Dietary / Accessibility",val:counts.dietary,color:P.teal,icon:<Salad size={14} strokeWidth={1.8}/>}]:[])].map(({label,val,color,icon}) => (
                   <div key={label} style={{ background:P.offWhite, borderRadius:"10px", padding:"10px 14px", display:"flex", alignItems:"center", gap:"10px" }}>
                     <div style={{ fontSize:"18px", fontWeight:900, color, fontFamily:font, minWidth:"28px" }}>{val}</div>
                     <div style={{ fontSize:"15px", color:P.navy, fontWeight:600, fontFamily:font }}>{icon} {label}</div>
@@ -1829,7 +1829,7 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
                                       </> : <div style={{ color:P.grey200, fontSize:"15px", fontStyle:"italic", fontFamily:font }}>No transfer on file</div>}
                                     </Card>
                                     {hasDiet && (
-                                      <Card title="🥗 Dietary & Access" color={P.teal}>
+                                      <Card title="🥗 Dietary & Accessibility" color={P.teal}>
                                         {r.diet ? <>
                                           {r.diet.dietary && <DR label="Dietary" val={r.diet.dietary} />}
                                           {r.diet.accessibility && <DR label="Access" val={r.diet.accessibility} />}

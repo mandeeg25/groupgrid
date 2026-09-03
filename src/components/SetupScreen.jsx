@@ -270,7 +270,7 @@ export function SetupScreen({
         <div className="gg-setup-tiles3" style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"10px" }}>
           <SetupTile label="Car Transfers" icon={<CarIcon size={20} />} accent={P.grey600} file={carFile} setter={setCarFile} columns={["First/Last Name (or Name)","Email (opt)","Pickup Date","Dropoff Date","Pickup Location (opt)"]} />
           <SetupTile label="Abstract Submissions" icon={<SpreadsheetIcon size={20} />} accent={P.purple} file={abstractFile} setter={setAbstractFile} columns={["First/Last Name (or Name)","Email","Abstract Title (opt)","Status (opt)"]} />
-          {SHOW_DIETARY && <SetupTile label="Dietary & Access" icon={<Salad size={20} strokeWidth={1.8} color="#0D9E6E"/>} accent={P.teal} file={dietaryFile} setter={setDietaryFile} columns={["First/Last Name (or Name)","Email (opt)","Dietary Restrictions","Accessibility Needs","Special Notes (opt)"]} />}
+          {SHOW_DIETARY && <SetupTile label="Dietary & Accessibility" icon={<Salad size={20} strokeWidth={1.8} color="#0D9E6E"/>} accent={P.teal} file={dietaryFile} setter={setDietaryFile} columns={["First/Last Name (or Name)","Email (opt)","Dietary Restrictions","Accessibility Needs","Special Notes (opt)"]} />}
         </div>
         <ExtraUploads show={!!carFile} items={extraCars} setItems={setExtraCars} Icon={Car} color={P.grey600} />
         {SHOW_DIETARY && <ExtraUploads show={!!dietaryFile} items={extraDietary} setItems={setExtraDietary} Icon={Salad} color="#0D9E6E" />}

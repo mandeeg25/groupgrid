@@ -302,11 +302,11 @@ Warmly,
   },
   dietary_needs: {
     id: "dietary_needs",
-    label: "Dietary & Access Needs",
+    label: "Dietary & Accessibility Needs",
     icon: "🥗",
     color: P.teal,
     description: "Guest has dietary or accessibility needs on file — confirm with them or share with catering",
-    subject: "{{eventName}} [Dietary & Access]: Could you confirm your requirements?",
+    subject: "{{eventName}} [Dietary & Accessibility]: Could you confirm your requirements?",
     body: `Hi {{guestName}},
 
 We want to make sure {{eventName}} works for you. Here is what we have on file for your dietary and accessibility needs:
@@ -452,9 +452,9 @@ export const TEMPLATE_CATEGORY = {
   needs_registration: "Registration & Confirmation",
   abstract_reminder: "Registration & Confirmation",
   general_confirmation: "Registration & Confirmation",
-  dietary_needs: "Dietary & Access",
+  dietary_needs: "Dietary & Accessibility",
 };
-export const CATEGORY_ORDER = ["Hotel", "Flight", "Car Transfer", "Registration & Confirmation", "Dietary & Access", "Custom"];
+export const CATEGORY_ORDER = ["Hotel", "Flight", "Car Transfer", "Registration & Confirmation", "Dietary & Accessibility", "Custom"];
 // Brand icon for each template (single-line GroupGrid icon set).
 export const TEMPLATE_ICON_KEY = {
   arrives_early:      "hotel",
