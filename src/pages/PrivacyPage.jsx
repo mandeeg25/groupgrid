@@ -31,7 +31,7 @@ export function PrivacyPage({ onBack, nav }) {
         We will notify users of any material changes to this policy via in-app notification and email. Continued use after notification constitutes acceptance of the updated policy.
       </Section>
       <Section title="Contact">
-        Questions about privacy? Email us at <a href="mailto:privacy@groupgrid.io" style={{ color:P.periwinkleD, fontWeight:600 }}>privacy@groupgrid.io</a>.
+        Questions about privacy? Email us at <a href="mailto:support@groupgrid.io" style={{ color:P.periwinkleD, fontWeight:600 }}>support@groupgrid.io</a>.
       </Section>
     </PageShell>
   );

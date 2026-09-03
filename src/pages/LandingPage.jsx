@@ -693,6 +693,7 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
             ["Pricing", onPricing],
             ["About", onAbout],
             ["FAQ", onFaq],
+            ["Help & Guides", () => { window.location.href = "/help"; }],
             ["Resources", () => { window.location.href = "/blog/"; }],
             ["Contact", onContact],
             ["For event planners", () => { window.location.href = "/who-we-serve/event-planners"; }],
@@ -701,6 +702,7 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
             ["For sales & RevOps", () => { window.location.href = "/who-we-serve/sales-revenue-ops"; }],
             ["Privacy Policy", onPrivacy],
             ["Terms of Service", onTerms],
+            ["Security & Trust", () => { window.location.href = "/security"; }],
           ].map(([label, fn]) => (
             <button key={label} onClick={fn} style={{ background:"none", border:"none", fontSize:"15px", color:"rgba(255,255,255,0.35)", fontFamily:font, cursor:"pointer", textDecoration:"underline", textDecorationColor:"rgba(255,255,255,0.15)" }}>{label}</button>
           ))}

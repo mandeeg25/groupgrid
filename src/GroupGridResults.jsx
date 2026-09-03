@@ -28,6 +28,8 @@ import { ContactPage } from "./pages/ContactPage";
 import { AudiencePage } from "./pages/AudiencePage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { TermsPage } from "./pages/TermsPage";
+import { SecurityPage } from "./pages/SecurityPage";
+import { HelpPage } from "./pages/HelpPage";
 import { extractPdfToWorkbook } from "./pdf/loadPdfJs";
 import { DEFAULT_TEMPLATES, fillTemplate, getApplicableTemplates } from "./templates";
 import { openBillingPortal, checkSubscription, startCheckout } from "./stripeClient";
@@ -892,7 +894,7 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
 
       {/* ── Page overlays ── */}
       {(() => {
-        const nav = { onHome:() => setPage("landing"), onPricing:() => setPage("pricing"), onAbout:() => setPage("about"), onFaq:() => setPage("faq"), onContact:() => setPage("contact"), onPrivacy:() => setPage("privacy"), onTerms:() => setPage("terms"), onApp:enterApp, current:page,
+        const nav = { onHome:() => setPage("landing"), onPricing:() => setPage("pricing"), onAbout:() => setPage("about"), onFaq:() => setPage("faq"), onContact:() => setPage("contact"), onPrivacy:() => setPage("privacy"), onTerms:() => setPage("terms"), onSecurity:() => setPage("security"), onHelp:() => setPage("help"), onApp:enterApp, current:page,
           onSubscribe:(billing) => { const b = billing || "monthly"; if (user) { startCheckout(b).catch(() => {}); } else { setPendingCheckout(b); setLoginOpen(true); } } };
         return (<>
       {(page === "landing" || (!user && page === "app")) && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><LandingPage onEnter={enterApp} onPricing={() => setPage("pricing")} onAbout={() => setPage("about")} onContact={() => setPage("contact")} onPrivacy={() => setPage("privacy")} onTerms={() => setPage("terms")} onFaq={() => setPage("faq")} /></div>}
@@ -902,6 +904,8 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
       {page === "contact" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><ContactPage onBack={() => setPage("landing")} nav={nav} /></div>}
       {page === "privacy" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><PrivacyPage onBack={() => setPage("landing")} nav={nav} /></div>}
       {page === "terms"   && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><TermsPage   onBack={() => setPage("landing")} nav={nav} /></div>}
+      {page === "security" && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><SecurityPage onBack={() => setPage("landing")} nav={nav} /></div>}
+      {page === "help"    && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><HelpPage    onBack={() => setPage("landing")} nav={nav} /></div>}
       {["whoPlanners","whoTravelManagers","whoAssistants","whoSalesOps"].includes(page) && <div style={{ position:"fixed", inset:0, zIndex:3000, overflowX:"hidden", overflowY:"auto", overscrollBehavior:"none", WebkitOverflowScrolling:"touch" }}><AudiencePage which={page} onBack={() => setPage("landing")} nav={nav} /></div>}
         </>);
       })()}
