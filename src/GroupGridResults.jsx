@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 import { Users, Check, AlertTriangle, BarChart2, Circle, Calendar, AlertCircle, Salad, Mail, FileSpreadsheet, Save, Send, X } from "lucide-react";
 import { P, font, fontDisplay } from "./theme";
 import { fmt, fmtTime, parseDate, rehydrateResults } from "./format";
-import { PAGE_PATHS, pathToPage, SHOW_DIETARY, APP_VERSION } from "./constants";
+import { PAGE_PATHS, pathToPage, SHOW_DIETARY, SHOW_PROJECT_FILE_IO, APP_VERSION } from "./constants";
 import { BrandLogo, GridIcon, ClearedIcon, FlagIcon, CalendarIcon, PeopleIcon, CrossCheckIcon, SpreadsheetIcon, PlaneIcon, HotelIcon, CarIcon } from "./icons";
 import { useIsMobile } from "./hooks";
 import { GlobalStyles } from "./GlobalStyles";
@@ -1084,10 +1084,10 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
                         <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.4)", fontFamily:font }}>{s.guestCount} guests · {s.issueCount} flags</div>
                       </div>
                       {results && <button onClick={e => { e.stopPropagation(); setCompareSession(s); setShowDiff(true); setActiveTab("grid"); }} style={{ background:"rgba(255,255,255,0.12)", border:`1px solid rgba(255,255,255,0.2)`, borderRadius:"5px", padding:"2px 7px", fontSize:"15px", color:P.white, fontWeight:700, fontFamily:font, cursor:"pointer", marginRight:"4px" }}>↔ Diff</button>}
-                      <button onClick={e => { e.stopPropagation(); exportSession(s); }} title="Download project file"
+                      {SHOW_PROJECT_FILE_IO && <button onClick={e => { e.stopPropagation(); exportSession(s); }} title="Download project file"
                         style={{ background:"transparent", border:"none", color:"rgba(255,255,255,0.3)", fontSize:"15px", cursor:"pointer", padding:"2px 5px", flexShrink:0, lineHeight:1, borderRadius:"4px" }}
                         onMouseEnter={e => { e.currentTarget.style.color = P.white; e.currentTarget.style.background = "rgba(255,255,255,0.12)"; }}
-                        onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.3)"; e.currentTarget.style.background = "transparent"; }}>↓</button>
+                        onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.3)"; e.currentTarget.style.background = "transparent"; }}>↓</button>}
                       <button onClick={e => { e.stopPropagation(); setSavedSessions(prev => { const next = prev.filter(x => x.id !== s.id); try { storage.set(storageKey, JSON.stringify(next)); } catch(ex) {} return next; }); }}
                         style={{ background:"transparent", border:"none", color:"rgba(255,255,255,0.2)", fontSize:"15px", cursor:"pointer", padding:"2px 4px", flexShrink:0, lineHeight:1, borderRadius:"4px" }}
                         onMouseEnter={e => { e.currentTarget.style.color = P.red; e.currentTarget.style.background = "rgba(192,57,43,0.2)"; }}
@@ -1099,6 +1099,7 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
               </div>
             )}
 
+            {SHOW_PROJECT_FILE_IO && (
             <label style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:"7px", width:"100%", marginTop:"8px", background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.14)", borderRadius:"8px", padding:"7px 10px", cursor:"pointer", fontFamily:font }}
               onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
               onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}>
@@ -1106,6 +1107,8 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
               <FileSpreadsheet size={13} strokeWidth={1.8} color="rgba(255,255,255,0.6)"/>
               <span style={{ fontSize:"15px", fontWeight:600, color:"rgba(255,255,255,0.6)" }}>Load project from file</span>
             </label>
+            )}
+
 
             {savedSessions.length === 0 && !flightFile && !results && (
               <div style={{ fontSize:"15px", color:"rgba(255,255,255,0.3)", fontFamily:font, paddingLeft:"4px", paddingTop:"2px", fontStyle:"italic" }}>No saved projects yet</div>
