@@ -12,3 +12,8 @@ export function pathToPage(pathname) {
 // registration, flights, hotels, and cars. The parsing/engine code stays intact —
 // flip this to true to bring the dietary upload, column, and detail back everywhere.
 export const SHOW_DIETARY = true;
+// Feature flag: hide the portable project-file download (.ggproj) and "Load project from
+// file" import for now. A .ggproj is an unencrypted JSON file with attendee data, so it's
+// hidden until we decide how to handle it securely. The functions stay intact — flip this
+// to true to bring both the download button and the load control back.
+export const SHOW_PROJECT_FILE_IO = false;
