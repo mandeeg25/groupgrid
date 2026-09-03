@@ -391,17 +391,23 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
 
         const demoGuests = [
           { key:"sc",  first:"Sarah",   last:"Solomon",   email:"s.solomon@corp.com", status:"error", arrDiff:"—",   depDiff:"—",   issues:["Registered but no flight booked"],
-            reg:{ checkIn:"Dec 4", checkOut:"Dec 7" }, flight:null, hotel:{ in:"Dec 4", out:"Dec 7", name:"Marriott Marquis" }, car:null },
+            reg:{ checkIn:"Dec 4", checkOut:"Dec 7" }, flight:null, hotel:{ in:"Dec 4", out:"Dec 7", name:"Marriott Marquis" }, car:null,
+            diet:{ dietary:"Nut allergy", accessibility:"" }, notes:[{ l:"Registration Notes", t:"Flying in early for a client dinner Dec 3" }] },
           { key:"mw",  first:"Marcus",  last:"Williams",  email:"m.williams@corp.com", status:"error", arrDiff:"—",   depDiff:"—",   issues:["Has a hotel room but never registered"],
-            reg:null, flight:{ arr:"Dec 5", dep:"Dec 8", num:"DL 441" },  hotel:{ in:"Dec 5", out:"Dec 8", name:"Westin St. Francis" }, car:{ pickup:"Dec 5", loc:"LAX" } },
+            reg:null, flight:{ arr:"Dec 5", dep:"Dec 8", num:"DL 441" },  hotel:{ in:"Dec 5", out:"Dec 8", name:"Westin St. Francis" }, car:{ pickup:"Dec 5", loc:"LAX" },
+            diet:null, notes:[] },
           { key:"jp",  first:"Jennifer",last:"Park",      email:"j.park@corp.com",     status:"warn",  arrDiff:"+1d", depDiff:"0",   issues:["Requested check-in Dec 4 · hotel booked Dec 5"],
-            reg:{ checkIn:"Dec 4", checkOut:"Dec 8" }, flight:{ arr:"Dec 5", dep:"Dec 8", num:"AA 109" },  hotel:{ in:"Dec 5", out:"Dec 8", name:"Hilton Union Sq" }, car:{ pickup:"Dec 5", loc:"SFO" } },
+            reg:{ checkIn:"Dec 4", checkOut:"Dec 8" }, flight:{ arr:"Dec 5", dep:"Dec 8", num:"AA 109" },  hotel:{ in:"Dec 5", out:"Dec 8", name:"Hilton Union Sq" }, car:{ pickup:"Dec 5", loc:"SFO" },
+            diet:{ dietary:"Gluten-free", accessibility:"" }, notes:[] },
           { key:"dc",  first:"David",   last:"Chen",      email:"d.chen@corp.com",     status:"error", arrDiff:"—",   depDiff:"—",   issues:["Registered but no hotel booked"],
-            reg:{ checkIn:"Dec 5", checkOut:"Dec 8" }, flight:{ arr:"Dec 5", dep:"Dec 8", num:"SW 884" },  hotel:null, car:null },
+            reg:{ checkIn:"Dec 5", checkOut:"Dec 8" }, flight:{ arr:"Dec 5", dep:"Dec 8", num:"SW 884" },  hotel:null, car:null,
+            diet:null, notes:[{ l:"Registration Notes", t:"Approved to book own hotel, expensing separately" }] },
           { key:"ps",  first:"Priya",   last:"Sharma",    email:"p.sharma@corp.com",   status:"ok",    arrDiff:"0",   depDiff:"0",   issues:[],
-            reg:{ checkIn:"Dec 4", checkOut:"Dec 7" }, flight:{ arr:"Dec 4", dep:"Dec 7", num:"UA 332" },  hotel:{ in:"Dec 4", out:"Dec 7", name:"Hilton Union Sq" }, car:{ pickup:"Dec 4", loc:"SFO" } },
+            reg:{ checkIn:"Dec 4", checkOut:"Dec 7" }, flight:{ arr:"Dec 4", dep:"Dec 7", num:"UA 332" },  hotel:{ in:"Dec 4", out:"Dec 7", name:"Hilton Union Sq" }, car:{ pickup:"Dec 4", loc:"SFO" },
+            diet:{ dietary:"Vegetarian", accessibility:"Wheelchair access" }, notes:[{ l:"Hotel Notes", t:"Accessible room on the ground floor" }] },
           { key:"jm",  first:"James",   last:"Mitchell",  email:"j.mitchell@corp.com", status:"ok",    arrDiff:"0",   depDiff:"0",   issues:[],
-            reg:{ checkIn:"Dec 5", checkOut:"Dec 8" }, flight:{ arr:"Dec 5", dep:"Dec 8", num:"AA 771" },  hotel:{ in:"Dec 5", out:"Dec 8", name:"Grand Hyatt" }, car:{ pickup:"Dec 5", loc:"OAK" } },
+            reg:{ checkIn:"Dec 5", checkOut:"Dec 8" }, flight:{ arr:"Dec 5", dep:"Dec 8", num:"AA 771" },  hotel:{ in:"Dec 5", out:"Dec 8", name:"Grand Hyatt" }, car:{ pickup:"Dec 5", loc:"OAK" },
+            diet:{ dietary:"Vegan", accessibility:"" }, notes:[] },
         ];
 
         const statusColor = s => s==="error" ? P.red : s==="warn" ? P.amber : P.green;
@@ -451,7 +457,7 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
                   From files to flags<br/><span style={{ color:P.accent }}>in minutes, not days.</span>
                 </h2>
                 <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, maxWidth:"460px", margin:"0 auto" }}>
-                  Watch GroupGrid check your full registration list against the travel files and surface every gap instantly.
+                  Watch GroupGrid check your registration against flights, hotels, transfers, and dietary needs, surfacing every gap and note instantly.
                 </p>
               </div>
 
@@ -578,6 +584,17 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
                                           ))}
                                         </div>
                                       )}
+                                      {/* Notes surfaced from any file, labeled by the sheet they came from */}
+                                      {g.notes && g.notes.length > 0 && (
+                                        <div style={{ display:"flex", gap:"8px", marginBottom:"14px", flexWrap:"wrap" }}>
+                                          {g.notes.map(n => (
+                                            <div key={n.l} style={{ display:"flex", alignItems:"center", gap:"7px", background:P.periwinkleL+"22", border:`1px solid ${P.periwinkle}44`, borderRadius:"8px", padding:"5px 11px" }}>
+                                              <span style={{ fontSize:"13px", lineHeight:1 }}>📝</span>
+                                              <span style={{ fontSize:"15px", color:P.navy, fontFamily:font }}><strong style={{ fontWeight:700, color:P.periwinkleD }}>{n.l}:</strong> {n.t}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
                                       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(158px, 1fr))", gap:"10px" }}>
                                         {/* Registration card — the source of truth */}
                                         <div style={{ background:P.white, border:`1.5px solid ${g.reg?"#00A89633":"#FDECEC"}`, borderRadius:"10px", padding:"12px 14px" }}>
@@ -614,6 +631,16 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
                                             <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font }}>Location: {g.car.loc}</div>
                                           </> : <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font }}>No transfer booked</div>}
                                         </div>
+                                        {/* Dietary & Access card */}
+                                        {SHOW_DIETARY && (
+                                        <div style={{ background:P.white, border:`1.5px solid ${g.diet?P.teal+"33":P.grey100}`, borderRadius:"10px", padding:"12px 14px" }}>
+                                          <div style={{ fontSize:"15px", fontWeight:800, color:P.teal, fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em", display:"inline-flex", alignItems:"center", gap:"5px" }}><Salad size={13} strokeWidth={1.8} color={P.teal}/>Dietary &amp; Access</div>
+                                          {g.diet ? <>
+                                            {g.diet.dietary && <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Dietary: <strong style={{ color:P.navy }}>{g.diet.dietary}</strong></div>}
+                                            {g.diet.accessibility && <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font }}>Access: <strong style={{ color:P.navy }}>{g.diet.accessibility}</strong></div>}
+                                          </> : <div style={{ fontSize:"15px", color:P.grey400, fontFamily:font, fontStyle:"italic" }}>No dietary info on file</div>}
+                                        </div>
+                                        )}
                                       </div>
                                     </div>
                                   )}
