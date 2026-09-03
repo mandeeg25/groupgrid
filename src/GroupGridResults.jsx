@@ -1773,7 +1773,7 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
                                   </div>}
                             </td>
                             <td style={{ padding:"10px 12px" }}>
-                              {r.note ? <span style={{ color:P.navy, fontSize:"15px", fontFamily:font, maxWidth:"90px", display:"block", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={r.note}>📝 {r.note}</span> : <span style={{ color:P.grey200, fontSize:"15px" }}>—</span>}
+                              {r.note ? <span style={{ color:P.navy, fontSize:"15px", fontFamily:font, display:"block", whiteSpace:"nowrap" }} title={r.note}>📝 {r.note}</span> : <span style={{ color:P.grey200, fontSize:"15px" }}>—</span>}
                             </td>
                           </tr>
                           {isExp && (
