@@ -70,7 +70,7 @@
     bar.setAttribute("aria-label", "Analytics consent");
     bar.innerHTML =
       "<p>We use analytics cookies to understand site traffic and improve GroupGrid. " +
-      "See our <a href='https://www.groupgrid.io/'>privacy approach</a>.</p>" +
+      "See our <a href='https://groupgrid.io/'>privacy approach</a>.</p>" +
       "<div class='btns'><button class='no' type='button'>Decline</button>" +
       "<button class='yes' type='button'>Accept</button></div>";
     document.body.appendChild(bar);
