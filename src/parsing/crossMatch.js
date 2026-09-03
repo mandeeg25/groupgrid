@@ -168,8 +168,20 @@ export function crossMatch(flights, hotels, cars, dietary, aw, existingMeta, reg
     }
     if (dupNames.has(normName(displayName))) { const _srcs = [...(dupSources.get(normName(displayName)) || [])]; issues.push({ type:"duplicate", text: _srcs.length ? `Appears in multiple files (${_srcs.join(", ")})` : "Appears in more than one file" }); }
     const seen = new Set(); const uniqueIssues = issues.filter(x => { if (seen.has(x.text)) return false; seen.add(x.text); return true; });
-    // Notes from the registration file are informational only. Flags are cleared in-app with Resolve.
-    const fileNote = (reg?.regNotes && String(reg.regNotes).trim()) ? String(reg.regNotes).trim() : "";
+    // Notes from any uploaded file are informational only. Flags are cleared in-app with Resolve.
+    // Each note is labeled by the sheet it came from, e.g. "Registration Notes: … · Hotel Notes: …".
+    const fileNote = [
+      ["Registration Notes", reg?.regNotes],
+      ["Flight Notes", flight?.notes],
+      ["Hotel Notes", hotel?.notes],
+      ["Car Notes", car?.notes],
+      ["Dietary Notes", diet?.specialNotes],
+      ["Abstract Notes", abstract?.notes],
+    ]
+      .map(([label, val]) => [label, val == null ? "" : String(val).trim()])
+      .filter(([, val]) => val)
+      .map(([label, val]) => `${label}: ${val}`)
+      .join(" · ");
     const resolved = existing.resolved || [];
     const active = uniqueIssues.filter(x => !resolved.includes(x.text));
     const status = active.length === 0 ? "ok" : active.length === 1 ? "warn" : "error";

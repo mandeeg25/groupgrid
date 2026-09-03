@@ -1,6 +1,11 @@
 import * as XLSX from "xlsx";
 import { findCol, parseTimeStr, parseDate, normEmail, splitName } from "../format";
 
+// Column headers that hold a free-text note on any uploaded sheet. Kept in one place
+// so every file type (flights, hotel, car, abstracts, dietary) recognizes notes the
+// same way the registration list does.
+export const NOTE_ALIASES = ["notes","note","comments","comment","special requests","special request","remark","remarks","memo"];
+
 export function parseSheet(wb, fieldMap, timeFallback = {}) {
   const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" });
   if (rows.length < 2) return [];
@@ -41,10 +46,10 @@ export function parseSheet(wb, fieldMap, timeFallback = {}) {
 }
 
 export function parseFlightSheet(wb) {
-  return parseSheet(wb, { name:["name","attendee","passenger","guest","traveler"], email:["email","e-mail","email address"], flightArrival:["arrival date","inbound date","arrival","arrive","land","flight in"], flightDeparture:["departure date","return date","outbound date","departure","depart","fly out"], arrivalTime:["arrival time","arr time","inbound time","landing time","time in"], departureTime:["departure time","dep time","outbound time","return time","time out"], flightIn:["inbound flight","arrival flight","flight in #","inbound #"], flightOut:["outbound flight","departure flight","flight out","return flight"], arrivalAirport:["arrival airport","arr airport","arriving airport","inbound airport","origin airport","origin"], departureAirport:["departure airport","dep airport","departing airport","outbound airport","destination airport","destination"], airport:["airport","hub"] }, { arrivalTime:"flightArrival", departureTime:"flightDeparture" });
+  return parseSheet(wb, { name:["name","attendee","passenger","guest","traveler"], email:["email","e-mail","email address"], flightArrival:["arrival date","inbound date","arrival","arrive","land","flight in"], flightDeparture:["departure date","return date","outbound date","departure","depart","fly out"], arrivalTime:["arrival time","arr time","inbound time","landing time","time in"], departureTime:["departure time","dep time","outbound time","return time","time out"], flightIn:["inbound flight","arrival flight","flight in #","inbound #"], flightOut:["outbound flight","departure flight","flight out","return flight"], arrivalAirport:["arrival airport","arr airport","arriving airport","inbound airport","origin airport","origin"], departureAirport:["departure airport","dep airport","departing airport","outbound airport","destination airport","destination"], airport:["airport","hub"], notes:NOTE_ALIASES }, { arrivalTime:"flightArrival", departureTime:"flightDeparture" });
 }
 export function parseHotelSheet(wb) {
-  return parseSheet(wb, { name:["name","attendee","guest","passenger"], email:["email","e-mail","email address"], checkIn:["check-in","checkin","arrival","hotel in"], checkOut:["check-out","checkout","departure","hotel out"], room:["room","confirmation","conf","booking","reservation"], hotel:["hotel","property","venue"] });
+  return parseSheet(wb, { name:["name","attendee","guest","passenger"], email:["email","e-mail","email address"], checkIn:["check-in","checkin","arrival","hotel in"], checkOut:["check-out","checkout","departure","hotel out"], room:["room","confirmation","conf","booking","reservation"], hotel:["hotel","property","venue"], notes:NOTE_ALIASES });
 }
 // Parse a hotel roster and tag every record with a property name.
 // Priority: the row's own "Hotel" column (combined-file case) → the file-level property name (separate-file case).
@@ -53,13 +58,13 @@ export function parseHotelSheetTagged(wb, fileProperty) {
   return rows.map(r => ({ ...r, hotel: (r.hotel && r.hotel.trim()) ? r.hotel.trim() : (fileProperty || "").trim() }));
 }
 export function parseCarSheet(wb) {
-  return parseSheet(wb, { name:["name","attendee","passenger","guest"], email:["email","e-mail","email address"], pickupDate:["pickup date","pickup","pick up","transfer in","arrival transfer","car arrival"], dropoffDate:["dropoff date","dropoff","drop off","transfer out","departure transfer"], pickupTime:["pickup time","pick up time","transfer in time","time in"], dropoffTime:["dropoff time","drop off time","transfer out time","time out"], pickupLoc:["pickup location","pick up location","from","origin"], dropoffLoc:["dropoff location","drop off location","to","destination"], confirmation:["confirmation","conf","booking","transfer #","vendor"] }, { pickupTime:"pickupDate", dropoffTime:"dropoffDate" });
+  return parseSheet(wb, { name:["name","attendee","passenger","guest"], email:["email","e-mail","email address"], pickupDate:["pickup date","pickup","pick up","transfer in","arrival transfer","car arrival"], dropoffDate:["dropoff date","dropoff","drop off","transfer out","departure transfer"], pickupTime:["pickup time","pick up time","transfer in time","time in"], dropoffTime:["dropoff time","drop off time","transfer out time","time out"], pickupLoc:["pickup location","pick up location","from","origin"], dropoffLoc:["dropoff location","drop off location","to","destination"], confirmation:["confirmation","conf","booking","transfer #","vendor"], notes:NOTE_ALIASES }, { pickupTime:"pickupDate", dropoffTime:"dropoffDate" });
 }
 export function parseDietarySheet(wb) {
   return parseSheet(wb, { name:["name","attendee","guest","passenger"], email:["email","e-mail","email address"], dietary:["dietary","diet","food","restriction","allergy","allergies"], accessibility:["accessibility","access","mobility","accommodation","disability","special need"], specialNotes:["notes","special","request","other","additional"] });
 }
 export function parseAbstractSheet(wb) {
-  return parseSheet(wb, { name:["name","author","presenter","speaker","submitter","attendee"], email:["email","e-mail","email address"], title:["abstract title","title","abstract","paper","session","topic","presentation"], status:["status","decision","accepted","review status","outcome"] });
+  return parseSheet(wb, { name:["name","author","presenter","speaker","submitter","attendee"], email:["email","e-mail","email address"], title:["abstract title","title","abstract","paper","session","topic","presentation"], status:["status","decision","accepted","review status","outcome"], notes:NOTE_ALIASES });
 }
 export function parseRegistrationSheet(wb) {
   return parseSheet(wb, {
