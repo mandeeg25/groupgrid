@@ -384,7 +384,7 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
       {/* ── Animated Demo ── */}
       {(() => {
         const [demoPhase, setDemoPhase] = React.useState("idle"); // idle | loading | checking | results
-        const [filesLoaded, setFilesLoaded] = React.useState([false,false,false,false,false]);
+        const [filesLoaded, setFilesLoaded] = React.useState([false,false,false,false,false,false]);
         const [checkPct, setCheckPct]   = React.useState(0);
         const [rowsVisible, setRowsVisible] = React.useState(0);
         const [expandedRow, setExpandedRow] = React.useState(null);
@@ -404,10 +404,10 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
             diet:null, notes:[{ l:"Registration Notes", t:"Approved to book own hotel, expensing separately" }] },
           { key:"ps",  first:"Priya",   last:"Sharma",    email:"p.sharma@corp.com",   status:"ok",    arrDiff:"0",   depDiff:"0",   issues:[],
             reg:{ checkIn:"Dec 4", checkOut:"Dec 7" }, flight:{ arr:"Dec 4", dep:"Dec 7", num:"UA 332" },  hotel:{ in:"Dec 4", out:"Dec 7", name:"Hilton Union Sq" }, car:{ pickup:"Dec 4", loc:"SFO" },
-            diet:{ dietary:"Vegetarian", accessibility:"Wheelchair access" }, notes:[{ l:"Hotel Notes", t:"Accessible room on the ground floor" }] },
+            diet:{ dietary:"Vegetarian", accessibility:"Wheelchair access" }, notes:[{ l:"Hotel Notes", t:"Accessible room on the ground floor" }], abstract:{ title:"Trends in Sales Enablement", status:"Accepted" } },
           { key:"jm",  first:"James",   last:"Mitchell",  email:"j.mitchell@corp.com", status:"ok",    arrDiff:"0",   depDiff:"0",   issues:[],
             reg:{ checkIn:"Dec 5", checkOut:"Dec 8" }, flight:{ arr:"Dec 5", dep:"Dec 8", num:"AA 771" },  hotel:{ in:"Dec 5", out:"Dec 8", name:"Grand Hyatt" }, car:{ pickup:"Dec 5", loc:"OAK" },
-            diet:{ dietary:"Vegan", accessibility:"" }, notes:[] },
+            diet:{ dietary:"Vegan", accessibility:"" }, notes:[], abstract:{ title:"Scaling Field Teams Globally", status:"Under review" } },
         ];
 
         const statusColor = s => s==="error" ? P.red : s==="warn" ? P.amber : P.green;
@@ -422,15 +422,16 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
           { label:"Flight Manifest", color:"#4F8EF7", Icon:PlaneIcon, sub:"flight_manifest_dec.xlsx" },
           { label:"Hotel Roster",    color:"#C97A0A", Icon:HotelIcon, sub:"hotel_roster_marriott.xlsx" },
           { label:"Car Transfers",   color:"#6B3FA0", Icon:CarIcon, sub:"car_transfers_sfo.xlsx" },
+          { label:"Abstract Submissions", color:"#4C62C4", Icon:SpreadsheetIcon, sub:"abstracts_speakers.xlsx" },
           ...(SHOW_DIETARY?[{ label:"Dietary & Access",color:P.teal, Icon:Salad, sub:"dietary_requirements.xlsx" }]:[]),
         ];
 
         const runDemo = () => {
           if (demoPhase !== "idle" && demoPhase !== "results") return;
-          setDemoPhase("loading"); setFilesLoaded([false,false,false,false,false]);
+          setDemoPhase("loading"); setFilesLoaded([false,false,false,false,false,false]);
           setCheckPct(0); setRowsVisible(0); setExpandedRow(null);
 
-          [350,700,1050,1400,1750].forEach((t,i) =>
+          [300,600,900,1200,1500,1800].forEach((t,i) =>
             setTimeout(() => setFilesLoaded(p => { const n=[...p]; n[i]=true; return n; }), t)
           );
           setTimeout(() => setDemoPhase("checking"), 2200);
@@ -521,7 +522,7 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
                     {(demoPhase === "loading" || demoPhase === "checking" || demoPhase === "results") && (
                       <>
                         {/* File upload strip */}
-                        <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:"8px", marginBottom:"16px" }}>
+                        <div style={{ display:"grid", gridTemplateColumns:`repeat(${fileInfo.length},1fr)`, gap:"8px", marginBottom:"16px" }}>
                           {fileInfo.map(({ label, color, Icon }, i) => (
                             <div key={label} style={{ border:`1.5px ${filesLoaded[i]?"solid":"dashed"} ${filesLoaded[i]?color:P.grey200}`, borderRadius:"10px", padding:"10px 8px", textAlign:"center", background:filesLoaded[i]?color+"0D":P.offWhite, transition:"all 0.3s" }}>
                               <div style={{ marginBottom:"4px", display:"flex", justifyContent:"center" }}>{filesLoaded[i] ? <ClearedIcon size={20} line={color} accent={color}/> : <Icon size={20} line={P.navy} accent={color}/>}</div>
@@ -637,10 +638,18 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
                                           <div style={{ fontSize:"15px", fontWeight:800, color:P.teal, fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em", display:"inline-flex", alignItems:"center", gap:"5px" }}><Salad size={13} strokeWidth={1.8} color={P.teal}/>Dietary &amp; Access</div>
                                           {g.diet ? <>
                                             {g.diet.dietary && <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Dietary: <strong style={{ color:P.navy }}>{g.diet.dietary}</strong></div>}
-                                            {g.diet.accessibility && <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font }}>Access: <strong style={{ color:P.navy }}>{g.diet.accessibility}</strong></div>}
+                                            {g.diet.accessibility && <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font }}>Accessibility: <strong style={{ color:P.navy }}>{g.diet.accessibility}</strong></div>}
                                           </> : <div style={{ fontSize:"15px", color:P.grey400, fontFamily:font, fontStyle:"italic" }}>No dietary info on file</div>}
                                         </div>
                                         )}
+                                        {/* Abstract Submissions card */}
+                                        <div style={{ background:P.white, border:`1.5px solid ${g.abstract?"#4C62C433":P.grey100}`, borderRadius:"10px", padding:"12px 14px" }}>
+                                          <div style={{ fontSize:"15px", fontWeight:800, color:"#4C62C4", fontFamily:font, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.06em", display:"inline-flex", alignItems:"center", gap:"5px" }}><SpreadsheetIcon size={12} line="#4C62C4" accent="#4C62C4"/>Abstract</div>
+                                          {g.abstract ? <>
+                                            <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font, marginBottom:"3px" }}>Title: <strong style={{ color:P.navy }}>{g.abstract.title}</strong></div>
+                                            <div style={{ fontSize:"15px", color:P.grey600, fontFamily:font }}>Status: <strong style={{ color:P.navy }}>{g.abstract.status}</strong></div>
+                                          </> : <div style={{ fontSize:"15px", color:P.grey400, fontFamily:font, fontStyle:"italic" }}>No abstract submitted</div>}
+                                        </div>
                                       </div>
                                     </div>
                                   )}
