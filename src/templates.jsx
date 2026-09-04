@@ -274,6 +274,140 @@ Warmly,
 {{plannerName}}
 {{eventName}} Planning Team`,
   },
+  abstract_received: {
+    id: "abstract_received",
+    label: "Abstract Received",
+    icon: "📥",
+    color: P.periwinkleD,
+    description: "Acknowledge an abstract submission and let them know it is under review",
+    subject: "{{eventName}} [Abstract]: We received your submission",
+    body: `Hi {{guestName}},
+
+Thank you for submitting an abstract for {{eventName}}. We have it on file and it is now under review.
+
+──────────────────────
+Abstract: {{abstractTitle}}
+Status: Under review
+──────────────────────
+
+We will be in touch with a decision. If anything about your submission has changed in the meantime, just reply and let us know.
+
+Warmly,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  },
+  abstract_accepted: {
+    id: "abstract_accepted",
+    label: "Abstract Accepted",
+    icon: "🎉",
+    color: P.green,
+    description: "Congratulate an accepted author and point them to registration and travel",
+    subject: "{{eventName}} [Abstract]: Your submission was accepted",
+    body: `Hi {{guestName}},
+
+Great news. Your abstract for {{eventName}} has been accepted, and we are glad to have you presenting.
+
+──────────────────────
+Abstract: {{abstractTitle}}
+Status: Accepted
+──────────────────────
+
+A couple of next steps:
+
+  1. Complete your registration so we can confirm your spot.
+  2. Once you are registered, we will coordinate your travel, flights, hotel, and transfers.
+
+What we need: reply to confirm you can attend and present, and complete your registration when you have a moment. If you have any questions about your session, just ask.
+
+Warmly,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  },
+  abstract_declined: {
+    id: "abstract_declined",
+    label: "Abstract Not Selected",
+    icon: "✉",
+    color: P.grey600,
+    description: "A gracious note to an author whose abstract was not selected",
+    subject: "{{eventName}} [Abstract]: An update on your submission",
+    body: `Hi {{guestName}},
+
+Thank you for submitting an abstract for {{eventName}}. After careful review, we were not able to include it in the program this time.
+
+This was a competitive process with more strong submissions than we had room for, and it is not a reflection of the quality of your work. We would genuinely welcome a submission from you in the future.
+
+We would still love to see you at {{eventName}}. If you plan to attend, just reply and we will help with the details.
+
+Warmly,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  },
+  abstract_speaker_travel: {
+    id: "abstract_speaker_travel",
+    label: "Speaker Travel Confirmation",
+    icon: "🎤",
+    color: P.purple,
+    description: "Confirm travel and logistics with an accepted presenter",
+    subject: "{{eventName}} [Speaker Travel]: Let's confirm your logistics",
+    body: `Hi {{guestName}},
+
+Thank you for presenting at {{eventName}}. Let's make sure your travel lines up with your session.
+
+──────────────────────
+Arrival: {{flightArrival}}{{arrivalTimeTail}} into {{arrivalAirport}} (Flight {{flightIn}})
+Hotel: {{checkIn}} to {{checkOut}} at {{hotel}}
+Departure: {{flightDeparture}}{{departureTimeTail}} from {{departureAirport}} (Flight {{flightOut}})
+──────────────────────
+
+What we need: reply to confirm this works around your session time, or tell us what to adjust. If you still need travel booked, let us know and we will arrange it.
+
+Warmly,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  },
+  duplicate_booking: {
+    id: "duplicate_booking",
+    label: "Duplicate Record",
+    icon: "⧉",
+    color: P.amber,
+    description: "Cross-check found more than one record under this name — confirm the correct one",
+    subject: "{{eventName}} [Records]: Confirming your booking",
+    body: `Hi {{guestName}},
+
+While reviewing records for {{eventName}}, we found more than one entry under your name. We want to be sure you have exactly one of each booking, not a duplicate.
+
+──────────────────────
+What we found: {{issueSummary}}
+──────────────────────
+
+What we need: reply to confirm your correct details so we can clear any duplicate. If you booked more than one of anything on purpose, just let us know.
+
+Warmly,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  },
+  type_arrival: {
+    id: "type_arrival",
+    label: "Attendee-Type Arrival Date",
+    icon: "🗓",
+    color: P.amber,
+    description: "Cross-check found an arrival that does not match the expected date for this attendee type",
+    subject: "{{eventName}} [Arrival]: Confirming your arrival date",
+    body: `Hi {{guestName}},
+
+For your role at {{eventName}}, we expected a specific arrival date, and your travel does not match it.
+
+──────────────────────
+What we found: {{issueSummary}}
+Flight arrives: {{flightArrival}}{{arrivalTimeTail}} into {{arrivalAirport}}
+──────────────────────
+
+This may be intentional. What we need: reply to confirm your arrival is correct, or tell us if it needs to change.
+
+Warmly,
+{{plannerName}}
+{{eventName}} Planning Team`,
+  },
   general_confirmation: {
     id: "general_confirmation",
     label: "General Travel Confirmation",
@@ -375,6 +509,8 @@ export function fillTemplate(template, record, extra = {}) {
     "{{travelContact}}": extra.travelName || "Travel Team",
     "{{carContact}}": extra.carName || "Transfer Team",
     "{{cateringContact}}": extra.cateringName || "Catering Team",
+    "{{abstractTitle}}": record.abstract?.title || "your abstract",
+    "{{abstractStatus}}": record.abstract?.status || "—",
     "{{dietary}}": record.diet?.dietary || record.reg?.dietaryRequest || "—",
     "{{accessibility}}": record.diet?.accessibility || "—",
     "{{specialNotes}}": record.diet?.specialNotes || "—",
@@ -415,7 +551,14 @@ export function getApplicableTemplates(record) {
   if (issues.some(x => x.type === "airport")) applicable.push("wrong_airport");
   if (issues.some(x => x.type === "earlyarrival") && !applicable.includes("arrives_early")) applicable.push("arrives_early");
   if (issues.some(x => x.type === "latearrival")) applicable.push("arrives_late");
-  if (issues.some(x => x.type === "abstract_unreg")) applicable.push("abstract_reminder");
+  // Abstract not registered: an accepted author gets the congratulatory + register note; others the reminder.
+  if (issues.some(x => x.type === "abstract_unreg")) {
+    if (has("Accepted abstract")) applicable.push("abstract_accepted");
+    else applicable.push("abstract_reminder");
+  }
+  // Cross-check flags that previously had no email.
+  if (issues.some(x => x.type === "duplicate")) applicable.push("duplicate_booking");
+  if (issues.some(x => x.type === "typerule")) applicable.push("type_arrival");
   return applicable;
 }
 
@@ -435,6 +578,12 @@ export const TEMPLATE_AUDIENCE = {
   car_mismatch:       "car",
   needs_registration: "guest",
   abstract_reminder: "guest",
+  abstract_received:  "guest",
+  abstract_accepted:  "guest",
+  abstract_declined:  "guest",
+  abstract_speaker_travel: "guest",
+  duplicate_booking:  "guest",
+  type_arrival:       "guest",
   general_confirmation: "guest",
   dietary_needs:      "catering",
 };
@@ -450,11 +599,17 @@ export const TEMPLATE_CATEGORY = {
   missing_transfer:   "Car Transfer",
   car_mismatch:       "Car Transfer",
   needs_registration: "Registration & Confirmation",
-  abstract_reminder: "Registration & Confirmation",
   general_confirmation: "Registration & Confirmation",
+  abstract_received: "Abstracts",
+  abstract_accepted: "Abstracts",
+  abstract_reminder: "Abstracts",
+  abstract_declined: "Abstracts",
+  abstract_speaker_travel: "Abstracts",
+  duplicate_booking: "Cross-Check",
+  type_arrival: "Cross-Check",
   dietary_needs: "Dietary & Accessibility",
 };
-export const CATEGORY_ORDER = ["Hotel", "Flight", "Car Transfer", "Registration & Confirmation", "Dietary & Accessibility", "Custom"];
+export const CATEGORY_ORDER = ["Hotel", "Flight", "Car Transfer", "Registration & Confirmation", "Abstracts", "Cross-Check", "Dietary & Accessibility", "Custom"];
 // Brand icon for each template (single-line GroupGrid icon set).
 export const TEMPLATE_ICON_KEY = {
   arrives_early:      "hotel",
@@ -468,6 +623,12 @@ export const TEMPLATE_ICON_KEY = {
   car_mismatch:       "car",
   needs_registration: "people",
   abstract_reminder: "people",
+  abstract_received:  "people",
+  abstract_accepted:  "cleared",
+  abstract_declined:  "people",
+  abstract_speaker_travel: "people",
+  duplicate_booking:  "flag",
+  type_arrival:       "calendar",
   general_confirmation: "cleared",
 };
 export const TEMPLATE_ICONS = { hotel: HotelIcon, plane: PlaneIcon, car: CarIcon, flag: FlagIcon, calendar: CalendarIcon, people: PeopleIcon, cleared: ClearedIcon };
