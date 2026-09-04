@@ -73,6 +73,18 @@ export function HelpPage({ onBack, nav }) {
         If your event uses multiple properties, name each one and add its rooming list. If a file already has a "Hotel" column, GroupGrid uses that automatically to sort guests to the right property.
       </Section>
 
+      <Section title="Saving and reopening your work">
+        Save a project to keep its data, your notes, and which flags you resolved. Saved projects appear in the left sidebar. If you are signed in, they sync to your account so you can reach them from another device; if not, they are stored in your browser on this device. Reopen a project any time to pick up exactly where you left off.
+      </Section>
+
+      <Section title="Re-running a check and seeing what changed">
+        Travel details change right up to the event, so re-run the cross-check whenever you get updated files. GroupGrid keeps your resolved items and notes, so you are not redoing work. You can also compare a fresh run against a saved version to see exactly what moved: who got booked, whose dates changed, and which new gaps appeared since last time.
+      </Section>
+
+      <Section title="Tips for accurate matching">
+        A few habits make every check cleaner. Include an <strong>Email</strong> column wherever possible, since GroupGrid matches by email first and names second. Keep one row per person per file. Use consistent spellings of names across files. If a column is not being picked up, rename it to a common header such as "Email," "Arrival Date," or "Check-In." Clean, consistent inputs are what let you check a large event as easily as a small one.
+      </Section>
+
       <Section title="Billing">
         GroupGrid is $250 per month for full access: unlimited events, unlimited guests, every feature. You can manage or cancel your subscription at any time from your account. Billing questions go to <a href="mailto:billing@groupgrid.io" style={{ color:P.periwinkleD, fontWeight:600 }}>billing@groupgrid.io</a>.
       </Section>
