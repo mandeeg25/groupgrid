@@ -2,7 +2,6 @@ import React from "react";
 import { Check, X, ShieldCheck, Salad } from "lucide-react";
 import { P, font, fontDisplay } from "../theme";
 import { SHOW_DIETARY } from "../constants";
-import { ApolloForm } from "../components/ApolloForm";
 import {
   BrandLogo, SpreadsheetIcon, PlaneIcon, HotelIcon, MagnifierIcon, CrossCheckIcon,
   UploadIcon, CalendarIcon, CarIcon, PeopleIcon, FlagIcon, AlertIcon, ClearedIcon,
@@ -734,18 +733,6 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
             </button>
           </div>
           <p style={{ fontSize:"15px", color:"rgba(255,255,255,0.5)", fontFamily:font, marginTop:"20px" }}><span style={{ color:P.accent, fontWeight:700 }}>$250/mo — less than one wrong hotel night.</span> Full access · cancel anytime.</p>
-        </div>
-      </div>
-
-      {/* ── Lead capture (Apollo form) ── */}
-      <div id="stay-in-touch" style={{ background:"#F0F2F7", borderTop:`1px solid ${P.grey100}`, padding:"72px 24px" }}>
-        <div style={{ maxWidth:"560px", margin:"0 auto", textAlign:"center" }}>
-          <div style={{ fontSize:"15px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>Stay in touch</div>
-          <h2 style={{ fontSize:"clamp(26px,4vw,36px)", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 12px", letterSpacing:"-0.03em", lineHeight:1.12 }}>Want a closer look?</h2>
-          <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.6, margin:"0 0 28px" }}>Leave your details and we'll be in touch with a quick demo, tips, and updates. No spam, and you can opt out any time.</p>
-          <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"16px", padding:"28px 26px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 18px 40px -28px rgba(12,30,63,0.45)", textAlign:"left" }}>
-            <ApolloForm />
-          </div>
         </div>
       </div>
 
