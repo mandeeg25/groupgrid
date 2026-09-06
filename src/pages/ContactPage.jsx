@@ -47,14 +47,6 @@ export function ContactPage({ onBack, nav }) {
         ))}
       </div>
 
-      {/* ── Response time note ── */}
-      <div style={{ display:"flex", gap:"14px", alignItems:"flex-start", background:P.grey50, border:`1px solid ${P.grey100}`, borderRadius:"12px", padding:"18px 20px" }}>
-        <div style={{ width:8, height:8, borderRadius:"50%", background:P.accent, flexShrink:0, marginTop:"7px" }} />
-        <div>
-          <div style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"3px" }}>Response times</div>
-          <div style={{ fontSize:"14px", color:P.grey600, fontFamily:font, lineHeight:1.6 }}>We reply to most messages within 1–2 business days. For an urgent, event-day issue, add <strong style={{ color:P.navy }}>URGENT</strong> to your subject line and we'll prioritize it.</div>
-        </div>
-      </div>
     </PageShell>
   );
 }
