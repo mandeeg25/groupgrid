@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GroupGrid signup form</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    html, body { margin: 0; padding: 0; background: transparent; font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif; }
+    #apollo-forms { min-height: 40px; }
+  </style>
+</head>
+<body>
+  <!-- Standalone Apollo form document, loaded via same-origin iframe from the site.
+       Isolating Apollo in its own document keeps its DOM injection away from the
+       React app, so a form issue can never crash the page. -->
+  <div id="apollo-forms"></div>
+  <script>
+    (function () {
+      function postHeight() {
+        try { parent.postMessage({ __ggApolloHeight: document.body.scrollHeight }, "*"); } catch (e) {}
+      }
+      var nocache = Math.random().toString(36).substring(7);
+      var s = document.createElement("script");
+      s.src = "https://assets.apollo.io/js/apollo-inbound.js?nocache=" + nocache;
+      s.async = true;
+      s.onload = function () {
+        try { window.ApolloInbound.forms.init({ appId: "6a9a41cb6781930010d627ee" }); }
+        catch (err) { console.error("[Apollo] init error:", err); }
+        setTimeout(postHeight, 400);
+        setTimeout(postHeight, 1200);
+      };
+      s.onerror = function () { console.error("[Apollo] failed to load form script"); };
+      document.head.appendChild(s);
+      window.addEventListener("load", postHeight);
+      setInterval(postHeight, 1000);
+    })();
+  </script>
+</body>
+</html>

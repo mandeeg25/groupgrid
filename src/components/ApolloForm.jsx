@@ -1,44 +1,28 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
-// Apollo inbound lead-capture form. Loads Apollo's embed script once, then inits the
-// form into the #apollo-forms div. Handles SPA remounts (script already present) and
-// cleans up so a re-init doesn't fire after unmount.
-const APOLLO_APP_ID = "6a9a41cb6781930010d627ee";
-
+// Apollo lead-capture form, isolated in a same-origin iframe (/apollo-form.html).
+// Isolation is deliberate: Apollo's embed injects and mutates DOM, which crashes
+// React if done inside the app tree. Keeping it in its own document means a form
+// problem can never white-screen the page, worst case is an empty box. The child
+// document posts its height so the iframe can size to the form.
 export function ApolloForm() {
+  const [height, setHeight] = useState(560);
   useEffect(() => {
-    let cancelled = false;
-    const init = () => {
-      try {
-        if (window.ApolloInbound && window.ApolloInbound.forms) {
-          window.ApolloInbound.forms.init({ appId: APOLLO_APP_ID });
-        }
-      } catch (err) {
-        console.error("[Apollo] Error initializing form:", err);
-      }
-    };
-    if (window.ApolloInbound && window.ApolloInbound.forms) {
-      init();
-    } else {
-      let script = document.getElementById("apollo-inbound-js");
-      if (!script) {
-        script = document.createElement("script");
-        script.id = "apollo-inbound-js";
-        script.src = "https://assets.apollo.io/js/apollo-inbound.js?nocache=" + Math.random().toString(36).substring(7);
-        script.async = true;
-        script.onload = () => { if (!cancelled) init(); };
-        script.onerror = () => console.error("[Apollo] Failed to load form script");
-        document.head.appendChild(script);
-      } else {
-        // Script tag exists but the global may not be ready yet; poll briefly.
-        const t = setInterval(() => {
-          if (window.ApolloInbound && window.ApolloInbound.forms) { clearInterval(t); if (!cancelled) init(); }
-        }, 200);
-        setTimeout(() => clearInterval(t), 6000);
+    function onMessage(e) {
+      var d = e && e.data;
+      if (d && typeof d.__ggApolloHeight === "number") {
+        setHeight(Math.max(320, Math.min(1400, d.__ggApolloHeight + 8)));
       }
     }
-    return () => { cancelled = true; };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
   }, []);
-
-  return <div id="apollo-forms" />;
+  return (
+    <iframe
+      title="Get in touch with GroupGrid"
+      src="/apollo-form.html"
+      loading="lazy"
+      style={{ width: "100%", border: "none", height: height + "px", display: "block", background: "transparent" }}
+    />
+  );
 }
