@@ -1,10 +1,11 @@
 /* GroupGrid analytics consent loader.
-   Loads Google Analytics (G-B9FWR9LYXX) and the LinkedIn Insight Tag (9901908)
-   only after the visitor accepts. Vercel Web Analytics is cookieless and runs
-   separately, regardless of this choice. */
+   Loads Google Analytics (G-B9FWR9LYXX), the LinkedIn Insight Tag (9901908),
+   and the Apollo website tracker only after the visitor accepts. Vercel Web
+   Analytics is cookieless and runs separately, regardless of this choice. */
 (function () {
   var GA_ID = "G-B9FWR9LYXX";
   var LI_ID = "9901908"; // LinkedIn Insight Tag partner id
+  var APOLLO_ID = "6a9a3a1693bc2d0018d79694"; // Apollo website tracker app id
   var KEY = "gg_analytics_consent";
 
   function loadGA() {
@@ -36,7 +37,18 @@
     })(window.lintrk);
   }
 
-  function loadAll() { loadGA(); loadLI(); }
+  function loadApollo() {
+    if (window.__ggApolloLoaded) return;
+    window.__ggApolloLoaded = true;
+    var n = Math.random().toString(36).substring(7);
+    var o = document.createElement("script");
+    o.src = "https://assets.apollo.io/micro/website-tracker/tracker.iife.js?nocache=" + n;
+    o.async = true; o.defer = true;
+    o.onload = function () { try { window.trackingFunctions.onLoad({ appId: APOLLO_ID }); } catch (e) {} };
+    document.head.appendChild(o);
+  }
+
+  function loadAll() { loadGA(); loadLI(); loadApollo(); }
 
   function read() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }
   function save(v) { try { localStorage.setItem(KEY, v); } catch (e) {} }
@@ -70,7 +82,7 @@
     bar.setAttribute("aria-label", "Analytics consent");
     bar.innerHTML =
       "<p>We use analytics cookies to understand site traffic and improve GroupGrid. " +
-      "See our <a href='https://groupgrid.io/'>privacy approach</a>.</p>" +
+      "See our <a href='https://groupgrid.io/privacy'>privacy approach</a>.</p>" +
       "<div class='btns'><button class='no' type='button'>Decline</button>" +
       "<button class='yes' type='button'>Accept</button></div>";
     document.body.appendChild(bar);

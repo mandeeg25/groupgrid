@@ -40,7 +40,7 @@ export function SecurityPage({ onBack, nav }) {
       </Section>
 
       <Section title="Hosting and infrastructure">
-        GroupGrid is served through Vercel's global network with automatically managed TLS certificates, so every page and every request is delivered over HTTPS. Marketing emails and early-access signups, when you opt in, are handled by HubSpot.
+        GroupGrid is served through Vercel's global network with automatically managed TLS certificates, so every page and every request is delivered over HTTPS. Signup-form submissions and outreach, when you opt in, are handled by Apollo, our CRM provider.
       </Section>
 
       <Section title="What we never do">
