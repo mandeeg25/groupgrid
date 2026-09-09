@@ -15,12 +15,21 @@
 <body>
   <!-- Standalone Apollo form document, loaded via same-origin iframe from the site.
        Isolating Apollo in its own document keeps its DOM injection away from the
-       React app, so a form issue can never crash the page. -->
+       React app, so a form issue can never crash the page. The parent hides the
+       whole section until this document reports that the form actually rendered
+       (Apollo refuses to render on domains not authorized in its form settings). -->
   <div id="apollo-forms"></div>
   <script>
     (function () {
-      function postHeight() {
-        try { parent.postMessage({ __ggApolloHeight: document.body.scrollHeight }, "*"); } catch (e) {}
+      var host = document.getElementById("apollo-forms");
+      function rendered() {
+        // Apollo injects its form markup into #apollo-forms; empty means it declined to render.
+        return !!(host && host.children.length > 0);
+      }
+      function report() {
+        try {
+          parent.postMessage({ __ggApollo: true, ready: rendered(), height: document.body.scrollHeight }, window.location.origin);
+        } catch (e) {}
       }
       var nocache = Math.random().toString(36).substring(7);
       var s = document.createElement("script");
@@ -29,13 +38,16 @@
       s.onload = function () {
         try { window.ApolloInbound.forms.init({ appId: "6a9a41cb6781930010d627ee" }); }
         catch (err) { console.error("[Apollo] init error:", err); }
-        setTimeout(postHeight, 400);
-        setTimeout(postHeight, 1200);
+        setTimeout(report, 400);
+        setTimeout(report, 1200);
       };
-      s.onerror = function () { console.error("[Apollo] failed to load form script"); };
+      s.onerror = function () { console.error("[Apollo] failed to load form script"); report(); };
       document.head.appendChild(s);
-      window.addEventListener("load", postHeight);
-      setInterval(postHeight, 1000);
+      if (host && window.MutationObserver) {
+        new MutationObserver(report).observe(host, { childList: true, subtree: true });
+      }
+      window.addEventListener("load", report);
+      setInterval(report, 1000);
     })();
   </script>
 </body>

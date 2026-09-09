@@ -733,17 +733,8 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
         </div>
       </div>
 
-      {/* ── Lead capture (Apollo form, isolated in an iframe) ── */}
-      <div id="stay-in-touch" style={{ background:"#F0F2F7", borderTop:`1px solid ${P.grey100}`, padding:"72px 24px" }}>
-        <div style={{ maxWidth:"560px", margin:"0 auto", textAlign:"center" }}>
-          <div style={{ fontSize:"15px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>Stay in touch</div>
-          <h2 style={{ fontSize:"clamp(26px,4vw,36px)", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 12px", letterSpacing:"-0.03em", lineHeight:1.12 }}>Want a closer look?</h2>
-          <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.6, margin:"0 0 28px" }}>Leave your details and we'll be in touch with a quick demo, tips, and updates. No spam, and you can opt out any time.</p>
-          <div style={{ background:P.white, border:`1px solid ${P.grey100}`, borderRadius:"16px", padding:"20px 22px", boxShadow:"0 1px 2px rgba(12,30,63,0.04), 0 18px 40px -28px rgba(12,30,63,0.45)", textAlign:"left" }}>
-            <ApolloForm />
-          </div>
-        </div>
-      </div>
+      {/* ── Lead capture (Apollo form, isolated in an iframe; hidden until the form renders) ── */}
+      <ApolloForm />
 
       {/* ── Footer ── */}
       <div style={{ background:P.navy, padding:"28px 40px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:"16px" }}>
