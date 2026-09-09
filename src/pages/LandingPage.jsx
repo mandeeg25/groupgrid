@@ -2,6 +2,7 @@ import React from "react";
 import { Check, X, Salad } from "lucide-react";
 import { P, font, fontDisplay } from "../theme";
 import { SHOW_DIETARY } from "../constants";
+import { ApolloForm } from "../components/ApolloForm";
 import {
   BrandLogo, SpreadsheetIcon, PlaneIcon, HotelIcon, MagnifierIcon, CrossCheckIcon,
   UploadIcon, CalendarIcon, CarIcon, PeopleIcon, FlagIcon, AlertIcon, ClearedIcon,
@@ -731,6 +732,9 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
           <p style={{ fontSize:"15px", color:"rgba(255,255,255,0.5)", fontFamily:font, marginTop:"20px" }}><span style={{ color:P.accent, fontWeight:700 }}>$250/mo — less than one wrong hotel night.</span> Full access · cancel anytime.</p>
         </div>
       </div>
+
+      {/* ── Lead capture (Apollo form, isolated in an iframe; hidden until the form renders) ── */}
+      <ApolloForm />
 
       {/* ── Footer ── */}
       <div style={{ background:P.navy, padding:"28px 40px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:"16px" }}>
