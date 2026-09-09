@@ -10,6 +10,10 @@
   <style>
     html, body { margin: 0; padding: 0; background: transparent; font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif; }
     #apollo-forms { min-height: 40px; }
+    /* Apollo's embed iframe is height:100% with a 400px floor and never resizes itself,
+       so it clips once the form has more than a few fields. Give it enough room for
+       three fields, the privacy note, the button, and inline validation messages. */
+    #apollo-forms iframe { min-height: 500px !important; }
   </style>
 </head>
 <body>
