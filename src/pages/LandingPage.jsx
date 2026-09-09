@@ -1,5 +1,5 @@
 import React from "react";
-import { Check, X, ShieldCheck, Salad } from "lucide-react";
+import { Check, X, Salad } from "lucide-react";
 import { P, font, fontDisplay } from "../theme";
 import { SHOW_DIETARY } from "../constants";
 import {
@@ -720,10 +720,6 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
           <p style={{ fontSize:"18px", color:"rgba(255,255,255,0.5)", fontFamily:font, margin:"0 auto 28px", lineHeight:1.7, maxWidth:"480px" }}>
             Join event professionals who've turned days of logistics work into a few minutes.
           </p>
-          <div style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:"rgba(0,201,177,0.1)", border:"1px solid rgba(0,201,177,0.25)", borderRadius:"20px", padding:"6px 16px", marginBottom:"32px" }}>
-            <ShieldCheck size={14} strokeWidth={1.8} color={P.accent}/>
-            <span style={{ fontSize:"15px", fontWeight:600, color:"rgba(255,255,255,0.7)", fontFamily:font }}>Built by an event planner who spent 15+ years reconciling attendee lists by hand</span>
-          </div>
           <div className="gg-cta-btns" style={{ display:"flex", gap:"12px", justifyContent:"center", flexWrap:"wrap" }}>
             <button onClick={onEnter} style={{ background:`linear-gradient(135deg, ${P.accent}, ${P.accentD})`, border:"none", borderRadius:"12px", padding:"16px 40px", fontSize:"17px", fontWeight:800, color:P.white, fontFamily:font, cursor:"pointer", boxShadow:"0 4px 24px rgba(0,201,177,0.4)", letterSpacing:"-0.02em" }}>
               Open GroupGrid →
