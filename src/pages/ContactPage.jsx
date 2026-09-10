@@ -1,6 +1,7 @@
 import { Mail, AlertTriangle, CreditCard, Users } from "lucide-react";
 import { P, font, fontDisplay } from "../theme";
 import { PageShell } from "./PageShell";
+import { ApolloForm } from "../components/ApolloForm";
 
 export function ContactPage({ onBack, nav }) {
   const departments = [
@@ -28,6 +29,9 @@ export function ContactPage({ onBack, nav }) {
           <Mail size={17} strokeWidth={2} color={P.accent} /> hello@groupgrid.io
         </div>
       </div>
+
+      {/* ── Lead capture (same Apollo form as the landing page; hidden until it renders) ── */}
+      <ApolloForm variant="inline" />
 
       {/* ── Department directory ── */}
       <div style={{ fontSize:"12px", fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:P.grey600, fontFamily:font, margin:"26px 0 10px", paddingLeft:"2px" }}>Reach a specific team</div>
