@@ -449,7 +449,7 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
         };
 
         return (
-          <div style={{ background:"#F0F2F7", padding:"80px 40px", borderBottom:`1px solid ${P.grey100}` }}>
+          <div id="demo" style={{ background:"#F0F2F7", padding:"80px 40px", borderBottom:`1px solid ${P.grey100}`, scrollMarginTop:"72px" }}>
             <style>{`
               @keyframes ggIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
               @keyframes ggPulse { 0%,100%{opacity:.45} 50%{opacity:1} }
