@@ -93,6 +93,22 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
   const [contactsOpen, setContactsOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [loginMode, setLoginMode] = useState("signin"); // "signin" | "signup" — /signup deep link opens the Create Account tab
+
+  // Deep links used in emails and posts: /signup opens the account drawer on the sign-up tab,
+  // and /#demo scrolls to the animated demo on the landing page.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const path = window.location.pathname.replace(/\/+$/, "").toLowerCase();
+    if (path === "/signup" || path === "/login") {
+      setLoginMode(path === "/signup" ? "signup" : "signin");
+      setLoginOpen(true);
+      window.history.replaceState(null, "", "/" + window.location.search + window.location.hash);
+    }
+    if (window.location.hash === "#demo") {
+      setTimeout(() => { const el = document.getElementById("demo"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 400);
+    }
+  }, []);
   const [pendingCheckout, setPendingCheckout] = useState(null); // billing period to check out immediately after sign-in
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState("");
@@ -862,7 +878,7 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
         <div style={{ position:"fixed", inset:0, zIndex:4000, display:"flex", alignItems:"center", justifyContent:"flex-end" }}>
           <div onClick={() => { setLoginOpen(false); setPendingCheckout(null); }} style={{ position:"absolute", inset:0, background:"rgba(27,42,74,0.5)", backdropFilter:"blur(4px)" }} />
           <div style={{ position:"relative", zIndex:1, width:"100%", maxWidth:"420px", height:"100%", background:P.navy, boxShadow:"-20px 0 60px rgba(0,0,0,0.4)", display:"flex", flexDirection:"column", overflowY:"auto" }}>
-            <LoginPanel onLogin={u => {
+            <LoginPanel initialMode={loginMode} onLogin={u => {
                 // Migrate anonymous sessions to the newly signed-in account
                 try {
                   const anonKey = "groupgrid-sessions-anonymous";

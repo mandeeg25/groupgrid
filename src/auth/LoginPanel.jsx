@@ -6,8 +6,8 @@ import { BrandLogo } from "../icons";
 import { getSupabase } from "./supabaseClient";
 
 // ── Login Panel (slide-in drawer) ────────────────────────────────────────────
-export function LoginPanel({ onLogin, onClose }) {
-  const [mode, setMode]         = useState("signin"); // "signin" | "signup" | "reset"
+export function LoginPanel({ onLogin, onClose, initialMode }) {
+  const [mode, setMode]         = useState(initialMode === "signup" ? "signup" : "signin"); // "signin" | "signup" | "reset"
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [name, setName]         = useState("");
