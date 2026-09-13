@@ -8,6 +8,7 @@
   <url><loc>https://groupgrid.io/security</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
   <url><loc>https://groupgrid.io/help</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://groupgrid.io/blog/</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://groupgrid.io/blog/press-release-groupgrid-launch.html</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
   <url><loc>https://groupgrid.io/blog/introducing-groupgrid.html</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
   <url><loc>https://groupgrid.io/blog/preventing-travel-gaps-before-your-event.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://groupgrid.io/blog/hidden-cost-of-booking-event-travel-in-house.html</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
