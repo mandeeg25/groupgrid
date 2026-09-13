@@ -970,7 +970,9 @@ export default function GroupGrid({ user, onLogin, onLogout }) {
               {[0,1,2].map(i => <span key={i} style={{ width:14, height:2, background:"rgba(255,255,255,0.7)", borderRadius:2, transition:"all 0.2s" }} />)}
             </button>
           )}
-          <BrandLogo height={isMobile ? 28 : 40} onDark={true} />
+          <a href="/" aria-label="GroupGrid home" onClick={e => { e.preventDefault(); setPage("landing"); }} style={{ display:"flex", alignItems:"center", textDecoration:"none", cursor:"pointer" }}>
+            <BrandLogo height={isMobile ? 28 : 40} onDark={true} />
+          </a>
             {!isMobile && <button onClick={() => setPage("landing")} style={{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"7px", padding:"4px 12px", fontSize:"15px", fontWeight:600, color:"rgba(255,255,255,0.45)", fontFamily:font, cursor:"pointer", letterSpacing:"0.03em" }}>← Home</button>}
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>

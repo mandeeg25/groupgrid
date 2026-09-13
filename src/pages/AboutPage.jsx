@@ -1,7 +1,7 @@
 import { ShieldCheck } from "lucide-react";
 import { P, font, fontDisplay } from "../theme";
 import { MarketingNav } from "./PageShell";
-import { FlagIcon, CityIcon, PeopleIcon, BadgeIcon, GridIcon, GlobeIcon, CrossCheckIcon } from "../icons";
+import { FlagIcon, CityIcon, PeopleIcon, BadgeIcon, GridIcon, GlobeIcon, CrossCheckIcon, BrandMark } from "../icons";
 
 export function AboutPage({ onBack, nav }) {
   const useCases = [
@@ -23,6 +23,7 @@ export function AboutPage({ onBack, nav }) {
     <div style={{ minHeight:"100vh", background:P.offWhite, fontFamily:font }}>
       {nav ? <MarketingNav nav={nav} /> : (
       <div style={{ background:P.navy, padding:"0 32px", height:"52px", display:"flex", alignItems:"center", gap:"16px", boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
+        <a href="/" aria-label="GroupGrid home" style={{ display:"flex", alignItems:"center", textDecoration:"none", marginRight:"4px" }}><BrandMark size={24} onDark={true} /></a>
         <button onClick={onBack} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:"8px", padding:"5px 12px", color:"rgba(255,255,255,0.7)", fontSize:"15px", fontFamily:font, fontWeight:600, cursor:"pointer" }}>← Back</button>
         <span style={{ color:P.white, fontSize:"15px", fontWeight:700, fontFamily:font }}>About GroupGrid</span>
       </div>
