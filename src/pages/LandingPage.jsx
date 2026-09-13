@@ -39,9 +39,9 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
 
       {/* ── Nav ── */}
       <nav className="gg-landing-nav" style={{ background:P.navy, height:"64px", padding:"0 40px", display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100, boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
-        <div className="gg-landing-logo" style={{ display:"flex", alignItems:"center", gap:"10px" }}>
+        <a href="/" aria-label="GroupGrid home" className="gg-landing-logo" onClick={e => { e.preventDefault(); if (window.location.pathname !== "/") window.history.pushState({ page:"landing" }, "", "/"); window.scrollTo({ top:0, behavior:"smooth" }); }} style={{ display:"flex", alignItems:"center", gap:"10px", textDecoration:"none", cursor:"pointer" }}>
           <BrandLogo height={40} onDark={true} />
-        </div>
+        </a>
         <div style={{ display:"flex", alignItems:"center", gap:"28px" }}>
           <div className="gg-landing-navlinks" style={{ display:"flex", alignItems:"center", gap:"28px" }}>
             <button onClick={onAbout} style={{ background:"none", border:"none", fontSize:"15px", fontWeight:600, color:"rgba(255,255,255,0.6)", fontFamily:font, cursor:"pointer" }}>About</button>

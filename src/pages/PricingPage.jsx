@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Check, Lock, X, ShieldCheck } from "lucide-react";
 import { P, font, fontDisplay } from "../theme";
 import { MarketingNav } from "./PageShell";
+import { BrandMark } from "../icons";
 import { startCheckout } from "../stripeClient";
 
 // ── Pricing Page ──────────────────────────────────────────────────────────────
@@ -29,7 +30,10 @@ export function PricingPage({ onBack, nav, user }) {
     <div style={{ minHeight:"100vh", background:P.offWhite, fontFamily:font }}>
       {nav ? <MarketingNav nav={nav} /> : (
       <div style={{ background:P.navy, padding:"0 32px", height:"52px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 1px 0 rgba(255,255,255,0.06)" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
+        <a href="/" aria-label="GroupGrid home" style={{ display:"flex", alignItems:"center", textDecoration:"none" }}><BrandMark size={24} onDark={true} /></a>
         <button onClick={onBack} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:"8px", padding:"5px 14px", color:"rgba(255,255,255,0.75)", fontSize:"15px", fontFamily:font, fontWeight:600, cursor:"pointer" }}>← Back to app</button>
+        </div>
         <span style={{ color:P.accent, fontSize:"15px", fontWeight:700, fontFamily:font, letterSpacing:"0.05em" }}>PRICING</span>
       </div>
       )}
