@@ -61,7 +61,7 @@ export function PricingPage({ onBack, nav, user }) {
           {/* Best Value badge for annual */}
           {annual && (
             <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", background:P.accent, color:P.white, fontSize:"15px", fontWeight:800, fontFamily:font, letterSpacing:"0.07em", padding:"4px 18px", borderRadius:"0 0 10px 10px", textTransform:"uppercase", whiteSpace:"nowrap" }}>
-              Best Value — Save $988/yr
+              Best Value — Save $500/yr
             </div>
           )}
 
@@ -71,7 +71,7 @@ export function PricingPage({ onBack, nav, user }) {
             {/* Price */}
             <div style={{ display:"flex", alignItems:"flex-end", gap:"6px", marginBottom:"6px" }}>
               <span style={{ fontSize:"52px", fontWeight:700, color:P.navy, fontFamily:fontDisplay, letterSpacing:"-0.04em", lineHeight:1 }}>
-                {annual ? "$2,000" : "$250"}
+                {annual ? "$2,500" : "$250"}
               </span>
               <span style={{ fontSize:"17px", color:P.grey600, fontFamily:font, marginBottom:"8px" }}>
                 {annual ? "/year" : "/month"}
@@ -79,7 +79,7 @@ export function PricingPage({ onBack, nav, user }) {
             </div>
             {annual && (
               <div style={{ fontSize:"15px", color:P.green, fontWeight:700, fontFamily:font, marginBottom:"4px" }}>
-                Equivalent to $167/mo · billed annually
+                Equivalent to $208/mo · billed annually
               </div>
             )}
             <div style={{ fontSize:"17px", color:P.grey600, fontFamily:font, marginBottom:"16px" }}>1 user · unlimited events · all features</div>
@@ -98,7 +98,7 @@ export function PricingPage({ onBack, nav, user }) {
                 </div>
               ))}
               <div style={{ borderTop:"1px solid rgba(255,255,255,0.14)", marginTop:"10px", paddingTop:"11px", fontSize:"15px", color:"rgba(255,255,255,0.92)", fontFamily:font, lineHeight:1.55 }}>
-                GroupGrid is <strong style={{ color:P.accent }}>{annual ? "$167" : "$250"}/mo</strong>. Catch <strong>one</strong> gap and it&rsquo;s already paid for &mdash; every event after that is money saved.
+                GroupGrid is <strong style={{ color:P.accent }}>{annual ? "$208" : "$250"}/mo</strong>. Catch <strong>one</strong> gap and it&rsquo;s already paid for &mdash; every event after that is money saved.
               </div>
             </div>
 
