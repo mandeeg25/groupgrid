@@ -98,7 +98,7 @@ export function PricingPage({ onBack, nav, user }) {
                 </div>
               ))}
               <div style={{ borderTop:"1px solid rgba(255,255,255,0.14)", marginTop:"10px", paddingTop:"11px", fontSize:"15px", color:"rgba(255,255,255,0.92)", fontFamily:font, lineHeight:1.55 }}>
-                GroupGrid is <strong style={{ color:P.accent }}>{annual ? "$167" : "$250"}/mo</strong>. Catch <strong>one</strong> gap and it&rsquo;s already paid for &mdash; every event after that is money saved.
+                GroupGrid is <strong style={{ color:P.accent }}>{annual ? "$208" : "$250"}/mo</strong>. Catch <strong>one</strong> gap and it&rsquo;s already paid for &mdash; every event after that is money saved.
               </div>
             </div>
 
