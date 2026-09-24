@@ -389,6 +389,11 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
         const [checkPct, setCheckPct]   = React.useState(0);
         const [rowsVisible, setRowsVisible] = React.useState(0);
         const [expandedRow, setExpandedRow] = React.useState(null);
+        const [demoAction, setDemoAction] = React.useState(null);   // null | "email" | "report"
+        const [emailTo, setEmailTo] = React.useState("air");         // hotel | air | car | attendee
+        const [reportFields, setReportFields] = React.useState(["First","Last","Email","Hotel In","Hotel Out","Flags","Note"]);
+        const [demoToast, setDemoToast] = React.useState("");
+        const toast = (m) => { setDemoToast(m); setTimeout(() => setDemoToast(""), 2600); };
 
         const demoGuests = [
           { key:"sc",  first:"Sarah",   last:"Solomon",   email:"s.solomon@corp.com", status:"error", arrDiff:"—",   depDiff:"—",   issues:["Registered but no flight booked"],
@@ -434,7 +439,7 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
         const runDemo = () => {
           if (demoPhase !== "idle" && demoPhase !== "results") return;
           setDemoPhase("loading"); setFilesLoaded([false,false,false,false,false,false]);
-          setCheckPct(0); setRowsVisible(0); setExpandedRow(null);
+          setCheckPct(0); setRowsVisible(0); setExpandedRow(null); setDemoAction(null); setEmailTo("air"); setDemoToast("");
 
           [300,600,900,1200,1500,1800].forEach((t,i) =>
             setTimeout(() => setFilesLoaded(p => { const n=[...p]; n[i]=true; return n; }), t)
@@ -445,8 +450,52 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
           );
           for (let i=0; i<demoGuests.length; i++)
             setTimeout(() => setRowsVisible(i+1), 3900 + i*260);
-          setTimeout(() => setDemoPhase("results"), 3900 + demoGuests.length*260);
+          const doneAt = 3900 + demoGuests.length*260;
+          setTimeout(() => setDemoPhase("results"), doneAt);
+          // Keep going: open the first flag, then show the email GroupGrid drafts for it.
+          setTimeout(() => setExpandedRow("sc"), doneAt + 1400);
+          setTimeout(() => { setEmailTo("air"); setDemoAction("email"); }, doneAt + 2800);
         };
+
+        // Demo recipients and the personalized draft GroupGrid writes for each flag.
+        const recipients = {
+          hotel:    { label:"Hotel",        who:"Group desk, Marriott Marquis" },
+          air:      { label:"Air agency",   who:"Meridian Travel, group air" },
+          car:      { label:"Transfers",    who:"Dispatch, Bay Area Chauffeur" },
+          attendee: { label:"Attendee",     who:"" },
+        };
+        const draftFor = (g, to) => {
+          const name = `${g.first} ${g.last}`;
+          const win = g.reg ? `${g.reg.checkIn} to ${g.reg.checkOut}` : "";
+          const note = g.notes && g.notes[0] ? ` Note from their file: "${g.notes[0].t}."` : "";
+          if (to === "attendee") return {
+            subject: `Quick check on your travel for the Annual Sales Summit`,
+            body: `Hi ${g.first},\n\nWe're confirming travel for the Annual Sales Summit and one detail on your record needs a look: ${g.issues[0] ? g.issues[0].toLowerCase() : "please confirm your dates"}. Can you confirm what's correct so we can fix it before you travel?\n\nThanks,\nAmanda` };
+          if (!g.flight && to === "air") return {
+            subject: `Flight needed: ${name}, Annual Sales Summit, ${win}`,
+            body: `Hi Dana,\n\n${name} is registered for the Annual Sales Summit, ${win}, with a room confirmed at ${g.hotel ? g.hotel.name : "the block"}, but there is no flight on the manifest.${note} Can you book ${g.first} into SFO and send the confirmation?\n\nThanks,\nAmanda` };
+          if (!g.hotel && to === "hotel") return {
+            subject: `Room needed: ${name}, ${win}`,
+            body: `Hi Priya,\n\n${name} is registered and has a flight arriving ${g.flight ? g.flight.arr : ""}, but no room in the block.${note} Can you add a room for ${win} and confirm the rate?\n\nThanks,\nAmanda` };
+          if (!g.reg && to !== "attendee") return {
+            subject: `Please hold: ${name} is not on our registration list`,
+            body: `Hi ${to === "hotel" ? "Priya" : to === "air" ? "Dana" : "Marco"},\n\n${name} has a ${to === "hotel" ? "room" : to === "air" ? "flight" : "transfer"} booked for the Annual Sales Summit but does not appear on our registration list. Please hold the booking and don't release any charges until we confirm.\n\nThanks,\nAmanda` };
+          if (to === "hotel") return {
+            subject: `Date correction: ${name}, ${win}`,
+            body: `Hi Priya,\n\n${name} requested ${win} but the rooming list shows ${g.hotel ? g.hotel.in : ""} to ${g.hotel ? g.hotel.out : ""}. ${g.flight ? `Their flight lands ${g.flight.arr}.` : ""} Can you move the reservation to ${win} and confirm?\n\nThanks,\nAmanda` };
+          if (to === "car") return {
+            subject: `Transfer update: ${name}, arriving ${g.flight ? g.flight.arr : win}`,
+            body: `Hi Marco,\n\n${name} ${g.flight ? `lands ${g.flight.arr} on ${g.flight.num}` : `arrives ${win.split(" to ")[0]}`}. ${g.car ? `The pickup is set for ${g.car.pickup} at ${g.car.loc}.` : "There is no pickup on the schedule."} Can you ${g.car ? "confirm the time matches the flight" : "add a pickup and confirm"}?\n\nThanks,\nAmanda` };
+          return {
+            subject: `Travel check: ${name}, Annual Sales Summit`,
+            body: `Hi Dana,\n\nOne item on ${name}'s record: ${g.issues[0] || "please confirm the dates"}. ${g.flight ? `The manifest shows ${g.flight.num}, arriving ${g.flight.arr}.` : ""} Can you confirm or correct it?\n\nThanks,\nAmanda` };
+        };
+        const reportAllFields = ["First","Last","Email","Status","Flight In","Flight Out","Hotel In","Hotel Out","Flags","Note"];
+        const reportCell = (g, f) => ({
+          "First":g.first, "Last":g.last, "Email":g.email, "Status":statusLabel(g.status),
+          "Flight In":g.flight?.arr||"—", "Flight Out":g.flight?.dep||"—", "Hotel In":g.hotel?.in||"—", "Hotel Out":g.hotel?.out||"—",
+          "Flags":g.issues[0]||"", "Note":(g.notes&&g.notes[0])?g.notes[0].t:"",
+        })[f];
 
         return (
           <div id="demo" style={{ background:"#F0F2F7", padding:"80px 40px", borderBottom:`1px solid ${P.grey100}`, scrollMarginTop:"72px" }}>
@@ -460,10 +509,10 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
               <div style={{ textAlign:"center", marginBottom:"48px" }}>
                 <div style={{ fontSize:"15px", fontWeight:800, color:P.accent, fontFamily:font, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"12px" }}>SEE IT IN ACTION</div>
                 <h2 style={{ fontSize:"clamp(28px, 4.5vw, 42px)", fontWeight:700, color:P.navy, fontFamily:fontDisplay, margin:"0 0 14px", letterSpacing:"-0.035em", lineHeight:1.1 }}>
-                  From files to flags<br/><span style={{ color:P.accent }}>in minutes, not days.</span>
+                  From files to flags to fixes<br/><span style={{ color:P.accent }}>in minutes, not days.</span>
                 </h2>
                 <p style={{ fontSize:"17px", color:P.grey600, fontFamily:font, lineHeight:1.7, maxWidth:"460px", margin:"0 auto" }}>
-                  Watch GroupGrid check your registration against flights, hotels, transfers, and dietary needs, surfacing every gap and note instantly.
+                  Watch GroupGrid check your registration against flights, hotels and transfers, then draft the correction email and build the report you share with each travel partner.
                 </p>
               </div>
 
@@ -673,6 +722,56 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
                                           </> : <div style={{ fontSize:"15px", color:P.grey400, fontFamily:font, fontStyle:"italic" }}>No abstract submitted</div>}
                                         </div>
                                       </div>
+                                      {/* Fix it and share it: the communication and reporting modules */}
+                                      <div style={{ display:"flex", gap:"8px", marginTop:"14px", flexWrap:"wrap", alignItems:"center" }}>
+                                        <button onClick={(e) => { e.stopPropagation(); setDemoAction(demoAction==="email"?null:"email"); }} style={{ background:demoAction==="email"?P.navy:P.white, color:demoAction==="email"?P.white:P.navy, border:`1.5px solid ${P.navy}`, borderRadius:"8px", padding:"7px 14px", fontSize:"14px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>Draft email</button>
+                                        <button onClick={(e) => { e.stopPropagation(); setDemoAction(demoAction==="report"?null:"report"); }} style={{ background:demoAction==="report"?P.navy:P.white, color:demoAction==="report"?P.white:P.navy, border:`1.5px solid ${P.navy}`, borderRadius:"8px", padding:"7px 14px", fontSize:"14px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>Build report</button>
+                                        <span style={{ fontSize:"13px", color:P.grey600, fontFamily:font }}>GroupGrid writes the email and the report from this record.</span>
+                                        {demoToast && <span style={{ marginLeft:"auto", fontSize:"13px", fontWeight:700, color:P.accentD, fontFamily:font, animation:"ggIn 0.3s" }}>{demoToast}</span>}
+                                      </div>
+                                      {demoAction === "email" && (() => { const d = draftFor(g, emailTo); const r = recipients[emailTo]; return (
+                                        <div onClick={(e) => e.stopPropagation()} style={{ marginTop:"12px", background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"12px", overflow:"hidden", animation:"ggIn 0.4s cubic-bezier(.2,.8,.2,1)" }}>
+                                          <div style={{ display:"flex", alignItems:"center", gap:"10px", padding:"10px 14px", borderBottom:`1px solid ${P.grey100}`, background:P.grey50, flexWrap:"wrap" }}>
+                                            <span style={{ fontSize:"13px", fontWeight:800, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em" }}>To</span>
+                                            {Object.entries(recipients).map(([k, v]) => (
+                                              <button key={k} onClick={() => setEmailTo(k)} style={{ background:emailTo===k?P.accent:P.white, color:emailTo===k?P.white:P.navy, border:`1.5px solid ${emailTo===k?P.accent:P.grey200}`, borderRadius:"20px", padding:"4px 12px", fontSize:"13px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>{v.label}</button>
+                                            ))}
+                                            <span style={{ fontSize:"13px", color:P.grey600, fontFamily:font }}>{r.who || `${g.first} ${g.last} · ${g.email}`}</span>
+                                          </div>
+                                          <div style={{ padding:"12px 14px" }}>
+                                            <div style={{ fontSize:"15px", fontWeight:700, color:P.navy, fontFamily:font, marginBottom:"8px" }}>{d.subject}</div>
+                                            <div style={{ fontSize:"14px", color:P.grey600, fontFamily:font, lineHeight:1.6, whiteSpace:"pre-line" }}>{d.body}</div>
+                                          </div>
+                                          <div style={{ display:"flex", gap:"8px", padding:"10px 14px", borderTop:`1px solid ${P.grey100}`, alignItems:"center" }}>
+                                            <button onClick={() => toast(`Sent to ${r.label.toLowerCase()} in one click`)} style={{ background:P.accent, color:P.white, border:"none", borderRadius:"8px", padding:"7px 16px", fontSize:"14px", fontWeight:800, fontFamily:font, cursor:"pointer" }}>Send</button>
+                                            <button onClick={() => toast("Copied to clipboard")} style={{ background:P.white, color:P.navy, border:`1.5px solid ${P.grey200}`, borderRadius:"8px", padding:"7px 14px", fontSize:"14px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>Copy</button>
+                                            <span style={{ fontSize:"13px", color:P.grey600, fontFamily:font }}>Personalized from the record. Edit anything before it goes.</span>
+                                          </div>
+                                        </div>
+                                      ); })()}
+                                      {demoAction === "report" && (
+                                        <div onClick={(e) => e.stopPropagation()} style={{ marginTop:"12px", background:P.white, border:`1.5px solid ${P.grey100}`, borderRadius:"12px", overflow:"hidden", animation:"ggIn 0.4s cubic-bezier(.2,.8,.2,1)" }}>
+                                          <div style={{ display:"flex", alignItems:"center", gap:"6px", padding:"10px 14px", borderBottom:`1px solid ${P.grey100}`, background:P.grey50, flexWrap:"wrap" }}>
+                                            <span style={{ fontSize:"13px", fontWeight:800, color:P.grey600, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em", marginRight:"4px" }}>Fields for this partner</span>
+                                            {reportAllFields.map(f => { const on = reportFields.includes(f); return (
+                                              <button key={f} onClick={() => setReportFields(on ? reportFields.filter(x => x!==f) : [...reportFields, f])} style={{ background:on?P.navy:P.white, color:on?P.white:P.grey600, border:`1.5px solid ${on?P.navy:P.grey200}`, borderRadius:"20px", padding:"3px 10px", fontSize:"12px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>{f}</button>
+                                            ); })}
+                                          </div>
+                                          <div style={{ overflowX:"auto" }}>
+                                            <table style={{ borderCollapse:"collapse", width:"100%", fontFamily:font, fontSize:"13px" }}>
+                                              <thead><tr>{reportAllFields.filter(f => reportFields.includes(f)).map(f => <th key={f} style={{ textAlign:"left", padding:"8px 12px", color:P.grey600, fontWeight:700, textTransform:"uppercase", fontSize:"11px", letterSpacing:"0.05em", borderBottom:`1px solid ${P.grey100}`, whiteSpace:"nowrap" }}>{f}</th>)}</tr></thead>
+                                              <tbody>{demoGuests.filter(x => x.status!=="ok").map(x => (
+                                                <tr key={x.key}>{reportAllFields.filter(f => reportFields.includes(f)).map(f => <td key={f} style={{ padding:"8px 12px", color:f==="Flags"?P.red:P.navy, borderBottom:`1px solid ${P.grey100}`, whiteSpace:"nowrap", fontWeight:f==="Flags"?700:400 }}>{reportCell(x, f)}</td>)}</tr>
+                                              ))}</tbody>
+                                            </table>
+                                          </div>
+                                          <div style={{ display:"flex", gap:"8px", padding:"10px 14px", borderTop:`1px solid ${P.grey100}`, alignItems:"center", flexWrap:"wrap" }}>
+                                            <button onClick={() => toast("Share link copied. Partners see only these fields.")} style={{ background:P.accent, color:P.white, border:"none", borderRadius:"8px", padding:"7px 16px", fontSize:"14px", fontWeight:800, fontFamily:font, cursor:"pointer" }}>Share with partner</button>
+                                            <button onClick={() => toast("Excel export ready")} style={{ background:P.white, color:P.navy, border:`1.5px solid ${P.grey200}`, borderRadius:"8px", padding:"7px 14px", fontSize:"14px", fontWeight:700, fontFamily:font, cursor:"pointer" }}>Export to Excel</button>
+                                            <span style={{ fontSize:"13px", color:P.grey600, fontFamily:font }}>Only the flagged records, only the fields you picked. Everyone works from the same list.</span>
+                                          </div>
+                                        </div>
+                                      )}
                                     </div>
                                   )}
                                 </React.Fragment>
