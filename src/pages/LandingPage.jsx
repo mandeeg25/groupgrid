@@ -28,7 +28,7 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
     { n:"01", icon:"upload", box:P.accentD, title:"Upload your registration list", body:"Start with your master list of who registered — the source of truth. Then add your travel files: flight manifest, hotel roster, car transfers. Excel or CSV (.xlsx, .xls, .csv), any column names — GroupGrid figures it out." },
     { n:"02", icon:"crosscheck", box:P.navyLight, title:"Run the check", body:"In seconds, GroupGrid matches every registered person against the travel files by email, then name. It finds who registered but isn't booked, who's booked but never registered, and whose dates don't match." },
     { n:"03", icon:"magnifier", box:P.accentD, title:"See exactly what needs fixing", body:"Each flag shows who's affected and what's wrong — registered with no flight, hotel booked for someone not on the list, check-in dates that don't match what they requested. Resolve, add notes, mark done." },
-    { n:"04", icon:"spreadsheet", box:P.navyLight, title:"Communicate & export", body:"Draft emails to your hotel or travel agency, download a clean Excel report, or generate a shareable HTML report — all without leaving GroupGrid." },
+    { n:"04", icon:"spreadsheet", box:P.navyLight, title:"Fix it and share it", body:"Send custom, personalized emails to your attendees, hotel, air agency or transfer company in minutes, drafted from the flagged records. Then build a custom report with only the fields each partner needs and share it in one click, so every agency partner works from the same list." },
   ];
 
   // Testimonials removed — placeholder quotes taken down. Add real, attributed quotes here when available.
@@ -281,7 +281,7 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
             points:[
               "Cross-check your registration list against flight, hotel, and car files in one upload — no more row-by-row VLOOKUPs.",
               "Catch the costly gaps early: registered but unbooked, booked but never registered, and dates that don't match.",
-              "Draft vendor emails and export a clean report so your hotel and travel agency work from the same truth.",
+              "Send personalized correction emails in minutes and share custom reports with your hotel and travel agency, so every partner works from the same truth.",
             ],
           },
           {
@@ -291,7 +291,7 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
             points:[
               "Spot out-of-policy bookings — wrong dates, wrong airport, nights outside the block — before they become change fees.",
               "Reconcile every traveler against the approved list to catch duplicates, ghosts, and no-shows while refunds are still possible.",
-              "Keep a clear record of what was flagged, fixed, and confirmed for every program.",
+              "Share a custom report of what was flagged, fixed, and confirmed with your agency partners for every program.",
             ],
           },
           {
@@ -311,7 +311,7 @@ export function LandingPage({ onEnter, onPricing, onAbout, onContact, onPrivacy,
             points:[
               "Cross-check the entire roster in minutes so no rep shows up without a room or a flight.",
               "Flag last-minute registrations, drops, and swaps each week as the list keeps moving.",
-              "Hand your events team and travel agency one clean, current list instead of five conflicting exports.",
+              "Hand your events team and travel agency one custom, current report instead of five conflicting exports, and send the fixes in minutes.",
             ],
           },
         ];

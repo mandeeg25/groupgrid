@@ -20,7 +20,7 @@ export const AUDIENCES = {
     helps: [
       "Cross-check all four lists in one upload — GroupGrid matches by email, then name, and flags every gap.",
       "See exactly who's affected and what's wrong, then resolve each flag with notes and status.",
-      "Draft vendor emails and export a clean report so everyone works from the same list.",
+      "Send personalized correction emails to vendors and attendees in minutes, and share custom reports so every agency partner works from the same list.",
     ],
   },
   whoTravelManagers: {
@@ -37,7 +37,7 @@ export const AUDIENCES = {
     helps: [
       "Spot out-of-policy and mismatched bookings before they become penalties.",
       "Reconcile every traveler against the approved list to catch duplicates, ghosts, and drops while refunds are still possible.",
-      "Keep a clear, exportable record of what was flagged, fixed, and confirmed for every program.",
+      "Share a custom report of what was flagged, fixed, and confirmed with your agency partners for every program.",
     ],
   },
   whoAssistants: {
@@ -54,7 +54,7 @@ export const AUDIENCES = {
     helps: [
       "Confirm each executive's flight, hotel, and transfer actually connect — no gaps, no surprises.",
       "Keep a VIP watch list and verify the details that matter twice, automatically.",
-      "Catch issues weeks out and resolve them with a two-line email, not an arrival-day scramble.",
+      "Catch issues weeks out and resolve them with a personalized email GroupGrid drafts for you, not an arrival-day scramble.",
     ],
   },
   whoSalesOps: {
@@ -71,7 +71,7 @@ export const AUDIENCES = {
     helps: [
       "Cross-check the entire roster in minutes so no rep shows up without a room or a flight.",
       "Flag late registrations, drops, and swaps each week as the list keeps moving.",
-      "Hand everyone one clean, current list instead of five versions of the truth.",
+      "Hand your events team and travel agency one custom, current report instead of five versions of the truth.",
     ],
   },
 };

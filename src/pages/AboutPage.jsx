@@ -113,8 +113,8 @@ export function AboutPage({ onBack, nav }) {
             {[
               { n:"1", title:"Upload your spreadsheets", body:"Drag in your flight manifest, hotel roster, and car transfers — Excel or CSV (.xlsx, .xls, .csv), any column names. GroupGrid auto-detects them." },
               { n:"2", title:"Run the cross-check", body:"GroupGrid matches every guest across all files by name and email, identifying mismatches, missing records, date gaps, and duplicates." },
-              { n:"3", title:"See exactly what needs fixing", body:"Every flag is surfaced with context — who's affected, what the mismatch is, and how many days off. Resolve issues, add notes, and export a clean report." },
-              { n:"4", title:"Share with your team or hotel", body:"Download an Excel file, generate a shareable HTML report, or draft emails directly to your hotel and travel agency contacts — all from the same screen." },
+              { n:"3", title:"See exactly what needs fixing", body:"Every flag is surfaced with context — who's affected, what the mismatch is, and how many days off. Resolve issues, add notes, and mark them done." },
+              { n:"4", title:"Fix it and share it", body:"Send custom, personalized emails to attendees, your hotel, air agency or transfer company in minutes, drafted from the flagged records. Build custom reports with only the fields each partner needs and share them with your agency partners, so everyone works from the same list." },
             ].map(({ n, title, body }) => (
               <div key={n} style={{ display:"flex", gap:"16px", alignItems:"flex-start" }}>
                 <div style={{ width:32, height:32, borderRadius:"50%", background:P.navy, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:"1px" }}>
